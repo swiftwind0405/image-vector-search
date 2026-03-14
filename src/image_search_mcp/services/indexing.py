@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Thread
 from types import SimpleNamespace
 
 from image_search_mcp.adapters.embedding.base import EmbeddingClient
@@ -227,7 +228,7 @@ class IndexService:
         )
 
     def _embed_image(self, image_path: Path) -> list[float]:
-        return asyncio.run(self.embedding_client.embed_images([image_path]))[0]
+        return self._run_embedding_task(self.embedding_client.embed_images([image_path]))[0]
 
     def _embedding_key(self) -> str:
         return (
@@ -235,3 +236,26 @@ class IndexService:
             f"{self.settings.embedding_model}:"
             f"{self.settings.embedding_version}"
         )
+
+    def _run_embedding_task(self, coroutine):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coroutine)
+
+        result: dict[str, object] = {}
+        error: dict[str, BaseException] = {}
+
+        def worker() -> None:
+            try:
+                result["value"] = asyncio.run(coroutine)
+            except BaseException as exc:  # pragma: no cover - re-raised below
+                error["exc"] = exc
+
+        thread = Thread(target=worker, daemon=True)
+        thread.start()
+        thread.join()
+
+        if "exc" in error:
+            raise error["exc"]
+        return result["value"]
