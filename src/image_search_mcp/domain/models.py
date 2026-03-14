@@ -23,3 +23,41 @@ class JobRecord(BaseModel):
     job_type: str
     status: str
     requested_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    summary_json: str | None = None
+    error_text: str | None = None
+
+
+class ImageRecord(BaseModel):
+    content_hash: str
+    canonical_path: str
+    file_size: int
+    mtime: float
+    mime_type: str
+    width: int
+    height: int
+    is_active: bool
+    last_seen_at: datetime
+    embedding_provider: str
+    embedding_model: str
+    embedding_version: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImagePathRecord(BaseModel):
+    content_hash: str
+    path: str
+    file_size: int
+    mtime: float
+    is_active: bool
+    last_seen_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class StatusAggregates(BaseModel):
+    total_images: int
+    active_images: int
+    inactive_images: int
