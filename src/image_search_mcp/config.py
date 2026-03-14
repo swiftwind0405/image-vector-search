@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     max_top_k: int = 50
     min_score: float = Field(default=0.0, ge=-1.0, le=1.0)
     jina_api_key: str = ""
+    embedding_provider: str = "jina"
     embedding_model: str = "jina-clip-v2"
     embedding_version: str = "v2"
     embedding_batch_size: int = Field(default=32, ge=1)

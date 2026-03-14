@@ -61,3 +61,13 @@ class StatusAggregates(BaseModel):
     total_images: int
     active_images: int
     inactive_images: int
+
+
+class IndexingReport(BaseModel):
+    scanned: int = 0
+    added: int = 0
+    reused: int = 0
+    path_updated: int = 0
+    deactivated: int = 0
+    skipped: int = 0
+    errors: int = 0

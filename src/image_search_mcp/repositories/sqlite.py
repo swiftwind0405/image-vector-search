@@ -86,6 +86,16 @@ class MetadataRepository:
             return None
         return _row_to_image(row)
 
+    def get_image_path(self, path: str) -> ImagePathRecord | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM image_paths WHERE path = ?",
+                (path,),
+            ).fetchone()
+        if row is None:
+            return None
+        return _row_to_image_path(row)
+
     def upsert_image_path(self, image_path: ImagePathRecord) -> None:
         seen_at_text = _to_iso(image_path.last_seen_at)
         with self.connect() as connection:
@@ -278,6 +288,27 @@ class MetadataRepository:
             ).fetchall()
         return [_row_to_job(row) for row in rows]
 
+    def set_system_state(self, key: str, value: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO system_state (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (key, value),
+            )
+
+    def get_system_state(self, key: str) -> str | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM system_state WHERE key = ?",
+                (key,),
+            ).fetchone()
+        if row is None:
+            return None
+        return str(row["value"])
+
     def _refresh_image_activity(
         self, connection: sqlite3.Connection, content_hash: str, seen_at: str
     ) -> None:
@@ -357,4 +388,17 @@ def _row_to_job(row: sqlite3.Row) -> JobRecord:
         finished_at=_from_iso(row["finished_at"]),
         summary_json=row["summary_json"],
         error_text=row["error_text"],
+    )
+
+
+def _row_to_image_path(row: sqlite3.Row) -> ImagePathRecord:
+    return ImagePathRecord(
+        content_hash=row["content_hash"],
+        path=row["path"],
+        file_size=int(row["file_size"]),
+        mtime=float(row["mtime"]),
+        is_active=bool(row["is_active"]),
+        last_seen_at=_from_iso(row["last_seen_at"]) or datetime.min,
+        created_at=_from_iso(row["created_at"]) or datetime.min,
+        updated_at=_from_iso(row["updated_at"]) or datetime.min,
     )
