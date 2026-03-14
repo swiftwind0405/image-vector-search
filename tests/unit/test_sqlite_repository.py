@@ -81,6 +81,15 @@ def test_initialize_schema_creates_core_tables(tmp_path):
     assert {"images", "image_paths", "jobs", "system_state"}.issubset(names)
 
 
+def test_connect_enables_sqlite_foreign_keys(tmp_path):
+    repository = _build_repository(tmp_path)
+
+    with repository.connect() as connection:
+        foreign_keys_enabled = connection.execute("PRAGMA foreign_keys").fetchone()[0]
+
+    assert foreign_keys_enabled == 1
+
+
 def test_upsert_image_and_image_paths_list_only_active_paths(tmp_path):
     repository = _build_repository(tmp_path)
     content_hash = "hash-a"
@@ -105,6 +114,52 @@ def test_upsert_image_and_image_paths_list_only_active_paths(tmp_path):
         "/data/images/a.jpg",
         "/data/images/b.jpg",
     ]
+
+
+def test_reassigning_path_to_new_hash_deactivates_old_image_row(tmp_path):
+    repository = _build_repository(tmp_path)
+    observed_at = datetime(2026, 1, 1, 10, 0, 0)
+
+    repository.upsert_image(
+        _build_image(
+            content_hash="old-hash",
+            canonical_path="/data/images/shared.jpg",
+            last_seen_at=observed_at,
+        )
+    )
+    repository.upsert_image(
+        _build_image(
+            content_hash="new-hash",
+            canonical_path="/data/images/shared.jpg",
+            last_seen_at=observed_at,
+        )
+    )
+    repository.upsert_image_path(
+        _build_path(
+            content_hash="old-hash",
+            path="/data/images/shared.jpg",
+            last_seen_at=observed_at,
+        )
+    )
+    repository.upsert_image_path(
+        _build_path(
+            content_hash="new-hash",
+            path="/data/images/shared.jpg",
+            last_seen_at=datetime(2026, 1, 1, 10, 5, 0),
+        )
+    )
+
+    old_image = repository.get_image("old-hash")
+    new_image = repository.get_image("new-hash")
+
+    assert old_image is not None
+    assert old_image.is_active is False
+    assert repository.list_active_paths("old-hash") == []
+
+    assert new_image is not None
+    assert new_image.is_active is True
+    assert new_image.canonical_path == "/data/images/shared.jpg"
+    assert repository.list_active_paths("new-hash") == ["/data/images/shared.jpg"]
 
 
 def test_mark_unseen_paths_inactive_updates_canonical_path_and_activity(tmp_path):
@@ -187,3 +242,27 @@ def test_create_and_update_job_record(tmp_path):
     assert job.started_at == started_at
     assert job.finished_at == finished_at
     assert job.summary_json == '{"indexed": 2}'
+
+
+def test_update_job_preserves_started_at_when_later_update_omits_it(tmp_path):
+    repository = _build_repository(tmp_path)
+    requested_at = datetime(2026, 1, 1, 9, 0, 0)
+    started_at = datetime(2026, 1, 1, 9, 1, 0)
+    finished_at = datetime(2026, 1, 1, 9, 2, 0)
+    repository.create_job(
+        JobRecord(
+            id="job-2",
+            job_type="incremental",
+            status="queued",
+            requested_at=requested_at,
+        )
+    )
+
+    repository.update_job("job-2", status="running", started_at=started_at)
+    repository.update_job("job-2", status="succeeded", finished_at=finished_at)
+    job = repository.get_job("job-2")
+
+    assert job is not None
+    assert job.status == "succeeded"
+    assert job.started_at == started_at
+    assert job.finished_at == finished_at

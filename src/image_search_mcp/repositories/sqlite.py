@@ -25,6 +25,7 @@ class MetadataRepository:
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def initialize_schema(self) -> None:
@@ -86,7 +87,12 @@ class MetadataRepository:
         return _row_to_image(row)
 
     def upsert_image_path(self, image_path: ImagePathRecord) -> None:
+        seen_at_text = _to_iso(image_path.last_seen_at)
         with self.connect() as connection:
+            previous_row = connection.execute(
+                "SELECT content_hash FROM image_paths WHERE path = ?",
+                (image_path.path,),
+            ).fetchone()
             connection.execute(
                 """
                 INSERT INTO image_paths (
@@ -107,11 +113,20 @@ class MetadataRepository:
                     image_path.file_size,
                     image_path.mtime,
                     1 if image_path.is_active else 0,
-                    _to_iso(image_path.last_seen_at),
+                    seen_at_text,
                     _to_iso(image_path.created_at),
                     _to_iso(image_path.updated_at),
                 ),
             )
+            hashes_to_refresh = {image_path.content_hash}
+            if (
+                previous_row is not None
+                and str(previous_row["content_hash"]) != image_path.content_hash
+            ):
+                hashes_to_refresh.add(str(previous_row["content_hash"]))
+            refresh_seen_at = seen_at_text or _to_iso(image_path.updated_at)
+            for content_hash in hashes_to_refresh:
+                self._refresh_image_activity(connection, content_hash, refresh_seen_at)
 
     def list_active_paths(self, content_hash: str) -> list[str]:
         with self.connect() as connection:
@@ -222,7 +237,12 @@ class MetadataRepository:
             connection.execute(
                 """
                 UPDATE jobs
-                SET status = ?, started_at = ?, finished_at = ?, summary_json = ?, error_text = ?
+                SET
+                    status = ?,
+                    started_at = COALESCE(?, started_at),
+                    finished_at = COALESCE(?, finished_at),
+                    summary_json = COALESCE(?, summary_json),
+                    error_text = COALESCE(?, error_text)
                 WHERE id = ?
                 """,
                 (
