@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS images (
 
 CREATE TABLE IF NOT EXISTS image_paths (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  content_hash TEXT NOT NULL,
+  content_hash TEXT NOT NULL REFERENCES images(content_hash),
   path TEXT NOT NULL UNIQUE,
   file_size INTEGER NOT NULL,
   mtime REAL NOT NULL,
@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS image_paths (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_image_paths_content_hash
+  ON image_paths(content_hash);
 
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
