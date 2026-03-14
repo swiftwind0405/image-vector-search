@@ -71,3 +71,16 @@ class IndexingReport(BaseModel):
     deactivated: int = 0
     skipped: int = 0
     errors: int = 0
+
+
+class IndexStatus(BaseModel):
+    total_images: int
+    active_images: int
+    inactive_images: int
+    vector_entries: int
+    embedding_provider: str
+    embedding_model: str
+    embedding_version: str
+    last_incremental_update_at: datetime | None = None
+    last_full_rebuild_at: datetime | None = None
+    last_error_summary: str | None = None
