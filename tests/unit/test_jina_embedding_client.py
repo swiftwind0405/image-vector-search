@@ -1,4 +1,5 @@
 import httpx
+import json
 import pytest
 import respx
 
@@ -21,6 +22,8 @@ async def test_embed_texts_uses_configured_model() -> None:
     try:
         vectors = await client.embed_texts(["sunset"])
         assert route.called
+        request_payload = json.loads(route.calls[0].request.content.decode())
+        assert request_payload["model"] == "jina-clip-v2"
         assert vectors == [[0.1, 0.2, 0.3]]
     finally:
         await client.aclose()
