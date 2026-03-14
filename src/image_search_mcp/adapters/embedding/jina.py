@@ -27,11 +27,7 @@ class JinaEmbeddingClient(EmbeddingClient):
         return [item["embedding"] for item in payload["data"]]
 
     async def embed_images(self, paths: list[Path]) -> list[list[float]]:
-        encoded_images: list[dict[str, str]] = []
-        for path in paths:
-            mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-            image_data = base64.b64encode(path.read_bytes()).decode("ascii")
-            encoded_images.append({"image": f"data:{mime_type};base64,{image_data}"})
+        encoded_images = await asyncio.to_thread(self._encode_images, paths)
         payload = await self._request_embeddings(encoded_images)
         return [item["embedding"] for item in payload["data"]]
 
@@ -71,8 +67,14 @@ class JinaEmbeddingClient(EmbeddingClient):
                 )
                 response.raise_for_status()
                 data = response.json()
-                if not isinstance(data.get("data"), list):
+                embedding_items = data.get("data")
+                if not isinstance(embedding_items, list):
                     raise ValueError("Jina embeddings response missing data list")
+                if len(embedding_items) != len(inputs):
+                    raise ValueError(
+                        "Jina embeddings response data length mismatch: "
+                        f"expected {len(inputs)}, got {len(embedding_items)}"
+                    )
                 return data
             except httpx.HTTPStatusError:
                 if attempt == 2:
@@ -87,3 +89,11 @@ class JinaEmbeddingClient(EmbeddingClient):
             delay_seconds *= 2
 
         raise RuntimeError("Jina embeddings request failed after retries")
+
+    def _encode_images(self, paths: list[Path]) -> list[dict[str, str]]:
+        encoded_images: list[dict[str, str]] = []
+        for path in paths:
+            mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+            image_data = base64.b64encode(path.read_bytes()).decode("ascii")
+            encoded_images.append({"image": f"data:{mime_type};base64,{image_data}"})
+        return encoded_images
