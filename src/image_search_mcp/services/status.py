@@ -27,6 +27,9 @@ class StatusService:
     def list_recent_jobs(self, limit: int = 20):
         return self.repository.list_recent_jobs(limit=limit)
 
+    def get_job(self, job_id: str):
+        return self.repository.get_job(job_id)
+
     def _embedding_key(self) -> str:
         return (
             f"{self.settings.embedding_provider}:"
