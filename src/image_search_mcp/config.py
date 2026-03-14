@@ -19,3 +19,5 @@ class Settings(BaseSettings):
     embedding_model: str = "jina-clip-v2"
     embedding_version: str = "v2"
     embedding_batch_size: int = Field(default=32, ge=1)
+    vector_index_collection_name: str = "image_embeddings"
+    vector_index_db_filename: str = "milvus.db"
