@@ -187,3 +187,4 @@ Temporary Items
 # Local Docker / Milvus data
 milvus-data/
 data/
+.worktrees/
