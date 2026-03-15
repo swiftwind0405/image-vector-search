@@ -1,11 +1,13 @@
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Event, Thread
 
 from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import ImageRecord, IndexingReport
 from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.jobs import JobRunner
+from image_search_mcp.services.jobs import BackgroundJobWorker, JobRunner
 from image_search_mcp.services.status import StatusService
 
 
@@ -153,3 +155,71 @@ def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
     assert snapshot.last_error_summary == "none"
     assert len(jobs) == 1
     assert jobs[0].status == "queued"
+
+
+def test_background_job_worker_processes_queued_jobs(tmp_path: Path):
+    repository = MetadataRepository(tmp_path / "metadata.db")
+    repository.initialize_schema()
+    index_service = FakeIndexService()
+    job_runner = JobRunner(repository, index_service)
+    worker = BackgroundJobWorker(job_runner, poll_interval_seconds=0.01)
+
+    job = job_runner.enqueue("incremental")
+    worker.start()
+    try:
+        deadline = time.time() + 1.0
+        while time.time() < deadline:
+            stored_job = repository.get_job(job.id)
+            if stored_job is not None and stored_job.status == "succeeded":
+                break
+            time.sleep(0.02)
+    finally:
+        worker.stop()
+
+    stored_job = repository.get_job(job.id)
+    assert stored_job is not None
+    assert stored_job.status == "succeeded"
+    assert index_service.calls == ["incremental"]
+
+
+def test_background_job_worker_stop_waits_for_running_job(tmp_path: Path):
+    class BlockingIndexService(FakeIndexService):
+        def __init__(self) -> None:
+            super().__init__()
+            self.started = Event()
+            self.release = Event()
+
+        def run_incremental_update(self) -> IndexingReport:
+            self.calls.append("incremental")
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            return IndexingReport(scanned=1, added=1)
+
+    repository = MetadataRepository(tmp_path / "metadata.db")
+    repository.initialize_schema()
+    index_service = BlockingIndexService()
+    job_runner = JobRunner(repository, index_service)
+    worker = BackgroundJobWorker(job_runner, poll_interval_seconds=0.01)
+
+    job = job_runner.enqueue("incremental")
+    worker.start()
+    assert index_service.started.wait(timeout=1.0)
+
+    stop_finished = Event()
+
+    def stop_worker() -> None:
+        worker.stop()
+        stop_finished.set()
+
+    stop_thread = Thread(target=stop_worker)
+    stop_thread.start()
+    time.sleep(1.2)
+    assert not stop_finished.is_set()
+
+    index_service.release.set()
+    stop_thread.join(timeout=1.0)
+
+    stored_job = repository.get_job(job.id)
+    assert stored_job is not None
+    assert stored_job.status == "succeeded"
+    assert stop_finished.is_set()

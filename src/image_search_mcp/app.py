@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -5,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from image_search_mcp.config import Settings
 from image_search_mcp.mcp.server import build_mcp_server
+from image_search_mcp.runtime import RuntimeServices, build_runtime_services
 from image_search_mcp.web.routes import create_web_router
 
 
@@ -15,7 +17,29 @@ def create_app(
     job_runner=None,
 ) -> FastAPI:
     app_settings = settings or Settings()
-    app = FastAPI(title=app_settings.app_name)
+    runtime_services: RuntimeServices | None = None
+    if (
+        search_service is None
+        and status_service is None
+        and job_runner is None
+    ):
+        runtime_services = build_runtime_services(app_settings)
+        search_service = runtime_services.search_service
+        status_service = runtime_services.status_service
+        job_runner = runtime_services.job_runner
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        if runtime_services is not None:
+            runtime_services.background_worker.start()
+        try:
+            yield
+        finally:
+            if runtime_services is not None:
+                runtime_services.background_worker.stop()
+                await runtime_services.aclose()
+
+    app = FastAPI(title=app_settings.app_name, lifespan=lifespan)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -38,6 +62,3 @@ def create_app(
         )
 
     return app
-
-
-app = create_app()

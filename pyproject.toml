@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "image-search-mcp"
 version = "0.1.0"
@@ -19,6 +23,19 @@ dev = [
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.26,<1",
   "respx>=0.22,<1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+image_search_mcp = [
+  "web/templates/*.html",
+  "web/static/*.css",
+  "web/static/*.js",
 ]
 
 [tool.pytest.ini_options]
