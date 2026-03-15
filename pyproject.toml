@@ -11,10 +11,12 @@ dependencies = [
   "fastmcp>=3,<4",
   "httpx>=0.28,<1",
   "jinja2>=3.1,<4",
+  "milvus-lite>=2.4,<3",
   "pillow>=11,<12",
   "pydantic-settings>=2.8,<3",
   "pymilvus>=2.5,<3",
   "python-multipart>=0.0.9,<1",
+  "setuptools>=75,<76",
   "uvicorn[standard]>=0.34,<1",
 ]
 
@@ -40,3 +42,6 @@ image_search_mcp = [
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+filterwarnings = [
+    "ignore::DeprecationWarning:milvus_lite.*:",
+]

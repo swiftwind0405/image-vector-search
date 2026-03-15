@@ -21,7 +21,11 @@ class RuntimeServices:
     vector_index: MilvusLiteIndex
 
     async def aclose(self) -> None:
-        await self.embedding_client.aclose()
+        try:
+            await self.embedding_client.aclose()
+        except RuntimeError:
+            # Event loop may already be closed during shutdown
+            pass
         self.vector_index.close()
 
 

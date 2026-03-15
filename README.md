@@ -9,7 +9,7 @@ The service stores image metadata in SQLite and embeddings in a local Milvus Lit
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.12+ (或使用 [uv](https://docs.astral.sh/uv/) 自动管理)
 - A `JINA_API_KEY` with access to Jina embeddings
 - A mounted image library at `/data/images`
 - A writable index directory at `/data/index`
@@ -44,8 +44,19 @@ Default mount paths:
 
 Create a virtualenv, install dependencies, then run the test suite:
 
+### Using uv (recommended)
+
 ```bash
-python -m venv .venv
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+pytest tests -v
+```
+
+### Traditional method
+
+```bash
+python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -e ".[dev]"
 pytest tests -v
@@ -53,7 +64,38 @@ pytest tests -v
 
 Run the application:
 
+### Using uv
+
+First, create a `.env` file and directories:
+
 ```bash
+cp .env.example .env
+# Edit .env with your actual values
+mkdir -p ./data/images ./data/index
+```
+
+Then run with environment file:
+
+```bash
+uv run --env-file .env uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+```
+
+Or export variables manually:
+
+```bash
+export IMAGE_SEARCH_IMAGES_ROOT=./data/images
+export IMAGE_SEARCH_INDEX_ROOT=./data/index
+export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
+uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+```
+
+### Traditional method
+
+```bash
+source .venv/bin/activate
+export IMAGE_SEARCH_IMAGES_ROOT=./data/images
+export IMAGE_SEARCH_INDEX_ROOT=./data/index
+export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
 uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
