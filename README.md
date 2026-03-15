@@ -9,7 +9,7 @@ The service stores image metadata in SQLite and embeddings in a local Milvus Lit
 
 ## Requirements
 
-- Python 3.12+ (或使用 [uv](https://docs.astral.sh/uv/) 自动管理)
+- Python 3.12+ (or use [uv](https://docs.astral.sh/uv/) for automatic management)
 - A `JINA_API_KEY` with access to Jina embeddings
 - A mounted image library at `/data/images`
 - A writable index directory at `/data/index`
