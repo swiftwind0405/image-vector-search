@@ -63,3 +63,9 @@ docker compose up --build    # dev/test
 ```
 
 Container mounts: `/data/images` (read-only source), `/data/index` (read-write persistence).
+
+## Subagent Cost Policy
+
+- Use Explore agent (Haiku) or custom `researcher` agent for file search and codebase exploration
+- Use Haiku model for any research-only subagents
+- Reserve Opus for implementation, debugging, and complex reasoning
