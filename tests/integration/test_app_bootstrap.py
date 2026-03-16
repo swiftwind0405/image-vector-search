@@ -28,6 +28,7 @@ class FakeStatusService:
     def __init__(self) -> None:
         now = datetime.now(UTC)
         self.snapshot = IndexStatus(
+            images_on_disk=2,
             total_images=1,
             active_images=1,
             inactive_images=0,

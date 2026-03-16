@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from image_search_mcp.domain.models import IndexStatus
+from image_search_mcp.scanning.files import iter_image_files
 
 
 class StatusService:
@@ -10,8 +11,10 @@ class StatusService:
         self.vector_index = vector_index
 
     def get_index_status(self) -> IndexStatus:
+        images_on_disk = sum(1 for _ in iter_image_files(self.settings.images_root))
         aggregates = self.repository.read_status_aggregates()
         return IndexStatus(
+            images_on_disk=images_on_disk,
             total_images=aggregates.total_images,
             active_images=aggregates.active_images,
             inactive_images=aggregates.inactive_images,

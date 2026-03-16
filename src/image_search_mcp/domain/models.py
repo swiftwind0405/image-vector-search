@@ -74,6 +74,7 @@ class IndexingReport(BaseModel):
 
 
 class IndexStatus(BaseModel):
+    images_on_disk: int
     total_images: int
     active_images: int
     inactive_images: int

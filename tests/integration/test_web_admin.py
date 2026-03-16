@@ -19,6 +19,7 @@ class FakeStatusService:
             )
         ]
         self.snapshot = IndexStatus(
+            images_on_disk=5,
             total_images=3,
             active_images=2,
             inactive_images=1,

@@ -22,9 +22,17 @@
             <p class="panel-kicker">Status</p>
             <h2>Index Overview</h2>
           </div>
+          <div class="progress-banner">
+            <span class="progress-label">Indexing Progress</span>
+            <div class="progress-bar-track">
+              {% set pct = (snapshot.active_images / snapshot.images_on_disk * 100) | round(1) if snapshot.images_on_disk > 0 else 0 %}
+              <div class="progress-bar-fill" style="width: {{ pct }}%"></div>
+            </div>
+            <span class="progress-text">{{ snapshot.active_images }} / {{ snapshot.images_on_disk }} ({{ pct }}%)</span>
+          </div>
           <dl class="stats-grid">
-            <div><dt>Total</dt><dd>{{ snapshot.total_images }}</dd></div>
-            <div><dt>Active</dt><dd>{{ snapshot.active_images }}</dd></div>
+            <div class="stat-highlight"><dt>On Disk</dt><dd>{{ snapshot.images_on_disk }}</dd></div>
+            <div class="stat-highlight"><dt>Indexed</dt><dd>{{ snapshot.active_images }}</dd></div>
             <div><dt>Inactive</dt><dd>{{ snapshot.inactive_images }}</dd></div>
             <div><dt>Vectors</dt><dd>{{ snapshot.vector_entries }}</dd></div>
           </dl>

@@ -85,13 +85,18 @@ def test_job_runner_marks_failed_job_and_updates_last_error_summary(tmp_path: Pa
 def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
     repository = MetadataRepository(tmp_path / "metadata.db")
     repository.initialize_schema()
+    images_root = tmp_path / "images"
+    images_root.mkdir()
     settings = Settings(
-        images_root=tmp_path / "images",
+        images_root=images_root,
         index_root=tmp_path / "index",
         embedding_provider="fake",
         embedding_model="fake-clip",
         embedding_version="2026-03",
     )
+    # Place 3 image files on disk (only 2 are indexed in the metadata DB)
+    for name in ("a.jpg", "b.jpg", "c.png"):
+        (images_root / name).write_bytes(b"\xff\xd8fake")
     now = datetime.now(UTC)
     repository.upsert_image(
         ImageRecord(
@@ -145,6 +150,7 @@ def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
     snapshot = status_service.get_index_status()
     jobs = status_service.list_recent_jobs(limit=5)
 
+    assert snapshot.images_on_disk == 3
     assert snapshot.total_images == 2
     assert snapshot.active_images == 1
     assert snapshot.inactive_images == 1
