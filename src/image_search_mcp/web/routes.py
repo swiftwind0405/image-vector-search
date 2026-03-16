@@ -29,7 +29,7 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
 
     @router.get("/", response_class=HTMLResponse)
     async def admin_home(request: Request):
-        snapshot = status_service.get_index_status()
+        snapshot = await status_service.get_index_status()
         jobs = status_service.list_recent_jobs(limit=10)
         return TEMPLATES.TemplateResponse(
             request,
@@ -43,7 +43,7 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
 
     @router.get("/api/status")
     async def get_status():
-        return JSONResponse(jsonable_encoder(status_service.get_index_status()))
+        return JSONResponse(jsonable_encoder(await status_service.get_index_status()))
 
     @router.post("/api/jobs/incremental", status_code=status.HTTP_202_ACCEPTED)
     async def enqueue_incremental_job():

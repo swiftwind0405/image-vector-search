@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event, Thread
 
+import pytest
+
 from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import ImageRecord, IndexingReport
 from image_search_mcp.repositories.sqlite import MetadataRepository
@@ -82,7 +84,8 @@ def test_job_runner_marks_failed_job_and_updates_last_error_summary(tmp_path: Pa
     assert repository.get_system_state("last_error_summary") == "full rebuild failed"
 
 
-def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
+@pytest.mark.asyncio
+async def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
     repository = MetadataRepository(tmp_path / "metadata.db")
     repository.initialize_schema()
     images_root = tmp_path / "images"
@@ -147,7 +150,7 @@ def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
         vector_index=FakeVectorIndex(count_value=7),
     )
 
-    snapshot = status_service.get_index_status()
+    snapshot = await status_service.get_index_status()
     jobs = status_service.list_recent_jobs(limit=5)
 
     assert snapshot.images_on_disk == 3

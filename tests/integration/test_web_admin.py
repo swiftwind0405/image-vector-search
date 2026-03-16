@@ -32,7 +32,7 @@ class FakeStatusService:
             last_error_summary=None,
         )
 
-    def get_index_status(self) -> IndexStatus:
+    async def get_index_status(self) -> IndexStatus:
         return self.snapshot
 
     def list_recent_jobs(self, limit: int = 20) -> list[JobRecord]:

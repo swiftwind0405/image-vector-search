@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 from image_search_mcp.domain.models import IndexStatus
@@ -10,8 +11,8 @@ class StatusService:
         self.repository = repository
         self.vector_index = vector_index
 
-    def get_index_status(self) -> IndexStatus:
-        images_on_disk = sum(1 for _ in iter_image_files(self.settings.images_root))
+    async def get_index_status(self) -> IndexStatus:
+        images_on_disk = await asyncio.to_thread(self._count_images_on_disk)
         aggregates = self.repository.read_status_aggregates()
         return IndexStatus(
             images_on_disk=images_on_disk,
@@ -32,6 +33,9 @@ class StatusService:
 
     def get_job(self, job_id: str):
         return self.repository.get_job(job_id)
+
+    def _count_images_on_disk(self) -> int:
+        return sum(1 for _ in iter_image_files(self.settings.images_root))
 
     def _embedding_key(self) -> str:
         return (

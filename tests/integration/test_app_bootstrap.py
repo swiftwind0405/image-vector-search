@@ -49,7 +49,7 @@ class FakeStatusService:
             )
         ]
 
-    def get_index_status(self):
+    async def get_index_status(self):
         return self.snapshot
 
     def list_recent_jobs(self, limit: int = 20):
