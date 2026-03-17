@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 
-from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, JobRecord
+from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, JobRecord, Tag
 from image_search_mcp.repositories.sqlite import MetadataRepository, choose_canonical_path
 
 
@@ -315,3 +315,49 @@ class TestTaggingSchema:
                     INSERT INTO image_tags (content_hash, tag_id, category_id, created_at)
                     VALUES ('abc123', NULL, NULL, '2026-01-01T00:00:00+00:00')
                 """)
+
+
+class TestTagCRUD:
+    def _make_repo(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        return repo
+
+    def test_create_tag(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        tag = repo.create_tag("sunset")
+        assert tag.name == "sunset"
+        assert tag.id is not None
+
+    def test_create_duplicate_tag_raises(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        repo.create_tag("sunset")
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError):
+            repo.create_tag("sunset")
+
+    def test_list_tags(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        repo.create_tag("sunset")
+        repo.create_tag("beach")
+        tags = repo.list_tags()
+        assert len(tags) == 2
+        names = {t.name for t in tags}
+        assert names == {"sunset", "beach"}
+
+    def test_list_tags_empty(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        assert repo.list_tags() == []
+
+    def test_rename_tag(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        tag = repo.create_tag("sunset")
+        repo.rename_tag(tag.id, "sunrise")
+        tags = repo.list_tags()
+        assert tags[0].name == "sunrise"
+
+    def test_delete_tag(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        tag = repo.create_tag("sunset")
+        repo.delete_tag(tag.id)
+        assert repo.list_tags() == []

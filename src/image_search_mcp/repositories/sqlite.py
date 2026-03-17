@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from image_search_mcp.domain.models import (
@@ -7,6 +7,7 @@ from image_search_mcp.domain.models import (
     ImageRecord,
     JobRecord,
     StatusAggregates,
+    Tag,
 )
 
 
@@ -287,6 +288,28 @@ class MetadataRepository:
                 (limit,),
             ).fetchall()
         return [_row_to_job(row) for row in rows]
+
+    def create_tag(self, name: str) -> Tag:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                "INSERT INTO tags (name, created_at) VALUES (?, ?)",
+                (name, now),
+            )
+            return Tag(id=cursor.lastrowid, name=name, created_at=_from_iso(now))
+
+    def list_tags(self) -> list[Tag]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT id, name, created_at FROM tags ORDER BY name").fetchall()
+            return [Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"])) for r in rows]
+
+    def rename_tag(self, tag_id: int, new_name: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE tags SET name = ? WHERE id = ?", (new_name, tag_id))
+
+    def delete_tag(self, tag_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
 
     def set_system_state(self, key: str, value: str) -> None:
         with self.connect() as connection:
