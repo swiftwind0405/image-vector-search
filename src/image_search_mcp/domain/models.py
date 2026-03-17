@@ -9,6 +9,31 @@ class SearchFilters(BaseModel):
     min_score: float = Field(default=0.0, ge=-1.0, le=1.0)
 
 
+class Tag(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+
+class Category(BaseModel):
+    id: int
+    name: str
+    parent_id: int | None
+    sort_order: int
+    created_at: datetime
+
+
+class CategoryNode(BaseModel):
+    """Category with children, for tree responses."""
+
+    id: int
+    name: str
+    parent_id: int | None
+    sort_order: int
+    created_at: datetime
+    children: list["CategoryNode"] = []
+
+
 class SearchResult(BaseModel):
     content_hash: str
     path: str
@@ -16,6 +41,8 @@ class SearchResult(BaseModel):
     width: int
     height: int
     mime_type: str
+    tags: list[Tag] = []
+    categories: list[Category] = []
 
 
 class JobRecord(BaseModel):

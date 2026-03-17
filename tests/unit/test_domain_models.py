@@ -1,7 +1,14 @@
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
-from image_search_mcp.domain.models import SearchFilters, SearchResult
+from image_search_mcp.domain.models import (
+    Category,
+    CategoryNode,
+    SearchFilters,
+    SearchResult,
+    Tag,
+)
 
 
 def test_search_filters_defaults() -> None:
@@ -28,6 +35,31 @@ def test_search_result_serialization() -> None:
         mime_type="image/jpeg",
     )
     assert result.model_dump()["content_hash"] == "abc"
+
+
+class TestTag:
+    def test_create_tag(self):
+        tag = Tag(id=1, name="sunset", created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        assert tag.id == 1
+        assert tag.name == "sunset"
+
+
+class TestCategory:
+    def test_create_root_category(self):
+        cat = Category(id=1, name="Nature", parent_id=None, sort_order=0, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        assert cat.parent_id is None
+
+    def test_create_child_category(self):
+        cat = Category(id=2, name="Flowers", parent_id=1, sort_order=0, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        assert cat.parent_id == 1
+
+
+class TestCategoryNode:
+    def test_tree_structure(self):
+        child = CategoryNode(id=2, name="Flowers", parent_id=1, sort_order=0, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        root = CategoryNode(id=1, name="Nature", parent_id=None, sort_order=0, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), children=[child])
+        assert len(root.children) == 1
+        assert root.children[0].name == "Flowers"
 
 
 def test_schema_image_paths_has_content_hash_fk_and_index() -> None:
