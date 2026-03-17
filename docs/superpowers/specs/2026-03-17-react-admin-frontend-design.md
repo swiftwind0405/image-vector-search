@@ -56,6 +56,12 @@ src/image_search_mcp/web/
   static/                    ← Removed after migration
 ```
 
+## Backend Prerequisites
+
+The following new endpoint is required before the Images page can be built:
+
+- **`GET /api/images`** — List all indexed images with content_hash and file path. Added to `routes.py` or `tag_routes.py`. Sources data from `MetadataRepository` (image metadata table). Supports pagination in a future iteration.
+
 ## Build Integration
 
 ### Vite Config
@@ -64,18 +70,20 @@ src/image_search_mcp/web/
 - `build.outDir: "../dist"` (outputs to `web/dist/`)
 - Dev server on port 5173, proxy `/api/*` to `http://localhost:8000`
 
+Note: Vite's default build places JS/CSS in an `assets/` subfolder within `outDir`, so `dist/assets/` is served by the `/assets` static mount below.
+
 ### FastAPI Integration
 
-Production mode: mount `web/dist/` as static files. Add SPA fallback route:
+Production mode: mount `web/dist/` as static files. Add SPA fallback route. **Route ordering is critical** — the catch-all must be registered last, after all API routes, the `/mcp` mount, and `/healthz`:
 
 ```python
-# app.py
-from fastapi.staticfiles import StaticFiles
-from starlette.responses import FileResponse
-
-# After all API routes
+# app.py — registration order matters
+# 1. API routers (already exist): /api/*
+# 2. MCP mount (already exists): /mcp
+# 3. Health check (already exists): /healthz
+# 4. Static assets from Vite build:
 app.mount("/assets", StaticFiles(directory="web/dist/assets"), name="assets")
-
+# 5. SPA fallback — MUST be last:
 @app.get("/{path:path}")
 async def spa_fallback():
     return FileResponse("web/dist/index.html")
@@ -106,7 +114,7 @@ Reimplements all current admin console functionality:
 - **Index status card**: progress bar + stats grid (on disk, indexed, inactive, vectors, model). Polls `GET /api/status` via React Query with `refetchInterval: 3000`.
 - **Job control**: "Incremental Update" and "Full Rebuild" buttons. POST to `/api/jobs/incremental` or `/api/jobs/rebuild`.
 - **Recent jobs list**: polls `GET /api/jobs` with `refetchInterval: 3000`.
-- **Debug search**: text input + submit, POST to `/api/debug/search/text`, displays JSON result in a code block.
+- **Debug search**: text search input + submit, POST to `/api/debug/search/text`. Also a similar-image search input (content_hash), POST to `/api/debug/search/similar`. Both display JSON results in a code block.
 
 ### Tags (`/tags`)
 
@@ -119,17 +127,18 @@ Reimplements all current admin console functionality:
 
 - Tree view displaying hierarchical parent-child structure.
 - Create: dialog with name input + optional parent selector. POST `/api/categories`.
-- Edit: dialog to rename or move to different parent. PUT `/api/categories/{id}`.
+- Edit: dialog to rename, move to different parent, or move to root. PUT `/api/categories/{id}` with `{name?, move_to_parent_id?, move_to_root?}`. The form offers three actions: rename, reparent (select new parent), or move to root level.
 - Delete: confirmation dialog warning if children exist. DELETE `/api/categories/{id}`.
+- Lazy-load children: `GET /api/categories/{id}/children` is available but the initial implementation loads the full tree via `GET /api/categories` for simplicity.
 
 ### Images (`/images`)
 
-- Image list table showing content_hash and file path.
+- Image list table showing content_hash and file path. Data from new `GET /api/images` endpoint (see Backend Prerequisites).
 - Click an image row to expand/open its tag/category editor.
-- Add tag: dropdown selector from existing tags. POST `/api/images/{hash}/tags`.
-- Remove tag: click X on tag badge. DELETE `/api/images/{hash}/tags/{id}`.
-- Add category: tree selector from existing categories. POST `/api/images/{hash}/categories`.
-- Remove category: click X on category badge. DELETE `/api/images/{hash}/categories/{id}`.
+- Add tag: dropdown selector from existing tags. POST `/api/images/{hash}/tags` with `{"tag_id": int}`.
+- Remove tag: click X on tag badge. DELETE `/api/images/{hash}/tags/{tag_id}`.
+- Add category: tree selector from existing categories. POST `/api/images/{hash}/categories` with `{"category_id": int}`.
+- Remove category: click X on category badge. DELETE `/api/images/{hash}/categories/{category_id}`.
 
 ## API Client Layer
 
@@ -149,6 +158,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     ...init,
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
+  if (res.status === 204) return undefined as T;  // DELETE endpoints return no body
   return res.json();
 }
 ```
