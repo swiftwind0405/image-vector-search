@@ -382,6 +382,124 @@ class MetadataRepository:
             conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
             conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
 
+    def add_tag_to_image(self, content_hash: str, tag_id: int) -> None:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                (content_hash, tag_id, now),
+            )
+
+    def remove_tag_from_image(self, content_hash: str, tag_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "DELETE FROM image_tags WHERE content_hash = ? AND tag_id = ?",
+                (content_hash, tag_id),
+            )
+
+    def add_image_to_category(self, content_hash: str, category_id: int) -> None:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
+                (content_hash, category_id, now),
+            )
+
+    def remove_image_from_category(self, content_hash: str, category_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "DELETE FROM image_tags WHERE content_hash = ? AND category_id = ?",
+                (content_hash, category_id),
+            )
+
+    def get_image_tags(self, content_hash: str) -> list[Tag]:
+        with self.connect() as conn:
+            rows = conn.execute("""
+                SELECT t.id, t.name, t.created_at
+                FROM tags t JOIN image_tags it ON t.id = it.tag_id
+                WHERE it.content_hash = ?
+                ORDER BY t.name
+            """, (content_hash,)).fetchall()
+            return [Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"])) for r in rows]
+
+    def get_image_categories(self, content_hash: str) -> list[Category]:
+        with self.connect() as conn:
+            rows = conn.execute("""
+                SELECT c.id, c.name, c.parent_id, c.sort_order, c.created_at
+                FROM categories c JOIN image_tags it ON c.id = it.category_id
+                WHERE it.content_hash = ?
+                ORDER BY c.name
+            """, (content_hash,)).fetchall()
+            return [self._row_to_category(r) for r in rows]
+
+    def get_tags_for_images(self, content_hashes: list[str]) -> dict[str, list[Tag]]:
+        if not content_hashes:
+            return {}
+        with self.connect() as conn:
+            placeholders = ",".join("?" * len(content_hashes))
+            rows = conn.execute(f"""
+                SELECT it.content_hash, t.id, t.name, t.created_at
+                FROM tags t JOIN image_tags it ON t.id = it.tag_id
+                WHERE it.content_hash IN ({placeholders})
+                ORDER BY t.name
+            """, content_hashes).fetchall()
+        result: dict[str, list[Tag]] = {}
+        for r in rows:
+            tag = Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"]))
+            result.setdefault(r["content_hash"], []).append(tag)
+        return result
+
+    def get_categories_for_images(self, content_hashes: list[str]) -> dict[str, list[Category]]:
+        if not content_hashes:
+            return {}
+        with self.connect() as conn:
+            placeholders = ",".join("?" * len(content_hashes))
+            rows = conn.execute(f"""
+                SELECT it.content_hash, c.id, c.name, c.parent_id, c.sort_order, c.created_at
+                FROM categories c JOIN image_tags it ON c.id = it.category_id
+                WHERE it.content_hash IN ({placeholders})
+                ORDER BY c.name
+            """, content_hashes).fetchall()
+        result: dict[str, list[Category]] = {}
+        for r in rows:
+            cat = self._row_to_category(r)
+            result.setdefault(r["content_hash"], []).append(cat)
+        return result
+
+    def filter_by_tags(self, tag_ids: list[int]) -> set[str]:
+        if not tag_ids:
+            return set()
+        with self.connect() as conn:
+            placeholders = ",".join("?" * len(tag_ids))
+            rows = conn.execute(f"""
+                SELECT content_hash
+                FROM image_tags
+                WHERE tag_id IN ({placeholders})
+                GROUP BY content_hash
+                HAVING COUNT(DISTINCT tag_id) = ?
+            """, [*tag_ids, len(tag_ids)]).fetchall()
+            return {r["content_hash"] for r in rows}
+
+    def filter_by_category(self, category_id: int, include_subcategories: bool = True) -> set[str]:
+        with self.connect() as conn:
+            if include_subcategories:
+                rows = conn.execute("""
+                    WITH RECURSIVE descendants(id) AS (
+                        SELECT id FROM categories WHERE id = ?
+                        UNION ALL
+                        SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
+                    )
+                    SELECT DISTINCT it.content_hash
+                    FROM image_tags it
+                    WHERE it.category_id IN (SELECT id FROM descendants)
+                """, (category_id,)).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT DISTINCT content_hash FROM image_tags WHERE category_id = ?",
+                    (category_id,),
+                ).fetchall()
+            return {r["content_hash"] for r in rows}
+
     def _row_to_category(self, row) -> Category:
         return Category(
             id=row["id"], name=row["name"], parent_id=row["parent_id"],

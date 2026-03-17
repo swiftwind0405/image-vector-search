@@ -445,3 +445,114 @@ class TestCategoryCRUD:
         repo.create_category("Flowers", parent_id=parent.id)
         repo.delete_category(parent.id)
         assert repo.list_categories() == []
+
+
+class TestImageAssociations:
+    """Tests for adding/removing tags and categories to images, plus filter queries."""
+
+    def _make_repo(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        return repo
+
+    def _insert_image(self, repo, content_hash="abc123"):
+        """Helper to insert a minimal image record for FK satisfaction."""
+        with repo.connect() as conn:
+            conn.execute("""
+                INSERT OR IGNORE INTO images (content_hash, canonical_path, file_size, mtime, mime_type,
+                    width, height, is_active, last_seen_at, embedding_provider, embedding_model,
+                    embedding_version, created_at, updated_at)
+                VALUES (?, '/test.jpg', 100, 1.0, 'image/jpeg', 100, 100, 1,
+                    '2026-01-01T00:00:00+00:00', 'jina', 'jina-clip-v2', 'v2',
+                    '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')
+            """, (content_hash,))
+
+    def test_add_and_get_image_tags(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo)
+        tag = repo.create_tag("sunset")
+        repo.add_tag_to_image("abc123", tag.id)
+        tags = repo.get_image_tags("abc123")
+        assert len(tags) == 1
+        assert tags[0].name == "sunset"
+
+    def test_remove_tag_from_image(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo)
+        tag = repo.create_tag("sunset")
+        repo.add_tag_to_image("abc123", tag.id)
+        repo.remove_tag_from_image("abc123", tag.id)
+        assert repo.get_image_tags("abc123") == []
+
+    def test_add_and_get_image_categories(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo)
+        cat = repo.create_category("Nature")
+        repo.add_image_to_category("abc123", cat.id)
+        cats = repo.get_image_categories("abc123")
+        assert len(cats) == 1
+        assert cats[0].name == "Nature"
+
+    def test_remove_image_from_category(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo)
+        cat = repo.create_category("Nature")
+        repo.add_image_to_category("abc123", cat.id)
+        repo.remove_image_from_category("abc123", cat.id)
+        assert repo.get_image_categories("abc123") == []
+
+    def test_filter_by_tags_all_match(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo, "img1")
+        self._insert_image(repo, "img2")
+        t1 = repo.create_tag("red")
+        t2 = repo.create_tag("large")
+        repo.add_tag_to_image("img1", t1.id)
+        repo.add_tag_to_image("img1", t2.id)
+        repo.add_tag_to_image("img2", t1.id)  # only red, not large
+        result = repo.filter_by_tags([t1.id, t2.id])
+        assert result == {"img1"}
+
+    def test_filter_by_category_with_subcategories(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo, "img1")
+        self._insert_image(repo, "img2")
+        parent = repo.create_category("Nature")
+        child = repo.create_category("Flowers", parent_id=parent.id)
+        repo.add_image_to_category("img1", parent.id)
+        repo.add_image_to_category("img2", child.id)
+        result = repo.filter_by_category(parent.id, include_subcategories=True)
+        assert result == {"img1", "img2"}
+
+    def test_filter_by_category_without_subcategories(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo, "img1")
+        self._insert_image(repo, "img2")
+        parent = repo.create_category("Nature")
+        child = repo.create_category("Flowers", parent_id=parent.id)
+        repo.add_image_to_category("img1", parent.id)
+        repo.add_image_to_category("img2", child.id)
+        result = repo.filter_by_category(parent.id, include_subcategories=False)
+        assert result == {"img1"}
+
+    def test_batch_get_tags_for_images(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo, "img1")
+        self._insert_image(repo, "img2")
+        t1 = repo.create_tag("red")
+        t2 = repo.create_tag("blue")
+        repo.add_tag_to_image("img1", t1.id)
+        repo.add_tag_to_image("img2", t2.id)
+        result = repo.get_tags_for_images(["img1", "img2"])
+        assert len(result["img1"]) == 1
+        assert result["img1"][0].name == "red"
+        assert result["img2"][0].name == "blue"
+
+    def test_batch_get_categories_for_images(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        self._insert_image(repo, "img1")
+        cat = repo.create_category("Nature")
+        repo.add_image_to_category("img1", cat.id)
+        result = repo.get_categories_for_images(["img1", "img2"])
+        assert len(result["img1"]) == 1
+        assert result.get("img2", []) == []
