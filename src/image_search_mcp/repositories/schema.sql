@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS categories (
     UNIQUE(parent_id, name)
 );
 
+-- Enforce uniqueness for root categories (parent_id IS NULL) since SQLite treats NULL != NULL in UNIQUE constraints
+CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_root_name
+    ON categories(name) WHERE parent_id IS NULL;
+
 CREATE TABLE IF NOT EXISTS image_tags (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     content_hash  TEXT NOT NULL REFERENCES images(content_hash) ON DELETE CASCADE,

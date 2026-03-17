@@ -361,3 +361,87 @@ class TestTagCRUD:
         tag = repo.create_tag("sunset")
         repo.delete_tag(tag.id)
         assert repo.list_tags() == []
+
+
+class TestCategoryCRUD:
+    def _make_repo(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        return repo
+
+    def test_create_root_category(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        cat = repo.create_category("Nature")
+        assert cat.name == "Nature"
+        assert cat.parent_id is None
+
+    def test_create_child_category(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        parent = repo.create_category("Nature")
+        child = repo.create_category("Flowers", parent_id=parent.id)
+        assert child.parent_id == parent.id
+
+    def test_duplicate_name_under_same_parent_raises(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        repo.create_category("Nature")
+        import sqlite3
+        with pytest.raises(sqlite3.IntegrityError):
+            repo.create_category("Nature")
+
+    def test_same_name_different_parent_ok(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        p1 = repo.create_category("Work")
+        p2 = repo.create_category("Personal")
+        repo.create_category("Photos", parent_id=p1.id)
+        repo.create_category("Photos", parent_id=p2.id)
+
+    def test_list_categories_root(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        repo.create_category("Nature")
+        repo.create_category("Work")
+        cats = repo.list_categories(parent_id=None)
+        assert len(cats) == 2
+
+    def test_list_categories_children(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        parent = repo.create_category("Nature")
+        repo.create_category("Flowers", parent_id=parent.id)
+        repo.create_category("Mountains", parent_id=parent.id)
+        children = repo.list_categories(parent_id=parent.id)
+        assert len(children) == 2
+
+    def test_get_category_tree(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        nature = repo.create_category("Nature")
+        repo.create_category("Flowers", parent_id=nature.id)
+        work = repo.create_category("Work")
+        tree = repo.get_category_tree()
+        assert len(tree) == 2
+        nature_node = next(n for n in tree if n.name == "Nature")
+        assert len(nature_node.children) == 1
+        work_node = next(n for n in tree if n.name == "Work")
+        assert len(work_node.children) == 0
+
+    def test_rename_category(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        cat = repo.create_category("Nature")
+        repo.rename_category(cat.id, "Outdoors")
+        cats = repo.list_categories()
+        assert cats[0].name == "Outdoors"
+
+    def test_move_category(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        a = repo.create_category("A")
+        b = repo.create_category("B")
+        child = repo.create_category("Child", parent_id=a.id)
+        repo.move_category(child.id, b.id)
+        children_of_b = repo.list_categories(parent_id=b.id)
+        assert len(children_of_b) == 1
+        assert children_of_b[0].name == "Child"
+
+    def test_delete_category_cascades_children(self, tmp_path):
+        repo = self._make_repo(tmp_path)
+        parent = repo.create_category("Nature")
+        repo.create_category("Flowers", parent_id=parent.id)
+        repo.delete_category(parent.id)
+        assert repo.list_categories() == []

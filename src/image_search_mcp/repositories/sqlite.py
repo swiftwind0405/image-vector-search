@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from image_search_mcp.domain.models import (
+    Category,
+    CategoryNode,
     ImagePathRecord,
     ImageRecord,
     JobRecord,
@@ -310,6 +312,81 @@ class MetadataRepository:
     def delete_tag(self, tag_id: int) -> None:
         with self.connect() as conn:
             conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
+
+    def create_category(self, name: str, parent_id: int | None = None) -> Category:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                "INSERT INTO categories (name, parent_id, sort_order, created_at) VALUES (?, ?, 0, ?)",
+                (name, parent_id, now),
+            )
+            return Category(
+                id=cursor.lastrowid, name=name, parent_id=parent_id,
+                sort_order=0, created_at=_from_iso(now),
+            )
+
+    def list_categories(self, parent_id: int | None = None) -> list[Category]:
+        with self.connect() as conn:
+            if parent_id is None:
+                rows = conn.execute(
+                    "SELECT id, name, parent_id, sort_order, created_at FROM categories WHERE parent_id IS NULL ORDER BY sort_order, name"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT id, name, parent_id, sort_order, created_at FROM categories WHERE parent_id = ? ORDER BY sort_order, name",
+                    (parent_id,),
+                ).fetchall()
+            return [self._row_to_category(r) for r in rows]
+
+    def get_category_tree(self) -> list[CategoryNode]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, name, parent_id, sort_order, created_at FROM categories ORDER BY sort_order, name"
+            ).fetchall()
+        nodes: dict[int, CategoryNode] = {}
+        for r in rows:
+            nodes[r["id"]] = CategoryNode(
+                id=r["id"], name=r["name"], parent_id=r["parent_id"],
+                sort_order=r["sort_order"], created_at=_from_iso(r["created_at"]),
+            )
+        roots: list[CategoryNode] = []
+        for node in nodes.values():
+            if node.parent_id is not None and node.parent_id in nodes:
+                nodes[node.parent_id].children.append(node)
+            else:
+                roots.append(node)
+        return roots
+
+    def rename_category(self, category_id: int, new_name: str) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE categories SET name = ? WHERE id = ?", (new_name, category_id))
+
+    def move_category(self, category_id: int, new_parent_id: int | None) -> None:
+        with self.connect() as conn:
+            conn.execute("UPDATE categories SET parent_id = ? WHERE id = ?", (new_parent_id, category_id))
+
+    def delete_category(self, category_id: int) -> None:
+        with self.connect() as conn:
+            rows = conn.execute("""
+                WITH RECURSIVE descendants(id) AS (
+                    SELECT id FROM categories WHERE id = ?
+                    UNION ALL
+                    SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
+                )
+                SELECT id FROM descendants
+            """, (category_id,)).fetchall()
+            ids = [r["id"] for r in rows]
+            if not ids:
+                return
+            placeholders = ",".join("?" * len(ids))
+            conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
+            conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
+
+    def _row_to_category(self, row) -> Category:
+        return Category(
+            id=row["id"], name=row["name"], parent_id=row["parent_id"],
+            sort_order=row["sort_order"], created_at=_from_iso(row["created_at"]),
+        )
 
     def set_system_state(self, key: str, value: str) -> None:
         with self.connect() as connection:
