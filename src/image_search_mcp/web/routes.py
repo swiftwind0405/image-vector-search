@@ -59,6 +59,12 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
             content=jsonable_encoder(job_runner.enqueue("full_rebuild")),
         )
 
+    @router.get("/api/images")
+    async def list_images():
+        return JSONResponse(
+            content=jsonable_encoder(status_service.list_active_images())
+        )
+
     @router.get("/api/jobs")
     async def list_jobs():
         return JSONResponse(

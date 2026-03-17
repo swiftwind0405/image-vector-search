@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 
 from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, JobRecord, Tag
 from image_search_mcp.repositories.sqlite import MetadataRepository, choose_canonical_path
@@ -267,6 +267,37 @@ def test_update_job_preserves_started_at_when_later_update_omits_it(tmp_path):
     assert job.status == "succeeded"
     assert job.started_at == started_at
     assert job.finished_at == finished_at
+
+
+@pytest.fixture
+def repo_with_active_image(tmp_path):
+    repo = MetadataRepository(tmp_path / "test.db")
+    repo.initialize_schema()
+    now = datetime.now(UTC)
+    repo.upsert_image(ImageRecord(
+        content_hash="abc123",
+        canonical_path="/images/test.jpg",
+        file_size=1024,
+        mtime=1000.0,
+        mime_type="image/jpeg",
+        width=100,
+        height=80,
+        is_active=True,
+        last_seen_at=now,
+        embedding_provider="fake",
+        embedding_model="fake-clip",
+        embedding_version="v1",
+        created_at=now,
+        updated_at=now,
+    ))
+    return repo
+
+
+def test_list_active_images(repo_with_active_image):
+    images = repo_with_active_image.list_active_images()
+    assert len(images) == 1
+    assert images[0].content_hash == "abc123"
+    assert images[0].is_active is True
 
 
 class TestTaggingSchema:

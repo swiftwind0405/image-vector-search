@@ -44,6 +44,28 @@ class FakeStatusService:
                 return job
         return None
 
+    def list_active_images(self):
+        from image_search_mcp.domain.models import ImageRecord
+        now = datetime.now(UTC)
+        return [
+            ImageRecord(
+                content_hash="hash-red",
+                canonical_path="/data/images/red.jpg",
+                file_size=1024,
+                mtime=1000.0,
+                mime_type="image/jpeg",
+                width=12,
+                height=8,
+                is_active=True,
+                last_seen_at=now,
+                embedding_provider="fake",
+                embedding_model="fake-clip",
+                embedding_version="2026-03",
+                created_at=now,
+                updated_at=now,
+            )
+        ]
+
 
 class FakeJobRunner:
     def __init__(self, status_service: FakeStatusService) -> None:
@@ -142,3 +164,10 @@ def test_debug_text_search_returns_results():
 
     assert response.status_code == 200
     assert response.json()["results"][0]["content_hash"] == "hash-red"
+
+
+def test_list_images_api():
+    client = create_test_client()
+    response = client.get("/api/images")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)

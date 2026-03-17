@@ -89,6 +89,13 @@ class MetadataRepository:
             return None
         return _row_to_image(row)
 
+    def list_active_images(self) -> list[ImageRecord]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
+            ).fetchall()
+        return [_row_to_image(row) for row in rows]
+
     def get_image_path(self, path: str) -> ImagePathRecord | None:
         with self.connect() as connection:
             row = connection.execute(

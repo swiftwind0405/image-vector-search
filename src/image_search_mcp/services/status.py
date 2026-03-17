@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime
 
-from image_search_mcp.domain.models import IndexStatus
+from image_search_mcp.domain.models import ImageRecord, IndexStatus
 from image_search_mcp.scanning.files import iter_image_files
 
 
@@ -27,6 +27,9 @@ class StatusService:
             last_full_rebuild_at=self._read_datetime("last_full_rebuild_at"),
             last_error_summary=self.repository.get_system_state("last_error_summary"),
         )
+
+    def list_active_images(self) -> list[ImageRecord]:
+        return self.repository.list_active_images()
 
     def list_recent_jobs(self, limit: int = 20):
         return self.repository.list_recent_jobs(limit=limit)
