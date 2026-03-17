@@ -9,6 +9,7 @@ from image_search_mcp.services.indexing import IndexService
 from image_search_mcp.services.jobs import BackgroundJobWorker, JobRunner
 from image_search_mcp.services.search import SearchService
 from image_search_mcp.services.status import StatusService
+from image_search_mcp.services.tagging import TagService
 
 
 @dataclass(slots=True)
@@ -19,6 +20,7 @@ class RuntimeServices:
     background_worker: BackgroundJobWorker
     embedding_client: JinaEmbeddingClient
     vector_index: MilvusLiteIndex
+    tag_service: TagService
 
     async def aclose(self) -> None:
         try:
@@ -63,6 +65,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         repository=repository,
         vector_index=vector_index,
     )
+    tag_service = TagService(repository=repository)
     job_runner = JobRunner(repository, index_service)
     background_worker = BackgroundJobWorker(job_runner)
     return RuntimeServices(
@@ -72,6 +75,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         background_worker=background_worker,
         embedding_client=embedding_client,
         vector_index=vector_index,
+        tag_service=tag_service,
     )
 
 
