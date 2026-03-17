@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime
 
 from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, JobRecord
@@ -266,3 +267,51 @@ def test_update_job_preserves_started_at_when_later_update_omits_it(tmp_path):
     assert job.status == "succeeded"
     assert job.started_at == started_at
     assert job.finished_at == finished_at
+
+
+class TestTaggingSchema:
+    def test_tags_table_exists(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        with repo.connect() as conn:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tags'")
+            assert cursor.fetchone() is not None
+
+    def test_categories_table_exists(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        with repo.connect() as conn:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")
+            assert cursor.fetchone() is not None
+
+    def test_image_tags_table_exists(self, tmp_path):
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        with repo.connect() as conn:
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='image_tags'")
+            assert cursor.fetchone() is not None
+
+    def test_image_tags_check_constraint(self, tmp_path):
+        """Both tag_id and category_id NULL should fail."""
+        repo = MetadataRepository(tmp_path / "test.db")
+        repo.initialize_schema()
+        with repo.connect() as conn:
+            conn.execute("INSERT INTO tags (name, created_at) VALUES ('test', '2026-01-01T00:00:00+00:00')")
+            conn.execute("""
+                INSERT INTO images (content_hash, canonical_path, file_size, mtime, mime_type,
+                    width, height, is_active, last_seen_at, embedding_provider, embedding_model,
+                    embedding_version, created_at, updated_at)
+                VALUES ('abc123', '/test.jpg', 100, 1.0, 'image/jpeg', 100, 100, 1,
+                    '2026-01-01T00:00:00+00:00', 'jina', 'jina-clip-v2', 'v2',
+                    '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')
+            """)
+            conn.execute("""
+                INSERT INTO image_tags (content_hash, tag_id, category_id, created_at)
+                VALUES ('abc123', 1, NULL, '2026-01-01T00:00:00+00:00')
+            """)
+            import sqlite3
+            with pytest.raises(sqlite3.IntegrityError):
+                conn.execute("""
+                    INSERT INTO image_tags (content_hash, tag_id, category_id, created_at)
+                    VALUES ('abc123', NULL, NULL, '2026-01-01T00:00:00+00:00')
+                """)
