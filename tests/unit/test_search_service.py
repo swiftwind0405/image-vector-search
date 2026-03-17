@@ -44,9 +44,25 @@ class FakeVectorIndex:
 class FakeRepository:
     def __init__(self, images: dict[str, ImageRecord]) -> None:
         self.images = images
+        self.tag_filter_result: set[str] = set()
+        self.category_filter_result: set[str] = set()
+        self.tags_for_images: dict[str, list] = {}
+        self.categories_for_images: dict[str, list] = {}
 
     def get_image(self, content_hash: str) -> ImageRecord | None:
         return self.images.get(content_hash)
+
+    def filter_by_tags(self, tag_ids: list[int]) -> set[str]:
+        return self.tag_filter_result
+
+    def filter_by_category(self, category_id: int, include_subcategories: bool = True) -> set[str]:
+        return self.category_filter_result
+
+    def get_tags_for_images(self, content_hashes: list[str]) -> dict[str, list]:
+        return {h: self.tags_for_images.get(h, []) for h in content_hashes}
+
+    def get_categories_for_images(self, content_hashes: list[str]) -> dict[str, list]:
+        return {h: self.categories_for_images.get(h, []) for h in content_hashes}
 
 
 def build_image_record(content_hash: str, path: str, *, is_active: bool = True) -> ImageRecord:
@@ -143,3 +159,132 @@ async def test_search_similar_excludes_self_match(tmp_path: Path):
     )
 
     assert [result.content_hash for result in results] == [other_hash]
+
+
+class TestSearchWithTagFilter:
+    def _make_service(
+        self,
+        tmp_path: Path,
+        repository: FakeRepository,
+        vector_index: FakeVectorIndex,
+    ) -> SearchService:
+        images_root = tmp_path / "images"
+        settings = Settings(images_root=images_root, index_root=tmp_path / "index")
+        return SearchService(settings, repository, FakeEmbeddingClient(), vector_index)
+
+    @pytest.mark.anyio
+    async def test_search_with_tag_filter_passes_hashes_to_vector_index(self, tmp_path: Path):
+        """When tag_ids provided, SearchService should query repo and pass filter."""
+        images_root = tmp_path / "images"
+        repository = FakeRepository(
+            {
+                "img1": build_image_record("img1", str(images_root / "img1.jpg")),
+                "img2": build_image_record("img2", str(images_root / "img2.jpg")),
+            }
+        )
+        repository.tag_filter_result = {"img1", "img2"}
+        vector_index = FakeVectorIndex(
+            [
+                {"content_hash": "img1", "score": 0.9},
+                {"content_hash": "img2", "score": 0.8},
+            ]
+        )
+        service = self._make_service(tmp_path, repository, vector_index)
+
+        results = await service.search_images(
+            query="test",
+            folder=None,
+            top_k=5,
+            min_score=0.0,
+            tag_ids=[1, 2],
+        )
+
+        assert vector_index.last_content_hash_filter == {"img1", "img2"}
+        assert [r.content_hash for r in results] == ["img1", "img2"]
+
+    @pytest.mark.anyio
+    async def test_search_with_empty_tag_filter_returns_empty(self, tmp_path: Path):
+        """When tag filter matches no images, return [] without calling vector index."""
+        images_root = tmp_path / "images"
+        repository = FakeRepository(
+            {"img1": build_image_record("img1", str(images_root / "img1.jpg"))}
+        )
+        repository.tag_filter_result = set()
+        vector_index = FakeVectorIndex(
+            [{"content_hash": "img1", "score": 0.9}]
+        )
+        service = self._make_service(tmp_path, repository, vector_index)
+
+        results = await service.search_images(
+            query="test",
+            folder=None,
+            top_k=5,
+            min_score=0.0,
+            tag_ids=[1],
+        )
+
+        assert results == []
+        assert vector_index.last_content_hash_filter is None
+
+    @pytest.mark.anyio
+    async def test_search_with_tag_and_category_intersects(self, tmp_path: Path):
+        """When both tag_ids and category_id provided, intersection is used."""
+        images_root = tmp_path / "images"
+        repository = FakeRepository(
+            {
+                "img1": build_image_record("img1", str(images_root / "img1.jpg")),
+                "img2": build_image_record("img2", str(images_root / "img2.jpg")),
+                "img3": build_image_record("img3", str(images_root / "img3.jpg")),
+            }
+        )
+        repository.tag_filter_result = {"img1", "img2"}
+        repository.category_filter_result = {"img2", "img3"}
+        vector_index = FakeVectorIndex(
+            [{"content_hash": "img2", "score": 0.9}]
+        )
+        service = self._make_service(tmp_path, repository, vector_index)
+
+        results = await service.search_images(
+            query="test",
+            folder=None,
+            top_k=5,
+            min_score=0.0,
+            tag_ids=[1],
+            category_id=10,
+        )
+
+        assert vector_index.last_content_hash_filter == {"img2"}
+        assert [r.content_hash for r in results] == ["img2"]
+
+    @pytest.mark.anyio
+    async def test_search_results_include_tags_and_categories(self, tmp_path: Path):
+        """SearchResult should have populated tags and categories."""
+        from datetime import UTC, datetime
+
+        from image_search_mcp.domain.models import Category, Tag
+
+        images_root = tmp_path / "images"
+        now = datetime.now(UTC)
+        tag = Tag(id=1, name="nature", created_at=now)
+        cat = Category(id=2, name="outdoors", parent_id=None, sort_order=0, created_at=now)
+
+        repository = FakeRepository(
+            {"img1": build_image_record("img1", str(images_root / "img1.jpg"))}
+        )
+        repository.tags_for_images = {"img1": [tag]}
+        repository.categories_for_images = {"img1": [cat]}
+        vector_index = FakeVectorIndex(
+            [{"content_hash": "img1", "score": 0.9}]
+        )
+        service = self._make_service(tmp_path, repository, vector_index)
+
+        results = await service.search_images(
+            query="test",
+            folder=None,
+            top_k=5,
+            min_score=0.0,
+        )
+
+        assert len(results) == 1
+        assert results[0].tags == [tag]
+        assert results[0].categories == [cat]

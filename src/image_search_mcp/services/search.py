@@ -28,19 +28,33 @@ class SearchService:
         folder: str | None,
         top_k: int,
         min_score: float,
+        tag_ids: list[int] | None = None,
+        category_id: int | None = None,
+        include_subcategories: bool = True,
     ) -> list[SearchResult]:
+        content_hash_filter = self._build_content_hash_filter(
+            tag_ids=tag_ids,
+            category_id=category_id,
+            include_subcategories=include_subcategories,
+        )
+        if content_hash_filter is not None and not content_hash_filter:
+            return []
+
         vector = (await self.embedding_client.embed_texts([query]))[0]
         raw_results = self.vector_index.search(
             vector,
             limit=self._candidate_limit(top_k),
             embedding_key=self._embedding_key(),
+            content_hash_filter=content_hash_filter,
         )
-        return self._resolve_results(
+        results = self._resolve_results(
             raw_results=raw_results,
             folder=folder,
             top_k=top_k,
             min_score=min_score,
         )
+        self._enrich_results(results)
+        return results
 
     async def search_similar(
         self,
@@ -49,25 +63,39 @@ class SearchService:
         top_k: int,
         min_score: float,
         folder: str | None,
+        tag_ids: list[int] | None = None,
+        category_id: int | None = None,
+        include_subcategories: bool = True,
     ) -> list[SearchResult]:
         query_path = Path(image_path).resolve()
         if not query_path.exists():
             raise FileNotFoundError(query_path)
         to_container_path(query_path, self.settings.images_root)
 
+        content_hash_filter = self._build_content_hash_filter(
+            tag_ids=tag_ids,
+            category_id=category_id,
+            include_subcategories=include_subcategories,
+        )
+        if content_hash_filter is not None and not content_hash_filter:
+            return []
+
         vector = (await self.embedding_client.embed_images([query_path]))[0]
         raw_results = self.vector_index.search(
             vector,
             limit=self._candidate_limit(top_k),
             embedding_key=self._embedding_key(),
+            content_hash_filter=content_hash_filter,
         )
-        return self._resolve_results(
+        results = self._resolve_results(
             raw_results=raw_results,
             folder=folder,
             top_k=top_k,
             min_score=min_score,
             exclude_content_hash=sha256_file(query_path),
         )
+        self._enrich_results(results)
+        return results
 
     def _resolve_results(
         self,
@@ -103,6 +131,35 @@ class SearchService:
                 break
 
         return results
+
+    def _build_content_hash_filter(
+        self,
+        *,
+        tag_ids: list[int] | None,
+        category_id: int | None,
+        include_subcategories: bool,
+    ) -> set[str] | None:
+        if not tag_ids and category_id is None:
+            return None
+        sets: list[set[str]] = []
+        if tag_ids:
+            sets.append(self.repository.filter_by_tags(tag_ids))
+        if category_id is not None:
+            sets.append(self.repository.filter_by_category(category_id, include_subcategories))
+        content_hash_filter = sets[0]
+        for s in sets[1:]:
+            content_hash_filter &= s
+        return content_hash_filter
+
+    def _enrich_results(self, results: list[SearchResult]) -> None:
+        if not results:
+            return
+        hashes = [r.content_hash for r in results]
+        tags_map = self.repository.get_tags_for_images(hashes)
+        cats_map = self.repository.get_categories_for_images(hashes)
+        for r in results:
+            r.tags = tags_map.get(r.content_hash, [])
+            r.categories = cats_map.get(r.content_hash, [])
 
     def _candidate_limit(self, top_k: int) -> int:
         return min(max(top_k * 5, 20), 200)
