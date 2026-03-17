@@ -214,7 +214,7 @@ New route groups registered in `app.py`.
 | POST   | `/api/categories`               | `{name, parent_id?}`  | Create category           |
 | GET    | `/api/categories`               | —                     | Get full category tree    |
 | GET    | `/api/categories/{id}/children` | —                     | Get direct children       |
-| PUT    | `/api/categories/{id}`          | `{name?, parent_id?}` | Rename or move category   |
+| PUT    | `/api/categories/{id}`          | `{name?, move_to_parent_id?, move_to_root?}` | Rename or move category   |
 | DELETE | `/api/categories/{id}`          | —                     | Delete category + children |
 
 ### Image Associations — `/api/images/{content_hash}/...`

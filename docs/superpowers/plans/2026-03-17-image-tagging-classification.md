@@ -1181,18 +1181,22 @@ class TestSearchWithTagFilter:
         assert results[0].categories[0].name == "Nature"
 
     @pytest.mark.anyio
-    async def test_search_similar_with_tag_filter(self):
+    async def test_search_similar_with_tag_filter(self, tmp_path):
         """search_similar should also support tag filtering."""
+        # Create a real image file for search_similar's path validation
+        img_path = tmp_path / "query.jpg"
+        img_path.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)  # minimal JPEG header
+
         repo = FakeRepository()
         repo.tag_filter_result = {"img2"}
         repo.images = {"img2": build_image_record(content_hash="img2")}
         vector_index = FakeVectorIndex([{"content_hash": "img2", "score": 0.85}])
         embedding_client = FakeEmbeddingClient()
-        svc = SearchService(settings=Settings(jina_api_key="k", images_root="/images"),
+        svc = SearchService(settings=Settings(jina_api_key="k", images_root=str(tmp_path)),
                             repository=repo, embedding_client=embedding_client,
                             vector_index=vector_index)
-        # Note: adapt this test to match how search_similar validates image_path
-        # The key assertion is that tag_ids gets passed through to the filter logic
+        results = await svc.search_similar(str(img_path), tag_ids=[1])
+        assert vector_index.last_content_hash_filter == {"img2"}
 ```
 
 Note: Adapt `FakeEmbeddingClient`, `FakeVectorIndex`, and test setup to match the exact patterns in the existing test file. The key tests above cover: filter passthrough, empty filter short-circuit, intersection, batch tag/category population, and search_similar with filters.
@@ -1372,6 +1376,40 @@ class TestCategoryAPI:
         cat_id = resp.json()["id"]
         resp = await client.delete(f"/api/categories/{cat_id}")
         assert resp.status_code == 204
+
+    @pytest.mark.anyio
+    async def test_move_category_to_root(self, client):
+        """move_to_root=true should reparent a child category to root."""
+        resp = await client.post("/api/categories", json={"name": "Parent"})
+        parent_id = resp.json()["id"]
+        resp = await client.post("/api/categories", json={"name": "Child", "parent_id": parent_id})
+        child_id = resp.json()["id"]
+
+        resp = await client.put(f"/api/categories/{child_id}", json={"move_to_root": True})
+        assert resp.status_code == 200
+
+        # Verify child is now a root category
+        resp = await client.get("/api/categories")
+        tree = resp.json()
+        root_names = {n["name"] for n in tree}
+        assert "Child" in root_names
+
+    @pytest.mark.anyio
+    async def test_move_category_to_new_parent(self, client):
+        resp = await client.post("/api/categories", json={"name": "A"})
+        a_id = resp.json()["id"]
+        resp = await client.post("/api/categories", json={"name": "B"})
+        b_id = resp.json()["id"]
+        resp = await client.post("/api/categories", json={"name": "Child", "parent_id": a_id})
+        child_id = resp.json()["id"]
+
+        resp = await client.put(f"/api/categories/{child_id}", json={"move_to_parent_id": b_id})
+        assert resp.status_code == 200
+
+        resp = await client.get(f"/api/categories/{b_id}/children")
+        children = resp.json()
+        assert len(children) == 1
+        assert children[0]["name"] == "Child"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1404,13 +1442,10 @@ class CreateCategoryRequest(BaseModel):
     name: str
     parent_id: int | None = None
 
-_UNSET = object()
-
 class UpdateCategoryRequest(BaseModel):
     name: str | None = None
-    parent_id: int | None = _UNSET  # Use sentinel to distinguish "not provided" from "move to root (None)"
-
-    model_config = {"arbitrary_types_allowed": True}
+    move_to_parent_id: int | None = None  # Explicit field: set to move; omit to keep current parent
+    move_to_root: bool = False             # Set true to reparent to root (parent_id=None)
 
 class AddTagToImageRequest(BaseModel):
     tag_id: int
@@ -1473,8 +1508,10 @@ def create_tag_router(*, tag_service: TagService) -> APIRouter:
         try:
             if body.name is not None:
                 tag_service.rename_category(category_id, body.name)
-            if body.parent_id is not _UNSET:  # Sentinel check: None means "move to root"
-                tag_service.move_category(category_id, body.parent_id)
+            if body.move_to_root:
+                tag_service.move_category(category_id, None)
+            elif body.move_to_parent_id is not None:
+                tag_service.move_category(category_id, body.move_to_parent_id)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return {"ok": True}
