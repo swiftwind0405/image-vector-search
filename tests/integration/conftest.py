@@ -85,10 +85,18 @@ class InMemoryVectorIndex:
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool:
         return (content_hash, embedding_key) in self.records
 
-    def search(self, vector: list[float], limit: int, embedding_key: str) -> list[dict]:
+    def search(
+        self,
+        vector: list[float],
+        limit: int,
+        embedding_key: str,
+        content_hash_filter: set[str] | None = None,
+    ) -> list[dict]:
         hits: list[dict] = []
         for (content_hash, key), stored_vector in self.records.items():
             if key != embedding_key:
+                continue
+            if content_hash_filter is not None and content_hash not in content_hash_filter:
                 continue
             hits.append(
                 {

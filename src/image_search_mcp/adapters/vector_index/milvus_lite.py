@@ -150,16 +150,28 @@ class MilvusLiteIndex(VectorIndex):
         finally:
             query.close()
 
-    def search(self, vector: list[float], limit: int, embedding_key: str) -> list[dict]:
+    def search(
+        self,
+        vector: list[float],
+        limit: int,
+        embedding_key: str,
+        content_hash_filter: set[str] | None = None,
+    ) -> list[dict]:
         client = self._client()
         if not client.has_collection(self.collection_name):
             return []
+
+        filter_expr = self._embedding_filter(embedding_key)
+        if content_hash_filter is not None:
+            escaped = [self._escape_filter_value(h) for h in content_hash_filter]
+            in_list = ", ".join(f'"{v}"' for v in escaped)
+            filter_expr += f" and {self._PK_FIELD} in [{in_list}]"
 
         hits = client.search(
             self.collection_name,
             data=[vector],
             limit=limit,
-            filter=self._embedding_filter(embedding_key),
+            filter=filter_expr,
             output_fields=[
                 self._PK_FIELD,
                 self._EMBEDDING_KEY_FIELD,

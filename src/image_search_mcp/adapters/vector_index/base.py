@@ -15,7 +15,13 @@ class VectorIndex(ABC):
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool: ...
 
     @abstractmethod
-    def search(self, vector: list[float], limit: int, embedding_key: str) -> list[dict]: ...
+    def search(
+        self,
+        vector: list[float],
+        limit: int,
+        embedding_key: str,
+        content_hash_filter: set[str] | None = None,
+    ) -> list[dict]: ...
 
     @abstractmethod
     def count(self, embedding_key: str) -> int: ...

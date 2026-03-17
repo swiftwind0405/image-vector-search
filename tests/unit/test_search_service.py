@@ -24,10 +24,21 @@ class FakeVectorIndex:
     def __init__(self, search_results: list[dict]) -> None:
         self.search_results = search_results
         self.requested_limits: list[int] = []
+        self.last_content_hash_filter: set[str] | None = None
 
-    def search(self, vector: list[float], limit: int, embedding_key: str) -> list[dict]:
+    def search(
+        self,
+        vector: list[float],
+        limit: int,
+        embedding_key: str,
+        content_hash_filter: set[str] | None = None,
+    ) -> list[dict]:
         self.requested_limits.append(limit)
-        return self.search_results[:limit]
+        self.last_content_hash_filter = content_hash_filter
+        results = self.search_results
+        if content_hash_filter is not None:
+            results = [r for r in results if r["content_hash"] in content_hash_filter]
+        return results[:limit]
 
 
 class FakeRepository:

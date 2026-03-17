@@ -134,6 +134,55 @@ def test_milvus_lite_index_close_releases_local_server(tmp_path: Path):
     assert str(db_path.resolve()) not in server_manager_instance._servers
 
 
+def test_milvus_lite_index_search_with_content_hash_filter(tmp_path: Path):
+    embedding_key = "jina:jina-clip-v2:2026-03"
+    index = MilvusLiteIndex(
+        db_path=tmp_path / "milvus.db",
+        collection_name="image_embeddings",
+    )
+    try:
+        index.ensure_collection(dimension=3, embedding_key=embedding_key)
+
+        index.upsert_embeddings(
+            [
+                {
+                    "content_hash": "hash-a",
+                    "embedding_key": embedding_key,
+                    "embedding": [1.0, 0.0, 0.0],
+                },
+                {
+                    "content_hash": "hash-b",
+                    "embedding_key": embedding_key,
+                    "embedding": [0.9, 0.1, 0.0],
+                },
+                {
+                    "content_hash": "hash-c",
+                    "embedding_key": embedding_key,
+                    "embedding": [0.8, 0.2, 0.0],
+                },
+            ]
+        )
+
+        results = index.search(
+            [1.0, 0.0, 0.0],
+            limit=10,
+            embedding_key=embedding_key,
+            content_hash_filter={"hash-a"},
+        )
+        assert [r["content_hash"] for r in results] == ["hash-a"]
+
+        results_two = index.search(
+            [1.0, 0.0, 0.0],
+            limit=10,
+            embedding_key=embedding_key,
+            content_hash_filter={"hash-b", "hash-c"},
+        )
+        returned_hashes = {r["content_hash"] for r in results_two}
+        assert returned_hashes == {"hash-b", "hash-c"}
+    finally:
+        index.close()
+
+
 def test_milvus_lite_index_releases_server_if_client_construction_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
