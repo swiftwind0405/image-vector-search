@@ -194,3 +194,9 @@ data/
 
 # Tmp files
 tmp/
+
+# React frontend
+src/image_search_mcp/web/node_modules/
+src/image_search_mcp/web/dist/
+# Unignore web src/lib (the `lib/` rule above catches it otherwise)
+!src/image_search_mcp/web/src/lib/
