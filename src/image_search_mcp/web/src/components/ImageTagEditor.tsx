@@ -57,7 +57,8 @@ export default function ImageTagEditor({ contentHash }: Props) {
     (c) => !assignedCategoryIds.has(c.id),
   );
 
-  const handleAddTag = (value: string) => {
+  const handleAddTag = (value: string | null) => {
+    if (!value) return;
     const tagId = parseInt(value, 10);
     addTag.mutate(
       { contentHash, tagId },
@@ -76,7 +77,8 @@ export default function ImageTagEditor({ contentHash }: Props) {
     );
   };
 
-  const handleAddCategory = (value: string) => {
+  const handleAddCategory = (value: string | null) => {
+    if (!value) return;
     const categoryId = parseInt(value, 10);
     addCategory.mutate(
       { contentHash, categoryId },

@@ -10,7 +10,6 @@ dependencies = [
   "fastapi>=0.115,<1",
   "fastmcp>=3,<4",
   "httpx>=0.28,<1",
-  "jinja2>=3.1,<4",
   "milvus-lite>=2.4,<3",
   "pillow>=11,<12",
   "pydantic-settings>=2.8,<3",
@@ -35,9 +34,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 image_search_mcp = [
-  "web/templates/*.html",
-  "web/static/*.css",
-  "web/static/*.js",
+  "web/dist/**",
 ]
 
 [tool.pytest.ini_options]

@@ -10,6 +10,4 @@ def test_pyproject_configures_src_layout_and_web_assets():
     assert pyproject["tool"]["setuptools"]["packages"]["find"]["where"] == ["src"]
 
     package_data = pyproject["tool"]["setuptools"]["package-data"]["image_search_mcp"]
-    assert "web/templates/*.html" in package_data
-    assert "web/static/*.css" in package_data
-    assert "web/static/*.js" in package_data
+    assert "web/dist/**" in package_data

@@ -1,13 +1,7 @@
-from pathlib import Path
-
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-
-
-TEMPLATES = Jinja2Templates(directory=str(Path(__file__).with_name("templates")))
 
 
 class DebugTextSearchRequest(BaseModel):
@@ -26,20 +20,6 @@ class DebugSimilarSearchRequest(BaseModel):
 
 def create_web_router(*, status_service, job_runner, search_service) -> APIRouter:
     router = APIRouter()
-
-    @router.get("/", response_class=HTMLResponse)
-    async def admin_home(request: Request):
-        snapshot = await status_service.get_index_status()
-        jobs = status_service.list_recent_jobs(limit=10)
-        return TEMPLATES.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "request": request,
-                "snapshot": snapshot,
-                "jobs": jobs,
-            },
-        )
 
     @router.get("/api/status")
     async def get_status():

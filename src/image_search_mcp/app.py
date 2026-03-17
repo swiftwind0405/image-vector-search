@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
 
 from image_search_mcp.config import Settings
 from image_search_mcp.mcp.server import build_mcp_server
@@ -46,9 +47,6 @@ def create_app(
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    static_dir = Path(__file__).with_name("web") / "static"
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-
     if search_service is not None:
         mcp_server = build_mcp_server(search_service)
         app.mount("/mcp", mcp_server.http_app(path="/"))
@@ -64,5 +62,17 @@ def create_app(
 
     if runtime_services is not None:
         app.include_router(create_tag_router(tag_service=runtime_services.tag_service))
+
+    dist_dir = Path(__file__).with_name("web") / "dist"
+    if dist_dir.is_dir():
+        assets_dir = dist_dir / "assets"
+        if assets_dir.is_dir():
+            app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+        spa_index = dist_dir / "index.html"
+
+        @app.get("/{path:path}")
+        async def spa_fallback(path: str):
+            return FileResponse(str(spa_index))
 
     return app
