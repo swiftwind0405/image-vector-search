@@ -8,6 +8,7 @@ from image_search_mcp.config import Settings
 from image_search_mcp.mcp.server import build_mcp_server
 from image_search_mcp.runtime import RuntimeServices, build_runtime_services
 from image_search_mcp.web.routes import create_web_router
+from image_search_mcp.web.tag_routes import create_tag_router
 
 
 def create_app(
@@ -60,5 +61,8 @@ def create_app(
                 search_service=search_service,
             )
         )
+
+    if runtime_services is not None:
+        app.include_router(create_tag_router(tag_service=runtime_services.tag_service))
 
     return app
