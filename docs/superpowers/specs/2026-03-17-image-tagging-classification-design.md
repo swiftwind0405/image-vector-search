@@ -12,6 +12,33 @@ Add manual tagging and hierarchical classification to the image vector search se
 - **HTTP API only**: Exposed via REST endpoints; MCP tools unchanged
 - **Manual only**: No AI-assisted auto-tagging in this iteration
 
+## Domain Models
+
+New Pydantic models in `domain/models.py`:
+
+```python
+class Tag(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+class Category(BaseModel):
+    id: int
+    name: str
+    parent_id: int | None
+    sort_order: int
+    created_at: datetime
+
+class CategoryNode(BaseModel):
+    """Category with children, for tree responses."""
+    id: int
+    name: str
+    parent_id: int | None
+    sort_order: int
+    created_at: datetime
+    children: list[CategoryNode] = []
+```
+
 ## Data Model
 
 Three new SQLite tables in `MetadataRepository`:
@@ -45,18 +72,23 @@ Single join table for both tag and category associations.
 | Column       | Type    | Constraints                       |
 |--------------|---------|-----------------------------------|
 | id           | INTEGER | PRIMARY KEY AUTOINCREMENT         |
-| content_hash | TEXT    | NOT NULL, FK → images(content_hash) |
-| tag_id       | INTEGER | FK → tags(id)                     |
-| category_id  | INTEGER | FK → categories(id)               |
+| content_hash | TEXT    | NOT NULL, FK → images(content_hash) ON DELETE CASCADE |
+| tag_id       | INTEGER | FK → tags(id) ON DELETE CASCADE   |
+| category_id  | INTEGER | FK → categories(id) ON DELETE CASCADE |
 | created_at   | TEXT    | NOT NULL                          |
 
 - `UNIQUE(content_hash, tag_id)` — no duplicate tag per image
 - `UNIQUE(content_hash, category_id)` — no duplicate category per image
 - `CHECK((tag_id IS NOT NULL) != (category_id IS NOT NULL))` — exactly one of tag_id or category_id must be set
 
+Indexes:
+- `CREATE INDEX idx_image_tags_content_hash ON image_tags(content_hash)`
+- `CREATE INDEX idx_image_tags_tag_id ON image_tags(tag_id)`
+- `CREATE INDEX idx_image_tags_category_id ON image_tags(category_id)`
+
 ## Repository Layer
 
-Extend `MetadataRepository` with new methods. All async, consistent with existing style.
+Extend `MetadataRepository` with new methods. All synchronous `def`, consistent with existing repository style.
 
 ### Tag CRUD
 
@@ -72,7 +104,7 @@ Extend `MetadataRepository` with new methods. All async, consistent with existin
 - `get_category_tree() → list[CategoryNode]` — full tree
 - `rename_category(category_id, new_name)`
 - `move_category(category_id, new_parent_id)` — reparent
-- `delete_category(category_id)` — cascades to children and image_tags
+- `delete_category(category_id)` — uses recursive CTE to find all descendant IDs, deletes their image_tags rows, then deletes the categories, all in a single transaction
 
 ### Image Association
 
@@ -82,6 +114,8 @@ Extend `MetadataRepository` with new methods. All async, consistent with existin
 - `remove_image_from_category(content_hash, category_id)`
 - `get_image_tags(content_hash) → list[Tag]`
 - `get_image_categories(content_hash) → list[Category]`
+- `get_tags_for_images(content_hashes: list[str]) → dict[str, list[Tag]]` — batch query to avoid N+1
+- `get_categories_for_images(content_hashes: list[str]) → dict[str, list[Category]]` — batch query to avoid N+1
 
 ### Filter Queries (for SearchService)
 
@@ -113,13 +147,29 @@ async def search_images(
 
 Same extension for `search_similar`.
 
+### VectorIndex Changes
+
+The `VectorIndex` abstract base class and `MilvusLiteIndex` need a new optional parameter:
+
+```python
+# VectorIndex (abstract)
+def search(self, vector: list[float], limit: int, embedding_key: str,
+           content_hash_filter: set[str] | None = None) -> list[dict]:
+
+# MilvusLiteIndex implementation
+# When content_hash_filter is provided, build a Milvus `in` filter expression:
+#   f"content_hash in {list(content_hash_filter)}"
+# Combined with existing embedding_key filter via `and`.
+```
+
 ### Combination Filter Flow
 
 1. If `tag_ids` or `category_id` specified, query repository for matching content_hash sets
 2. If both specified, intersect the sets
 3. If intersection is empty, return `[]` early
-4. Pass content_hash set to `MilvusLiteIndex.search()` as an `in` filter on the `content_hash` field
+4. Pass content_hash set to `MilvusLiteIndex.search()` via the new `content_hash_filter` parameter
 5. Remaining logic (score threshold, folder filter, result assembly) unchanged
+6. Use batch methods (`get_tags_for_images`, `get_categories_for_images`) to populate tags/categories on SearchResult
 
 ### Extended: `SearchResult`
 
@@ -136,6 +186,15 @@ class SearchResult:
 ```
 
 ## HTTP API
+
+### Dependency Injection Wiring
+
+- Add `TagService` to the `RuntimeServices` dataclass in `runtime.py`
+- Construct it in `build_runtime_services()` (depends on `MetadataRepository`)
+- Create `create_tag_router(tag_service: TagService) → APIRouter` in a new `web/tag_routes.py`
+- Include the router in `app.py` during app construction, same pattern as existing web router
+
+### Routes
 
 New route groups registered in `app.py`.
 
