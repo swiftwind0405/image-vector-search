@@ -22,3 +22,6 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, ge=1)
     vector_index_collection_name: str = "image_embeddings"
     vector_index_db_filename: str = "milvus.db"
+    admin_username: str = ""
+    admin_password: str = ""
+    admin_session_secret: str = ""

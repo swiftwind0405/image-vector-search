@@ -1,15 +1,17 @@
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import FileResponse
 
 from image_search_mcp.config import Settings
 from image_search_mcp.mcp.server import build_mcp_server
 from image_search_mcp.runtime import RuntimeServices, build_runtime_services
 from image_search_mcp.web.bulk_routes import create_bulk_router
-from image_search_mcp.web.routes import create_web_router
+from image_search_mcp.web.routes import create_auth_router, create_web_router
 from image_search_mcp.web.tag_routes import create_tag_router
 
 
@@ -43,6 +45,16 @@ def create_app(
                 await runtime_services.aclose()
 
     app = FastAPI(title=app_settings.app_name, lifespan=lifespan)
+
+    session_secret = app_settings.admin_session_secret or secrets.token_hex(32)
+    app.add_middleware(SessionMiddleware, secret_key=session_secret, https_only=False)
+
+    app.include_router(
+        create_auth_router(
+            admin_username=app_settings.admin_username,
+            admin_password=app_settings.admin_password,
+        )
+    )
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

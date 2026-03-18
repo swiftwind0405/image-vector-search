@@ -23,7 +23,7 @@ export default function GalleryCard({ image, onOpen, selected, onSelect }: Props
           <ImageOff className="h-8 w-8 text-neutral-600" />
         ) : (
           <img
-            src={`/api/images/${image.content_hash}/thumbnail`}
+            src={`/api/images/${image.content_hash}/file`}
             alt={filename}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             onError={() => setImgError(true)}

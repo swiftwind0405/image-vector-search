@@ -84,6 +84,8 @@ export default function ImagesPage() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [modalHash, setModalHash] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
   const { data: images, isLoading } = useImages(folder);
   const { data: folders } = useFolders();
@@ -103,9 +105,10 @@ export default function ImagesPage() {
 
   const flatCategories = flattenCategories(allCategories ?? []);
 
-  // Clear selection when folder changes
+  // Clear selection and reset page when folder changes
   useEffect(() => {
     setSelectedHashes(new Set());
+    setPage(1);
   }, [folder]);
 
   // Persist view mode
@@ -168,15 +171,18 @@ export default function ImagesPage() {
     setActiveTags((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
+    setPage(1);
   };
 
   const handleCategoryToggle = (id: number) => {
     setActiveCategoryId((prev) => (prev === id ? null : id));
+    setPage(1);
   };
 
   const handleClearFilters = () => {
     setActiveTags([]);
     setActiveCategoryId(null);
+    setPage(1);
   };
 
   const handleBulkAddTag = () => {
@@ -274,6 +280,10 @@ export default function ImagesPage() {
       },
     );
   };
+
+  const totalPages = Math.max(1, Math.ceil(filteredImages.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedImages = filteredImages.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const modalImage = modalHash
     ? filteredImages.find((img) => img.content_hash === modalHash) ?? null
@@ -518,17 +528,30 @@ export default function ImagesPage() {
       ) : viewMode === "gallery" ? (
         <>
           <GalleryGrid
-            images={filteredImages}
+            images={paginatedImages}
             onOpen={(hash) => setModalHash(hash)}
             selectedHashes={selectedHashes}
             onSelect={toggleSelect}
           />
-          {images && (
-            <p className="text-sm text-muted-foreground text-center">
-              Showing {filteredImages.length} of {images.length} images
-              {(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-sm text-muted-foreground">
+              {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
+              {images && filteredImages.length !== images.length && ` of ${images.length} total`}
             </p>
-          )}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {safePage} / {totalPages}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <Card>
@@ -538,6 +561,7 @@ export default function ImagesPage() {
             ) : filteredImages.length === 0 ? (
               <p className="text-sm text-muted-foreground p-4">No images match the active filters.</p>
             ) : (
+              <>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -557,7 +581,7 @@ export default function ImagesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredImages.map((image) => (
+                  {paginatedImages.map((image) => (
                     <React.Fragment key={image.content_hash}>
                       <TableRow
                         className="cursor-pointer hover:bg-muted/50"
@@ -630,6 +654,25 @@ export default function ImagesPage() {
                   ))}
                 </TableBody>
               </Table>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {safePage} / {totalPages}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </CardContent>
         </Card>

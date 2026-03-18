@@ -1,9 +1,9 @@
 import io
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 
@@ -71,6 +71,20 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
         results = await search_service.search_similar(**payload.model_dump())
         return JSONResponse(content={"results": jsonable_encoder(results)})
 
+    @router.get("/api/images/{content_hash}/file")
+    async def get_image_file(content_hash: str):
+        image_record = status_service.get_image(content_hash)
+        if image_record is None:
+            raise HTTPException(status_code=404, detail="not found")
+        file_path = Path(image_record.canonical_path)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="not found")
+        return FileResponse(
+            path=str(file_path),
+            media_type=image_record.mime_type or "application/octet-stream",
+            headers={"Cache-Control": "max-age=86400"},
+        )
+
     @router.get("/api/images/{content_hash}/thumbnail")
     async def get_thumbnail(content_hash: str, size: int = 120):
         if size < 50 or size > 500:
@@ -95,5 +109,38 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
                 )
         except Exception:
             raise HTTPException(status_code=404, detail="not found")
+
+    return router
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def create_auth_router(*, admin_username: str, admin_password: str) -> APIRouter:
+    router = APIRouter()
+    auth_enabled = bool(admin_username and admin_password)
+
+    @router.get("/api/auth/me")
+    async def auth_me(request: Request):
+        if not auth_enabled:
+            return JSONResponse({"authenticated": True})
+        authenticated = request.session.get("authenticated", False)
+        return JSONResponse({"authenticated": authenticated})
+
+    @router.post("/api/auth/login")
+    async def auth_login(payload: LoginRequest, request: Request):
+        if not auth_enabled:
+            return JSONResponse({"ok": True})
+        if payload.username == admin_username and payload.password == admin_password:
+            request.session["authenticated"] = True
+            return JSONResponse({"ok": True})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    @router.post("/api/auth/logout")
+    async def auth_logout(request: Request):
+        request.session.clear()
+        return JSONResponse({"ok": True})
 
     return router
