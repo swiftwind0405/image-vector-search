@@ -64,7 +64,9 @@ pytest tests -v
 
 Run the application:
 
-### Using uv
+### Backend Server
+
+#### Using uv (recommended)
 
 First, create a `.env` file and directories:
 
@@ -89,7 +91,7 @@ export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
 uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
-### Traditional method
+#### Traditional method
 
 ```bash
 source .venv/bin/activate
@@ -98,6 +100,29 @@ export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
 uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
+
+Server runs at `http://localhost:8000/` (serves static React frontend) and `/mcp` for MCP protocol.
+
+### Frontend Development (React)
+
+For development with hot reload:
+
+```bash
+cd src/image_search_mcp/web
+npm install
+npm run dev
+```
+
+Vite dev server runs at `http://localhost:5173/` and proxies `/api/*` to `http://localhost:8000`.
+
+To build for production:
+
+```bash
+cd src/image_search_mcp/web
+npm run build
+```
+
+Build output goes to `dist/` (served by FastAPI in production).
 
 ## Docker
 

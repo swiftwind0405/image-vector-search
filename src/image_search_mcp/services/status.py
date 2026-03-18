@@ -28,8 +28,9 @@ class StatusService:
             last_error_summary=self.repository.get_system_state("last_error_summary"),
         )
 
-    def list_active_images(self) -> list[ImageRecord]:
-        return self.repository.list_active_images()
+    def list_active_images(self, folder: str | None = None) -> list[ImageRecord]:
+        images_root = str(self.settings.images_root) if folder else None
+        return self.repository.list_active_images(folder=folder, images_root=images_root)
 
     def list_recent_jobs(self, limit: int = 20):
         return self.repository.list_recent_jobs(limit=limit)

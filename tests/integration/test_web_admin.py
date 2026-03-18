@@ -44,7 +44,7 @@ class FakeStatusService:
                 return job
         return None
 
-    def list_active_images(self):
+    def list_active_images(self, folder: str | None = None):
         from image_search_mcp.domain.models import ImageRecord
         now = datetime.now(UTC)
         return [

@@ -89,12 +89,40 @@ class MetadataRepository:
             return None
         return _row_to_image(row)
 
-    def list_active_images(self) -> list[ImageRecord]:
+    def list_active_images(
+        self,
+        folder: str | None = None,
+        images_root: str | None = None,
+    ) -> list[ImageRecord]:
+        with self.connect() as connection:
+            if folder is not None and images_root is not None:
+                prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+                rows = connection.execute(
+                    "SELECT * FROM images WHERE is_active = 1 AND canonical_path LIKE ? ORDER BY canonical_path ASC",
+                    (prefix + "%",),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
+                ).fetchall()
+        return [_row_to_image(row) for row in rows]
+
+    def list_folders(self, images_root: str) -> list[str]:
+        root = images_root.rstrip("/") + "/"
         with self.connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
+                "SELECT DISTINCT canonical_path FROM images WHERE is_active = 1"
             ).fetchall()
-        return [_row_to_image(row) for row in rows]
+        folders: set[str] = set()
+        for row in rows:
+            path = str(row["canonical_path"])
+            if path.startswith(root):
+                relative = path[len(root):]
+                # Get the parent directory portion (everything except the filename)
+                parts = relative.rsplit("/", 1)
+                if len(parts) == 2:
+                    folders.add(parts[0])
+        return sorted(folders)
 
     def get_image_path(self, path: str) -> ImagePathRecord | None:
         with self.connect() as connection:
@@ -506,6 +534,118 @@ class MetadataRepository:
                     (category_id,),
                 ).fetchall()
             return {r["content_hash"] for r in rows}
+
+    def bulk_add_tag(self, content_hashes: list[str], tag_id: int) -> int:
+        if not content_hashes:
+            return 0
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            cursor = conn.executemany(
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                [(h, tag_id, now) for h in content_hashes],
+            )
+            return cursor.rowcount
+
+    def bulk_remove_tag(self, content_hashes: list[str], tag_id: int) -> int:
+        if not content_hashes:
+            return 0
+        placeholders = ",".join("?" * len(content_hashes))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND tag_id = ?",
+                [*content_hashes, tag_id],
+            )
+            return cursor.rowcount
+
+    def bulk_add_category(self, content_hashes: list[str], category_id: int) -> int:
+        if not content_hashes:
+            return 0
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            cursor = conn.executemany(
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
+                [(h, category_id, now) for h in content_hashes],
+            )
+            return cursor.rowcount
+
+    def bulk_remove_category(self, content_hashes: list[str], category_id: int) -> int:
+        if not content_hashes:
+            return 0
+        placeholders = ",".join("?" * len(content_hashes))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND category_id = ?",
+                [*content_hashes, category_id],
+            )
+            return cursor.rowcount
+
+    def bulk_folder_add_tag(self, folder: str, tag_id: int, images_root: str) -> int:
+        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
+                (prefix + "%",),
+            ).fetchall()
+            hashes = [str(r["content_hash"]) for r in rows]
+            if not hashes:
+                return 0
+            cursor = conn.executemany(
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                [(h, tag_id, now) for h in hashes],
+            )
+            return cursor.rowcount
+
+    def bulk_folder_remove_tag(self, folder: str, tag_id: int, images_root: str) -> int:
+        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
+                (prefix + "%",),
+            ).fetchall()
+            hashes = [str(r["content_hash"]) for r in rows]
+            if not hashes:
+                return 0
+            placeholders = ",".join("?" * len(hashes))
+            cursor = conn.execute(
+                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND tag_id = ?",
+                [*hashes, tag_id],
+            )
+            return cursor.rowcount
+
+    def bulk_folder_add_category(self, folder: str, category_id: int, images_root: str) -> int:
+        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
+                (prefix + "%",),
+            ).fetchall()
+            hashes = [str(r["content_hash"]) for r in rows]
+            if not hashes:
+                return 0
+            cursor = conn.executemany(
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
+                [(h, category_id, now) for h in hashes],
+            )
+            return cursor.rowcount
+
+    def bulk_folder_remove_category(self, folder: str, category_id: int, images_root: str) -> int:
+        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
+                (prefix + "%",),
+            ).fetchall()
+            hashes = [str(r["content_hash"]) for r in rows]
+            if not hashes:
+                return 0
+            placeholders = ",".join("?" * len(hashes))
+            cursor = conn.execute(
+                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND category_id = ?",
+                [*hashes, category_id],
+            )
+            return cursor.rowcount
 
     def _row_to_category(self, row) -> Category:
         return Category(

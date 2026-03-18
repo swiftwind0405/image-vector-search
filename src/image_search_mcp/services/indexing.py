@@ -1,10 +1,13 @@
 import asyncio
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Thread
 from types import SimpleNamespace
 
 from image_search_mcp.adapters.embedding.base import EmbeddingClient
+
+logger = logging.getLogger(__name__)
 from image_search_mcp.adapters.vector_index.base import VectorIndex
 from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, IndexingReport
@@ -52,7 +55,8 @@ class IndexService:
                     report=report,
                     force_rehash=force_rehash,
                 )
-            except Exception:
+            except Exception as exc:
+                logger.error("Indexing error for %s: %s", container_path, exc)
                 report.errors += 1
 
         report.deactivated = self.repository.mark_unseen_paths_inactive(seen_paths, now)
@@ -136,6 +140,7 @@ class IndexService:
         embedding_key: str,
     ) -> None:
         metadata = read_image_metadata(image_path)
+        logger.info("Embedding new image: %s (hash=%s)", container_path, content_hash[:12])
         vector = self._embed_image(image_path)
         self.vector_index.ensure_collection(dimension=len(vector), embedding_key=embedding_key)
         self.vector_index.upsert_embeddings(
@@ -191,6 +196,12 @@ class IndexService:
         embedding_key: str,
     ) -> None:
         if not self.vector_index.has_embedding(existing_image.content_hash, embedding_key):
+            logger.info(
+                "Re-embedding image (missing vector): %s (hash=%s, key=%s)",
+                container_path,
+                existing_image.content_hash[:12],
+                embedding_key,
+            )
             vector = self._embed_image(image_path)
             self.vector_index.ensure_collection(dimension=len(vector), embedding_key=embedding_key)
             self.vector_index.upsert_embeddings(

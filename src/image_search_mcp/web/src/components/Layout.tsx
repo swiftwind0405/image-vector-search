@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Tag, FolderTree, ImagePlus } from "lucide-react";
+import { LayoutDashboard, Tag, FolderTree, ImagePlus, Search } from "lucide-react";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/search", icon: Search, label: "Search" },
   { to: "/tags", icon: Tag, label: "Tags" },
   { to: "/categories", icon: FolderTree, label: "Categories" },
   { to: "/images", icon: ImagePlus, label: "Images" },

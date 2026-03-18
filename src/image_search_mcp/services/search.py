@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from image_search_mcp.adapters.embedding.base import EmbeddingClient
@@ -6,6 +7,8 @@ from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import ImageRecord, SearchResult
 from image_search_mcp.scanning.files import to_container_path
 from image_search_mcp.scanning.hashing import sha256_file
+
+logger = logging.getLogger(__name__)
 
 
 class SearchService:
@@ -32,12 +35,20 @@ class SearchService:
         category_id: int | None = None,
         include_subcategories: bool = True,
     ) -> list[SearchResult]:
+        logger.info(
+            "Text search: query=%r, top_k=%d, min_score=%.2f, folder=%s",
+            query[:100],
+            top_k,
+            min_score,
+            folder,
+        )
         content_hash_filter = self._build_content_hash_filter(
             tag_ids=tag_ids,
             category_id=category_id,
             include_subcategories=include_subcategories,
         )
         if content_hash_filter is not None and not content_hash_filter:
+            logger.debug("Text search: empty content_hash_filter, returning no results")
             return []
 
         vector = (await self.embedding_client.embed_texts([query]))[0]
@@ -54,6 +65,7 @@ class SearchService:
             min_score=min_score,
         )
         self._enrich_results(results)
+        logger.info("Text search complete: %d results for query=%r", len(results), query[:100])
         return results
 
     async def search_similar(
@@ -67,8 +79,16 @@ class SearchService:
         category_id: int | None = None,
         include_subcategories: bool = True,
     ) -> list[SearchResult]:
+        logger.info(
+            "Image similarity search: path=%s, top_k=%d, min_score=%.2f, folder=%s",
+            image_path,
+            top_k,
+            min_score,
+            folder,
+        )
         query_path = Path(image_path).resolve()
         if not query_path.exists():
+            logger.error("Image similarity search: file not found: %s", query_path)
             raise FileNotFoundError(query_path)
         to_container_path(query_path, self.settings.images_root)
 
@@ -78,6 +98,7 @@ class SearchService:
             include_subcategories=include_subcategories,
         )
         if content_hash_filter is not None and not content_hash_filter:
+            logger.debug("Image similarity search: empty content_hash_filter, returning no results")
             return []
 
         vector = (await self.embedding_client.embed_images([query_path]))[0]
@@ -95,6 +116,7 @@ class SearchService:
             exclude_content_hash=sha256_file(query_path),
         )
         self._enrich_results(results)
+        logger.info("Image similarity search complete: %d results for path=%s", len(results), image_path)
         return results
 
     def _resolve_results(

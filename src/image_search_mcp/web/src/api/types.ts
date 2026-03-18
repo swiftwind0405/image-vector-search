@@ -68,3 +68,8 @@ export interface SearchResult {
   tags: Tag[];
   categories: Category[];
 }
+
+export interface BulkResponse {
+  ok: boolean;
+  affected: number;
+}

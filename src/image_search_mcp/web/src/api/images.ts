@@ -2,10 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import type { ImageRecord, Tag, Category } from "./types";
 
-export function useImages() {
+export function useImages(folder?: string) {
   return useQuery({
-    queryKey: ["images"],
-    queryFn: () => apiFetch<ImageRecord[]>("/api/images"),
+    queryKey: ["images", folder ?? "all"],
+    queryFn: () => {
+      const params = folder ? `?folder=${encodeURIComponent(folder)}` : "";
+      return apiFetch<ImageRecord[]>(`/api/images${params}`);
+    },
   });
 }
 

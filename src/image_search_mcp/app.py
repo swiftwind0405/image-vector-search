@@ -8,6 +8,7 @@ from starlette.responses import FileResponse
 from image_search_mcp.config import Settings
 from image_search_mcp.mcp.server import build_mcp_server
 from image_search_mcp.runtime import RuntimeServices, build_runtime_services
+from image_search_mcp.web.bulk_routes import create_bulk_router
 from image_search_mcp.web.routes import create_web_router
 from image_search_mcp.web.tag_routes import create_tag_router
 
@@ -62,6 +63,14 @@ def create_app(
 
     if runtime_services is not None:
         app.include_router(create_tag_router(tag_service=runtime_services.tag_service))
+
+    if runtime_services is not None:
+        app.include_router(
+            create_bulk_router(
+                tag_service=runtime_services.tag_service,
+                images_root=str(app_settings.images_root),
+            )
+        )
 
     dist_dir = Path(__file__).with_name("web") / "dist"
     if dist_dir.is_dir():

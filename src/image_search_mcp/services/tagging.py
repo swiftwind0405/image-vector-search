@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import sqlite3
+
 from image_search_mcp.domain.models import Tag, Category, CategoryNode
 from image_search_mcp.repositories.sqlite import MetadataRepository
 
 
 class TagService:
+    MAX_BULK_SIZE = 500
+
     def __init__(self, *, repository: MetadataRepository) -> None:
         self._repo = repository
 
@@ -75,3 +79,49 @@ class TagService:
 
     def get_image_categories(self, content_hash: str) -> list[Category]:
         return self._repo.get_image_categories(content_hash)
+
+    # --- Bulk operations ---
+
+    def bulk_add_tag(self, content_hashes: list[str], tag_id: int) -> int:
+        if len(content_hashes) > self.MAX_BULK_SIZE:
+            raise ValueError(f"content_hashes exceeds maximum of {self.MAX_BULK_SIZE}")
+        try:
+            return self._repo.bulk_add_tag(content_hashes, tag_id)
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Invalid tag_id: {tag_id}")
+
+    def bulk_remove_tag(self, content_hashes: list[str], tag_id: int) -> int:
+        if len(content_hashes) > self.MAX_BULK_SIZE:
+            raise ValueError(f"content_hashes exceeds maximum of {self.MAX_BULK_SIZE}")
+        return self._repo.bulk_remove_tag(content_hashes, tag_id)
+
+    def bulk_add_category(self, content_hashes: list[str], category_id: int) -> int:
+        if len(content_hashes) > self.MAX_BULK_SIZE:
+            raise ValueError(f"content_hashes exceeds maximum of {self.MAX_BULK_SIZE}")
+        try:
+            return self._repo.bulk_add_category(content_hashes, category_id)
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Invalid category_id: {category_id}")
+
+    def bulk_remove_category(self, content_hashes: list[str], category_id: int) -> int:
+        if len(content_hashes) > self.MAX_BULK_SIZE:
+            raise ValueError(f"content_hashes exceeds maximum of {self.MAX_BULK_SIZE}")
+        return self._repo.bulk_remove_category(content_hashes, category_id)
+
+    def bulk_folder_add_tag(self, folder: str, tag_id: int, images_root: str) -> int:
+        try:
+            return self._repo.bulk_folder_add_tag(folder, tag_id, images_root)
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Invalid tag_id: {tag_id}")
+
+    def bulk_folder_remove_tag(self, folder: str, tag_id: int, images_root: str) -> int:
+        return self._repo.bulk_folder_remove_tag(folder, tag_id, images_root)
+
+    def bulk_folder_add_category(self, folder: str, category_id: int, images_root: str) -> int:
+        try:
+            return self._repo.bulk_folder_add_category(folder, category_id, images_root)
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Invalid category_id: {category_id}")
+
+    def bulk_folder_remove_category(self, folder: str, category_id: int, images_root: str) -> int:
+        return self._repo.bulk_folder_remove_category(folder, category_id, images_root)

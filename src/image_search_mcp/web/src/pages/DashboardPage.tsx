@@ -1,53 +1,14 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useStatus } from "@/api/status";
 import { useJobs, useQueueJob } from "@/api/jobs";
-import { apiFetch } from "@/api/client";
-import type { SearchResult } from "@/api/types";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { data: status } = useStatus();
   const { data: jobs } = useJobs();
   const queueJob = useQueueJob();
-  const [query, setQuery] = useState("");
-  const [similarPath, setSimilarPath] = useState("");
-  const [searchResults, setSearchResults] = useState<string>("");
-
-  const handleTextSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    try {
-      const res = await apiFetch<{ results: SearchResult[] }>(
-        "/api/debug/search/text",
-        { method: "POST", body: JSON.stringify({ query, top_k: 5 }) },
-      );
-      setSearchResults(JSON.stringify(res, null, 2));
-    } catch {
-      toast.error("Search failed");
-    }
-  };
-
-  const handleSimilarSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!similarPath.trim()) return;
-    try {
-      const res = await apiFetch<{ results: SearchResult[] }>(
-        "/api/debug/search/similar",
-        {
-          method: "POST",
-          body: JSON.stringify({ image_path: similarPath, top_k: 5 }),
-        },
-      );
-      setSearchResults(JSON.stringify(res, null, 2));
-    } catch {
-      toast.error("Similar search failed");
-    }
-  };
-
   const handleQueueJob = (type: "incremental" | "rebuild") => {
     queueJob.mutate(type, {
       onSuccess: () => toast.success(`${type} job queued`),
@@ -168,39 +129,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Debug Search */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Debug Search</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <form onSubmit={handleTextSearch} className="flex gap-2">
-              <Input
-                placeholder="Text query..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <Button type="submit" variant="secondary">
-                Search
-              </Button>
-            </form>
-            <form onSubmit={handleSimilarSearch} className="flex gap-2">
-              <Input
-                placeholder="Image path for similar search..."
-                value={similarPath}
-                onChange={(e) => setSimilarPath(e.target.value)}
-              />
-              <Button type="submit" variant="secondary">
-                Similar
-              </Button>
-            </form>
-            {searchResults && (
-              <pre className="bg-gray-950 text-gray-100 p-3 rounded-md text-xs overflow-auto max-h-64">
-                {searchResults}
-              </pre>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
