@@ -1,14 +1,43 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
-import type { ImageRecord, ImageRecordWithLabels, Tag, Category } from "./types";
+import type { ImageRecordWithLabels, Tag, Category } from "./types";
 
-export function useImages(folder?: string) {
+export interface ImagesQueryOptions {
+  folder?: string;
+  tagId?: number;
+  categoryId?: number;
+  includeDescendants?: boolean;
+}
+
+export function buildImagesPath(options: ImagesQueryOptions = {}) {
+  const params = new URLSearchParams();
+  if (options.folder) {
+    params.set("folder", options.folder);
+  }
+  if (options.tagId !== undefined) {
+    params.set("tag_id", String(options.tagId));
+  }
+  if (options.categoryId !== undefined) {
+    params.set("category_id", String(options.categoryId));
+    params.set(
+      "include_descendants",
+      String(options.includeDescendants ?? true),
+    );
+  }
+  const query = params.toString();
+  return query ? `/api/images?${query}` : "/api/images";
+}
+
+export function useImages(options: ImagesQueryOptions = {}) {
   return useQuery({
-    queryKey: ["images", folder ?? "all"],
-    queryFn: () => {
-      const params = folder ? `?folder=${encodeURIComponent(folder)}` : "";
-      return apiFetch<ImageRecordWithLabels[]>(`/api/images${params}`);
-    },
+    queryKey: [
+      "images",
+      options.folder ?? "all",
+      options.tagId ?? null,
+      options.categoryId ?? null,
+      options.includeDescendants ?? true,
+    ],
+    queryFn: () => apiFetch<ImageRecordWithLabels[]>(buildImagesPath(options)),
   });
 }
 

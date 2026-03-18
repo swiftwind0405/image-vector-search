@@ -94,6 +94,9 @@ class MetadataRepository:
         self,
         folder: str | None = None,
         images_root: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
     ) -> list[ImageRecord]:
         with self.connect() as connection:
             if folder is not None and images_root is not None:
@@ -106,14 +109,42 @@ class MetadataRepository:
                 rows = connection.execute(
                     "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
                 ).fetchall()
-        return [_row_to_image(row) for row in rows]
+        images = [_row_to_image(row) for row in rows]
+        if not images:
+            return []
+
+        allowed_hashes: set[str] | None = None
+        if tag_id is not None:
+            allowed_hashes = self.filter_by_tags([tag_id])
+        if category_id is not None:
+            category_hashes = self.filter_by_category(
+                category_id,
+                include_subcategories=include_descendants,
+            )
+            allowed_hashes = (
+                category_hashes
+                if allowed_hashes is None
+                else allowed_hashes & category_hashes
+            )
+        if allowed_hashes is None:
+            return images
+        return [image for image in images if image.content_hash in allowed_hashes]
 
     def list_active_images_with_labels(
         self,
         folder: str | None = None,
         images_root: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
     ) -> list[ImageRecordWithLabels]:
-        images = self.list_active_images(folder=folder, images_root=images_root)
+        images = self.list_active_images(
+            folder=folder,
+            images_root=images_root,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+        )
         if not images:
             return []
         hashes = [img.content_hash for img in images]

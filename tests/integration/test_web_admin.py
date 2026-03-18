@@ -65,10 +65,22 @@ class FakeStatusService:
             updated_at=now,
         )
 
-    def list_active_images(self, folder: str | None = None):
+    def list_active_images(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+    ):
         return [self._make_image_record()]
 
-    def list_active_images_with_labels(self, folder: str | None = None):
+    def list_active_images_with_labels(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+    ):
         record = self._make_image_record()
         return [ImageRecordWithLabels(**record.model_dump())]
 

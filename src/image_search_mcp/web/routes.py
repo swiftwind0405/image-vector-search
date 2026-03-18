@@ -43,9 +43,21 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
         )
 
     @router.get("/api/images")
-    async def list_images(folder: str | None = None):
+    async def list_images(
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+    ):
         return JSONResponse(
-            content=jsonable_encoder(status_service.list_active_images_with_labels(folder=folder))
+            content=jsonable_encoder(
+                status_service.list_active_images_with_labels(
+                    folder=folder,
+                    tag_id=tag_id,
+                    category_id=category_id,
+                    include_descendants=include_descendants,
+                )
+            )
         )
 
     @router.get("/api/jobs")

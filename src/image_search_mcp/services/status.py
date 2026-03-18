@@ -28,13 +28,37 @@ class StatusService:
             last_error_summary=self.repository.get_system_state("last_error_summary"),
         )
 
-    def list_active_images(self, folder: str | None = None) -> list[ImageRecord]:
+    def list_active_images(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+    ) -> list[ImageRecord]:
         images_root = str(self.settings.images_root) if folder else None
-        return self.repository.list_active_images(folder=folder, images_root=images_root)
+        return self.repository.list_active_images(
+            folder=folder,
+            images_root=images_root,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+        )
 
-    def list_active_images_with_labels(self, folder: str | None = None) -> list[ImageRecordWithLabels]:
+    def list_active_images_with_labels(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+    ) -> list[ImageRecordWithLabels]:
         images_root = str(self.settings.images_root) if folder else None
-        return self.repository.list_active_images_with_labels(folder=folder, images_root=images_root)
+        return self.repository.list_active_images_with_labels(
+            folder=folder,
+            images_root=images_root,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+        )
 
     def get_image(self, content_hash: str) -> ImageRecord | None:
         return self.repository.get_image(content_hash)

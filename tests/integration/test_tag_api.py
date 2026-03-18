@@ -1,18 +1,92 @@
+from datetime import datetime, timezone
+from pathlib import Path
+
 import pytest
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
+from image_search_mcp.domain.models import ImageRecord
 from image_search_mcp.repositories.sqlite import MetadataRepository
+from image_search_mcp.services.status import StatusService
 from image_search_mcp.services.tagging import TagService
+from image_search_mcp.web.routes import create_web_router
 from image_search_mcp.web.tag_routes import create_tag_router
+
+NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
+def _make_image(content_hash: str, canonical_path: str) -> ImageRecord:
+    return ImageRecord(
+        content_hash=content_hash,
+        canonical_path=canonical_path,
+        file_size=1000,
+        mtime=1000.0,
+        mime_type="image/jpeg",
+        width=100,
+        height=100,
+        is_active=True,
+        last_seen_at=NOW,
+        embedding_provider="jina",
+        embedding_model="jina-clip-v2",
+        embedding_version="v2",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+
+
+class DummyVectorIndex:
+    def count(self, _: str) -> int:
+        return 0
+
+
+class DummyJobRunner:
+    def enqueue(self, job_type: str):
+        return {"id": f"job-{job_type}"}
+
+
+class DummySearchService:
+    async def search_images(self, **kwargs):
+        return []
+
+    async def search_similar(self, **kwargs):
+        return []
+
+
+class DummySettings:
+    def __init__(self, images_root: Path) -> None:
+        self.images_root = images_root
+        self.embedding_provider = "jina"
+        self.embedding_model = "jina-clip-v2"
+        self.embedding_version = "v2"
 
 
 @pytest.fixture
 def app(tmp_path):
     repo = MetadataRepository(tmp_path / "test.db")
     repo.initialize_schema()
+    images_root = tmp_path / "images"
+    images_root.mkdir()
+
+    repo.upsert_image(_make_image("aaa", str(images_root / "nature" / "rose.jpg")))
+    repo.upsert_image(_make_image("bbb", str(images_root / "nature" / "tulip.jpg")))
+    repo.upsert_image(_make_image("ccc", str(images_root / "urban" / "city.jpg")))
+
     tag_service = TagService(repository=repo)
+    status_service = StatusService(
+        settings=DummySettings(images_root),
+        repository=repo,
+        vector_index=DummyVectorIndex(),
+    )
+
     app = FastAPI()
     app.include_router(create_tag_router(tag_service=tag_service))
+    app.include_router(
+        create_web_router(
+            status_service=status_service,
+            job_runner=DummyJobRunner(),
+            search_service=DummySearchService(),
+        )
+    )
     return app
 
 
@@ -97,3 +171,57 @@ class TestCategoryAPI:
         children = resp.json()
         assert len(children) == 1
         assert children[0]["name"] == "Child"
+
+
+class TestFilteredImagesAPI:
+    @pytest.mark.anyio
+    async def test_list_images_filtered_by_tag(self, client):
+        tag_id = (await client.post("/api/tags", json={"name": "flower"})).json()["id"]
+        await client.post("/api/images/aaa/tags", json={"tag_id": tag_id})
+        await client.post("/api/images/bbb/tags", json={"tag_id": tag_id})
+
+        response = await client.get(f"/api/images?tag_id={tag_id}")
+
+        assert response.status_code == 200
+        assert [image["content_hash"] for image in response.json()] == ["aaa", "bbb"]
+
+    @pytest.mark.anyio
+    async def test_list_images_filtered_by_category_includes_descendants(self, client):
+        parent_id = (await client.post("/api/categories", json={"name": "Nature"})).json()["id"]
+        child_id = (
+            await client.post("/api/categories", json={"name": "Flowers", "parent_id": parent_id})
+        ).json()["id"]
+        await client.post("/api/images/aaa/categories", json={"category_id": parent_id})
+        await client.post("/api/images/bbb/categories", json={"category_id": child_id})
+
+        response = await client.get(f"/api/images?category_id={parent_id}")
+
+        assert response.status_code == 200
+        assert [image["content_hash"] for image in response.json()] == ["aaa", "bbb"]
+
+    @pytest.mark.anyio
+    async def test_list_images_filtered_by_category_can_exclude_descendants(self, client):
+        parent_id = (await client.post("/api/categories", json={"name": "Nature"})).json()["id"]
+        child_id = (
+            await client.post("/api/categories", json={"name": "Flowers", "parent_id": parent_id})
+        ).json()["id"]
+        await client.post("/api/images/aaa/categories", json={"category_id": parent_id})
+        await client.post("/api/images/bbb/categories", json={"category_id": child_id})
+
+        response = await client.get(
+            f"/api/images?category_id={parent_id}&include_descendants=false"
+        )
+
+        assert response.status_code == 200
+        assert [image["content_hash"] for image in response.json()] == ["aaa"]
+
+    @pytest.mark.anyio
+    async def test_list_images_composes_tag_and_folder_filters(self, client):
+        tag_id = (await client.post("/api/tags", json={"name": "featured"})).json()["id"]
+        await client.post("/api/images/aaa/tags", json={"tag_id": tag_id})
+        await client.post("/api/images/ccc/tags", json={"tag_id": tag_id})
+
+        response = await client.get(f"/api/images?tag_id={tag_id}&folder=nature")
+
+        assert response.status_code == 200
+        assert [image["content_hash"] for image in response.json()] == ["aaa"]

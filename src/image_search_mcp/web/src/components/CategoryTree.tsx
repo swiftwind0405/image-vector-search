@@ -1,6 +1,8 @@
 import { ChevronRight, ChevronDown, Pencil, Trash2, Plus } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { CategoryNode } from "@/api/types";
 
 interface CategoryTreeProps {
@@ -47,6 +49,12 @@ function TreeNode({ node, onEdit, onDelete, onAddChild }: TreeNodeProps) {
 
         {/* Hover action buttons */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Link
+            to={`/categories/${node.id}/images`}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-6 px-2 text-xs")}
+          >
+            View images
+          </Link>
           <Button
             variant="ghost"
             size="icon"

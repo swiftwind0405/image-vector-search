@@ -4,6 +4,8 @@ import DashboardPage from "./pages/DashboardPage";
 import TagsPage from "./pages/TagsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ImagesPage from "./pages/ImagesPage";
+import TagImagesPage from "./pages/TagImagesPage";
+import CategoryImagesPage from "./pages/CategoryImagesPage";
 import SearchPage from "./pages/SearchPage";
 import LoginPage from "./pages/LoginPage";
 import { useAuthMe } from "./api/auth";
@@ -28,7 +30,9 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="tags" element={<TagsPage />} />
+        <Route path="tags/:tagId/images" element={<TagImagesPage />} />
         <Route path="categories" element={<CategoriesPage />} />
+        <Route path="categories/:categoryId/images" element={<CategoryImagesPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="search" element={<SearchPage />} />
       </Route>

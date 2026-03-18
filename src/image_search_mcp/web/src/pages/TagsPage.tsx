@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
 import { useTags, useCreateTag, useRenameTag, useDeleteTag } from "@/api/tags";
 import type { Tag } from "@/api/types";
 import { toast } from "sonner";
@@ -127,7 +128,11 @@ export default function TagsPage() {
               <TableBody>
                 {tags.map((tag) => (
                   <TableRow key={tag.id}>
-                    <TableCell className="font-medium">{tag.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link className="hover:underline" to={`/tags/${tag.id}/images`}>
+                        {tag.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(tag.created_at).toLocaleDateString()}
                     </TableCell>
