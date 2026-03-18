@@ -19,6 +19,7 @@ export function useLogin() {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
+      queryClient.setQueryData(["auth", "me"], { authenticated: true });
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
   });
@@ -30,6 +31,7 @@ export function useLogout() {
     mutationFn: () =>
       apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
     onSuccess: () => {
+      queryClient.setQueryData(["auth", "me"], { authenticated: false });
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
   });

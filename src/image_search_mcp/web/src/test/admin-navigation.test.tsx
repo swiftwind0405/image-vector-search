@@ -14,12 +14,13 @@ vi.mock("sonner", () => ({
 
 vi.mock("../api/tags", () => ({
   useTags: () => ({
-    data: [{ id: 3, name: "sunset", created_at: "2026-01-01T00:00:00" }],
+    data: [{ id: 3, name: "sunset", created_at: "2026-01-01T00:00:00", image_count: 1 }],
     isLoading: false,
   }),
   useCreateTag: () => ({ isPending: false, mutate: vi.fn() }),
   useRenameTag: () => ({ isPending: false, mutate: vi.fn() }),
   useDeleteTag: () => ({ isPending: false, mutate: vi.fn() }),
+  useBulkDeleteTags: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 vi.mock("../api/categories", () => ({
@@ -32,6 +33,7 @@ vi.mock("../api/categories", () => ({
         sort_order: 0,
         created_at: "2026-01-01T00:00:00",
         children: [],
+        image_count: 1,
       },
     ],
     isLoading: false,
@@ -39,6 +41,7 @@ vi.mock("../api/categories", () => ({
   useCreateCategory: () => ({ isPending: false, mutate: vi.fn() }),
   useUpdateCategory: () => ({ isPending: false, mutate: vi.fn() }),
   useDeleteCategory: () => ({ isPending: false, mutate: vi.fn() }),
+  useBulkDeleteCategories: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 describe("admin navigation into image detail pages", () => {
@@ -62,7 +65,7 @@ describe("admin navigation into image detail pages", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("link", { name: "View images" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Nature (1)" })).toHaveAttribute(
       "href",
       "/categories/10/images",
     );

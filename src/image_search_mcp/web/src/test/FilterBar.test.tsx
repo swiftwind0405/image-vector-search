@@ -8,6 +8,7 @@ const makeTag = (id: number, name: string): Tag => ({
   id,
   name,
   created_at: "2026-01-01T00:00:00",
+  image_count: null,
 });
 
 const makeCategoryNode = (id: number, name: string): CategoryNode => ({
@@ -17,6 +18,7 @@ const makeCategoryNode = (id: number, name: string): CategoryNode => ({
   sort_order: 0,
   created_at: "2026-01-01T00:00:00",
   children: [],
+  image_count: null,
 });
 
 describe("FilterBar", () => {

@@ -29,7 +29,7 @@ function makeImage(
 }
 
 function makeTag(id: number, name: string): Tag {
-  return { id, name, created_at: "2026-01-01T00:00:00" };
+  return { id, name, created_at: "2026-01-01T00:00:00", image_count: null };
 }
 
 function makeCategory(id: number, name: string): Category {
@@ -37,7 +37,15 @@ function makeCategory(id: number, name: string): Category {
 }
 
 function makeNode(id: number, name: string, children: CategoryNode[] = []): CategoryNode {
-  return { id, name, parent_id: null, sort_order: 0, created_at: "2026-01-01T00:00:00", children };
+  return {
+    id,
+    name,
+    parent_id: null,
+    sort_order: 0,
+    created_at: "2026-01-01T00:00:00",
+    children,
+    image_count: null,
+  };
 }
 
 // The AND-filter logic extracted from ImagesPage
