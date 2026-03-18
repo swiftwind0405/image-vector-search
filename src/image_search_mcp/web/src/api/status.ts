@@ -6,6 +6,5 @@ export function useStatus() {
   return useQuery({
     queryKey: ["status"],
     queryFn: () => apiFetch<IndexStatus>("/api/status"),
-    refetchInterval: 3000,
   });
 }

@@ -138,17 +138,13 @@ class MilvusLiteIndex(VectorIndex):
         if not client.has_collection(self.collection_name):
             return False
 
-        query = client.query_iterator(
+        result = client.query(
             self.collection_name,
-            batch_size=1,
-            limit=1,
             filter=self._embedding_filter(embedding_key, content_hash=content_hash),
             output_fields=[self._PK_FIELD],
+            limit=1,
         )
-        try:
-            return bool(query.next())
-        finally:
-            query.close()
+        return bool(result)
 
     def search(
         self,
@@ -204,22 +200,12 @@ class MilvusLiteIndex(VectorIndex):
         if not client.has_collection(self.collection_name):
             return 0
 
-        query = client.query_iterator(
+        result = client.query(
             self.collection_name,
-            batch_size=1_000,
             filter=self._embedding_filter(embedding_key),
-            output_fields=[self._PK_FIELD],
+            output_fields=["count(*)"],
         )
-        count = 0
-        try:
-            while True:
-                page = query.next()
-                if not page:
-                    break
-                count += len(page)
-        finally:
-            query.close()
-        return count
+        return result[0]["count(*)"] if result else 0
 
     def _client(self) -> MilvusClient:
         if self._closed or self.client is None:

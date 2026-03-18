@@ -6,7 +6,6 @@ export function useJobs() {
   return useQuery({
     queryKey: ["jobs"],
     queryFn: () => apiFetch<JobRecord[]>("/api/jobs"),
-    refetchInterval: 3000,
   });
 }
 

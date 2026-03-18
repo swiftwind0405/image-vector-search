@@ -3,12 +3,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStatus } from "@/api/status";
 import { useJobs, useQueueJob } from "@/api/jobs";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
-  const { data: status } = useStatus();
-  const { data: jobs } = useJobs();
+  const queryClient = useQueryClient();
+  const { data: status, isFetching: statusFetching } = useStatus();
+  const { data: jobs, isFetching: jobsFetching } = useJobs();
   const queueJob = useQueueJob();
+  const isRefreshing = statusFetching || jobsFetching;
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["status"] });
+    queryClient.invalidateQueries({ queryKey: ["jobs"] });
+  };
+
   const handleQueueJob = (type: "incremental" | "rebuild") => {
     queueJob.mutate(type, {
       onSuccess: () => toast.success(`${type} job queued`),
@@ -23,7 +33,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Index Overview */}
