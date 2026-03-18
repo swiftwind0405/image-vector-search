@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi.testclient import TestClient
+from PIL import Image as PILImage
 
 from image_search_mcp.app import create_app
 from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import IndexStatus, JobRecord, SearchResult
+from image_search_mcp.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus, JobRecord, SearchResult
 
 
 class FakeStatusService:
@@ -44,27 +46,36 @@ class FakeStatusService:
                 return job
         return None
 
-    def list_active_images(self, folder: str | None = None):
-        from image_search_mcp.domain.models import ImageRecord
+    def _make_image_record(self, path: str = "/data/images/red.jpg") -> ImageRecord:
         now = datetime.now(UTC)
-        return [
-            ImageRecord(
-                content_hash="hash-red",
-                canonical_path="/data/images/red.jpg",
-                file_size=1024,
-                mtime=1000.0,
-                mime_type="image/jpeg",
-                width=12,
-                height=8,
-                is_active=True,
-                last_seen_at=now,
-                embedding_provider="fake",
-                embedding_model="fake-clip",
-                embedding_version="2026-03",
-                created_at=now,
-                updated_at=now,
-            )
-        ]
+        return ImageRecord(
+            content_hash="hash-red",
+            canonical_path=path,
+            file_size=1024,
+            mtime=1000.0,
+            mime_type="image/jpeg",
+            width=12,
+            height=8,
+            is_active=True,
+            last_seen_at=now,
+            embedding_provider="fake",
+            embedding_model="fake-clip",
+            embedding_version="2026-03",
+            created_at=now,
+            updated_at=now,
+        )
+
+    def list_active_images(self, folder: str | None = None):
+        return [self._make_image_record()]
+
+    def list_active_images_with_labels(self, folder: str | None = None):
+        record = self._make_image_record()
+        return [ImageRecordWithLabels(**record.model_dump())]
+
+    def get_image(self, content_hash: str) -> ImageRecord | None:
+        if content_hash == "hash-red":
+            return self._make_image_record()
+        return None
 
 
 class FakeJobRunner:
@@ -167,3 +178,71 @@ def test_list_images_api():
     response = client.get("/api/images")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+def test_list_images_returns_tags_and_categories():
+    client = create_test_client()
+    response = client.get("/api/images")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert "tags" in body[0]
+    assert "categories" in body[0]
+    assert isinstance(body[0]["tags"], list)
+    assert isinstance(body[0]["categories"], list)
+
+
+def test_thumbnail_missing_record_returns_404():
+    client = create_test_client()
+    response = client.get("/api/images/nonexistent-hash/thumbnail")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "not found"
+
+
+def test_thumbnail_size_out_of_bounds_returns_422():
+    client = create_test_client()
+    # too small
+    response = client.get("/api/images/hash-red/thumbnail?size=10")
+    assert response.status_code == 422
+    # too large
+    response = client.get("/api/images/hash-red/thumbnail?size=600")
+    assert response.status_code == 422
+
+
+def test_thumbnail_file_missing_on_disk_returns_404():
+    """hash-red record exists in DB but canonical_path is /data/images/red.jpg (doesn't exist on disk)."""
+    client = create_test_client()
+    response = client.get("/api/images/hash-red/thumbnail")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "not found"
+
+
+def test_thumbnail_returns_jpeg(tmp_path: Path):
+    """Integration test: real JPEG on disk returns 200 image/jpeg."""
+    # Create a real image file
+    img_path = tmp_path / "test.jpg"
+    PILImage.new("RGB", (200, 150), color=(100, 150, 200)).save(img_path)
+
+    status_service = FakeStatusService()
+    # Override get_image to return real path
+    real_record = status_service._make_image_record(path=str(img_path))
+    status_service.get_image = lambda h: real_record if h == "hash-red" else None  # type: ignore[assignment]
+
+    app = create_app(
+        settings=Settings(),
+        search_service=FakeSearchService(),
+        status_service=status_service,
+        job_runner=FakeJobRunner(status_service),
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/images/hash-red/thumbnail?size=120")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["cache-control"] == "max-age=86400"
+    # Verify it's valid JPEG by opening it
+    from io import BytesIO
+    with PILImage.open(BytesIO(response.content)) as img:
+        assert img.format == "JPEG"
+        assert img.width <= 120
+        assert img.height <= 120

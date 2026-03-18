@@ -43,8 +43,12 @@ import {
 import { useTags } from "@/api/tags";
 import { useCategories } from "@/api/categories";
 import ImageTagEditor from "@/components/ImageTagEditor";
-import { ChevronRight, ChevronDown, FolderOpen, FileSearch, Settings2, Tag, Layers } from "lucide-react";
-import type { CategoryNode } from "@/api/types";
+import FilterBar from "@/components/FilterBar";
+import GalleryGrid from "@/components/GalleryGrid";
+import ImageModal from "@/components/ImageModal";
+import { getDescendantIds } from "@/utils/categories";
+import { ChevronRight, ChevronDown, FolderOpen, FileSearch, Settings2, Tag, Layers, List, LayoutGrid } from "lucide-react";
+import type { CategoryNode, ImageRecordWithLabels } from "@/api/types";
 
 function flattenCategories(
   nodes: CategoryNode[],
@@ -58,6 +62,14 @@ function flattenCategories(
   return result;
 }
 
+function getStoredViewMode(): "list" | "gallery" {
+  try {
+    const stored = localStorage.getItem("images-view-mode");
+    if (stored === "gallery") return "gallery";
+  } catch {}
+  return "list";
+}
+
 export default function ImagesPage() {
   const [folder, setFolder] = useState<string | undefined>(undefined);
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
@@ -68,6 +80,10 @@ export default function ImagesPage() {
   const [folderCategoryId, setFolderCategoryId] = useState<string>("");
   const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
   const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "gallery">(getStoredViewMode);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
+  const [modalHash, setModalHash] = useState<string | null>(null);
 
   const { data: images, isLoading } = useImages(folder);
   const { data: folders } = useFolders();
@@ -92,11 +108,37 @@ export default function ImagesPage() {
     setSelectedHashes(new Set());
   }, [folder]);
 
+  // Persist view mode
+  useEffect(() => {
+    try { localStorage.setItem("images-view-mode", viewMode); } catch {}
+  }, [viewMode]);
+
+  // Compute filtered images (client-side AND-filter)
+  const filteredImages: ImageRecordWithLabels[] = (images ?? []).filter((img) => {
+    if (activeTags.length > 0) {
+      const imageTagNames = img.tags.map((t) => t.name);
+      if (!activeTags.every((name) => imageTagNames.includes(name))) return false;
+    }
+    if (activeCategoryId !== null) {
+      const descendantIds = getDescendantIds(allCategories ?? [], activeCategoryId);
+      const imageCategoryIds = img.categories.map((c) => c.id);
+      if (!imageCategoryIds.some((id) => descendantIds.includes(id))) return false;
+    }
+    return true;
+  });
+
+  // Close modal when current image is filtered out
+  useEffect(() => {
+    if (modalHash && !filteredImages.find((img) => img.content_hash === modalHash)) {
+      setModalHash(null);
+    }
+  }, [filteredImages, modalHash]);
+
   const toggleExpand = (hash: string) => {
     setExpandedHash((prev) => (prev === hash ? null : hash));
   };
 
-  const allHashes = (images ?? []).map((img) => img.content_hash);
+  const allHashes = filteredImages.map((img) => img.content_hash);
   const allSelected = allHashes.length > 0 && allHashes.every((h) => selectedHashes.has(h));
   const someSelected = allHashes.some((h) => selectedHashes.has(h)) && !allSelected;
 
@@ -121,6 +163,21 @@ export default function ImagesPage() {
   };
 
   const selectedCount = selectedHashes.size;
+
+  const handleTagToggle = (name: string) => {
+    setActiveTags((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+  };
+
+  const handleCategoryToggle = (id: number) => {
+    setActiveCategoryId((prev) => (prev === id ? null : id));
+  };
+
+  const handleClearFilters = () => {
+    setActiveTags([]);
+    setActiveCategoryId(null);
+  };
 
   const handleBulkAddTag = () => {
     if (!bulkTagId) return;
@@ -218,11 +275,15 @@ export default function ImagesPage() {
     );
   };
 
+  const modalImage = modalHash
+    ? filteredImages.find((img) => img.content_hash === modalHash) ?? null
+    : null;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Images</h1>
 
-      {/* Folder filter + actions */}
+      {/* Toolbar: folder filter + folder actions + view toggle */}
       <div className="flex items-center gap-3">
         <Select
           value={folder ?? "__all__"}
@@ -240,6 +301,12 @@ export default function ImagesPage() {
             ))}
           </SelectContent>
         </Select>
+
+        {images && (
+          <span className="text-sm text-muted-foreground">
+            {images.length} images
+          </span>
+        )}
 
         {folder && (
           <Dialog>
@@ -272,19 +339,10 @@ export default function ImagesPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      size="sm"
-                      onClick={handleFolderAddTag}
-                      disabled={!folderTagId}
-                    >
+                    <Button size="sm" onClick={handleFolderAddTag} disabled={!folderTagId}>
                       Add
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleFolderRemoveTag}
-                      disabled={!folderTagId}
-                    >
+                    <Button size="sm" variant="outline" onClick={handleFolderRemoveTag} disabled={!folderTagId}>
                       Remove
                     </Button>
                   </div>
@@ -306,19 +364,10 @@ export default function ImagesPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      size="sm"
-                      onClick={handleFolderAddCategory}
-                      disabled={!folderCategoryId}
-                    >
+                    <Button size="sm" onClick={handleFolderAddCategory} disabled={!folderCategoryId}>
                       Add
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleFolderRemoveCategory}
-                      disabled={!folderCategoryId}
-                    >
+                    <Button size="sm" variant="outline" onClick={handleFolderRemoveCategory} disabled={!folderCategoryId}>
                       Remove
                     </Button>
                   </div>
@@ -329,7 +378,7 @@ export default function ImagesPage() {
           </Dialog>
         )}
 
-        {/* Bulk action buttons — right-aligned */}
+        {/* Right side: bulk ops + view toggle */}
         <div className="ml-auto flex items-center gap-2">
           {selectedCount > 0 && (
             <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
@@ -366,25 +415,13 @@ export default function ImagesPage() {
                   <Button size="sm" onClick={handleBulkAddTag} disabled={!bulkTagId}>
                     Add
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleBulkRemoveTag}
-                    disabled={!bulkTagId}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleBulkRemoveTag} disabled={!bulkTagId}>
                     Remove
                   </Button>
                 </div>
               </div>
               <DialogFooter>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedHashes(new Set());
-                    setBulkTagDialogOpen(false);
-                  }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedHashes(new Set()); setBulkTagDialogOpen(false); }}>
                   Clear Selection
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setBulkTagDialogOpen(false)}>
@@ -425,25 +462,13 @@ export default function ImagesPage() {
                   <Button size="sm" onClick={handleBulkAddCategory} disabled={!bulkCategoryId}>
                     Add
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleBulkRemoveCategory}
-                    disabled={!bulkCategoryId}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleBulkRemoveCategory} disabled={!bulkCategoryId}>
                     Remove
                   </Button>
                 </div>
               </div>
               <DialogFooter>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedHashes(new Set());
-                    setBulkCategoryDialogOpen(false);
-                  }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedHashes(new Set()); setBulkCategoryDialogOpen(false); }}>
                   Clear Selection
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setBulkCategoryDialogOpen(false)}>
@@ -452,112 +477,167 @@ export default function ImagesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* View toggle */}
+          <div className="flex items-center border rounded-md overflow-hidden">
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none"
+              onClick={() => setViewMode("list")}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "gallery" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none"
+              onClick={() => setViewMode("gallery")}
+              title="Gallery view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground p-4">Loading...</p>
-          ) : !images || images.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-4">No images indexed yet</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">
-                    <Checkbox
-                      checked={allSelected}
-                      indeterminate={someSelected}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-8" />
-                  <TableHead>Content Hash</TableHead>
-                  <TableHead>Path</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {images.map((image) => (
-                  <React.Fragment key={image.content_hash}>
-                    <TableRow
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => toggleExpand(image.content_hash)}
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedHashes.has(image.content_hash)}
-                          onCheckedChange={() => toggleSelect(image.content_hash)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {expandedHash === image.content_hash ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {image.content_hash.slice(0, 16)}...
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {image.canonical_path}
-                      </TableCell>
-                      <TableCell className="text-sm">{image.mime_type}</TableCell>
-                      <TableCell className="text-sm">
-                        {image.width}x{image.height}
-                      </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            title="Open file"
-                            onClick={() =>
-                              openFile.mutate(
-                                { path: image.canonical_path },
-                                { onError: () => toast.error("Failed to open file") },
-                              )
-                            }
-                          >
-                            <FileSearch className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            title="Reveal in finder"
-                            onClick={() =>
-                              revealFile.mutate(
-                                { path: image.canonical_path },
-                                { onError: () => toast.error("Failed to reveal file") },
-                              )
-                            }
-                          >
-                            <FolderOpen className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                    {expandedHash === image.content_hash && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="bg-muted/30 p-0">
-                          <ImageTagEditor contentHash={image.content_hash} />
+      {/* Filter bar (both modes) */}
+      <FilterBar
+        tags={allTags ?? []}
+        categories={allCategories ?? []}
+        activeTags={activeTags}
+        activeCategoryId={activeCategoryId}
+        onTagToggle={handleTagToggle}
+        onCategoryToggle={handleCategoryToggle}
+        onClear={handleClearFilters}
+      />
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : viewMode === "gallery" ? (
+        <>
+          <GalleryGrid images={filteredImages} onOpen={(hash) => setModalHash(hash)} />
+          {images && (
+            <p className="text-sm text-muted-foreground text-center">
+              Showing {filteredImages.length} of {images.length} images
+              {(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
+            </p>
+          )}
+        </>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            {!images || images.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-4">No images indexed yet</p>
+            ) : filteredImages.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-4">No images match the active filters.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8">
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={someSelected}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead className="w-8" />
+                    <TableHead>Content Hash</TableHead>
+                    <TableHead>Path</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead className="w-20">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredImages.map((image) => (
+                    <React.Fragment key={image.content_hash}>
+                      <TableRow
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => toggleExpand(image.content_hash)}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedHashes.has(image.content_hash)}
+                            onCheckedChange={() => toggleSelect(image.content_hash)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {expandedHash === image.content_hash ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {image.content_hash.slice(0, 16)}...
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                          {image.canonical_path}
+                        </TableCell>
+                        <TableCell className="text-sm">{image.mime_type}</TableCell>
+                        <TableCell className="text-sm">
+                          {image.width}x{image.height}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Open file"
+                              onClick={() =>
+                                openFile.mutate(
+                                  { path: image.canonical_path },
+                                  { onError: () => toast.error("Failed to open file") },
+                                )
+                              }
+                            >
+                              <FileSearch className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Reveal in finder"
+                              onClick={() =>
+                                revealFile.mutate(
+                                  { path: image.canonical_path },
+                                  { onError: () => toast.error("Failed to reveal file") },
+                                )
+                              }
+                            >
+                              <FolderOpen className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    )}
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                      {expandedHash === image.content_hash && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-muted/30 p-0">
+                            <ImageTagEditor contentHash={image.content_hash} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
+      {/* Image modal (gallery mode) */}
+      <ImageModal
+        image={modalImage}
+        images={filteredImages}
+        open={modalHash !== null}
+        onClose={() => setModalHash(null)}
+        onNavigate={(hash) => setModalHash(hash)}
+      />
     </div>
   );
 }

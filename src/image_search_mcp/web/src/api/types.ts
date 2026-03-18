@@ -33,6 +33,11 @@ export interface ImageRecord {
   updated_at: string;
 }
 
+export interface ImageRecordWithLabels extends ImageRecord {
+  tags: Tag[];
+  categories: Category[];
+}
+
 export interface IndexStatus {
   images_on_disk: number;
   total_images: number;

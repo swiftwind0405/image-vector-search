@@ -73,6 +73,11 @@ class ImageRecord(BaseModel):
     updated_at: datetime
 
 
+class ImageRecordWithLabels(ImageRecord):
+    tags: list[Tag] = []
+    categories: list[Category] = []
+
+
 class ImagePathRecord(BaseModel):
     content_hash: str
     path: str

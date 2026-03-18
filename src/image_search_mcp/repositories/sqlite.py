@@ -7,6 +7,7 @@ from image_search_mcp.domain.models import (
     CategoryNode,
     ImagePathRecord,
     ImageRecord,
+    ImageRecordWithLabels,
     JobRecord,
     StatusAggregates,
     Tag,
@@ -106,6 +107,26 @@ class MetadataRepository:
                     "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
                 ).fetchall()
         return [_row_to_image(row) for row in rows]
+
+    def list_active_images_with_labels(
+        self,
+        folder: str | None = None,
+        images_root: str | None = None,
+    ) -> list[ImageRecordWithLabels]:
+        images = self.list_active_images(folder=folder, images_root=images_root)
+        if not images:
+            return []
+        hashes = [img.content_hash for img in images]
+        tags_map = self.get_tags_for_images(hashes)
+        cats_map = self.get_categories_for_images(hashes)
+        return [
+            ImageRecordWithLabels(
+                **img.model_dump(),
+                tags=tags_map.get(img.content_hash, []),
+                categories=cats_map.get(img.content_hash, []),
+            )
+            for img in images
+        ]
 
     def list_folders(self, images_root: str) -> list[str]:
         root = images_root.rstrip("/") + "/"
