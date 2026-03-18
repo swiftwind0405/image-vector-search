@@ -63,6 +63,7 @@ import type { CategoryNode, ImageRecordWithLabels } from "@/api/types";
 interface ImageBrowserProps {
   title: string;
   subtitle?: React.ReactNode;
+  breadcrumb?: React.ReactNode;
   queryScope?: {
     tagId?: number;
     categoryId?: number;
@@ -94,6 +95,7 @@ function getStoredViewMode(): "list" | "gallery" {
 export default function ImageBrowser({
   title,
   subtitle,
+  breadcrumb,
   queryScope,
   emptyMessage = "No images indexed yet",
 }: ImageBrowserProps) {
@@ -322,6 +324,7 @@ export default function ImageBrowser({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
+        {breadcrumb}
         <h1 className="text-2xl font-semibold">{title}</h1>
         {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
       </div>

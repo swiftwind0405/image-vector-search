@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import ImageBrowser from "@/components/ImageBrowser";
 import { useCategories } from "@/api/categories";
 import type { CategoryNode } from "@/api/types";
@@ -41,6 +42,17 @@ export default function CategoryImagesPage() {
         isLoading
           ? "Loading category..."
           : "Includes images from this category and all descendant categories."
+      }
+      breadcrumb={
+        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Link to="/categories" className="hover:text-foreground transition-colors">
+            Categories
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground">
+            {category ? category.name : `#${parsedCategoryId}`}
+          </span>
+        </nav>
       }
       queryScope={{ categoryId: parsedCategoryId, includeDescendants: true }}
       emptyMessage="No images are assigned to this category yet."

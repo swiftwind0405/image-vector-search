@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, X, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, X, Info, Copy, Check } from "lucide-react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,34 @@ import ImageTagEditor from "@/components/ImageTagEditor";
 import { useOpenFile, useRevealFile } from "@/api/bulk";
 import type { ImageRecordWithLabels } from "@/api/types";
 import { useState } from "react";
+
+function CopyablePath({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(path);
+    setCopied(true);
+    toast.success("Path copied");
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="group flex items-center gap-1.5 mt-2 max-w-full text-left cursor-pointer rounded px-1.5 py-1 -mx-1.5 hover:bg-muted transition-colors"
+      title={path}
+    >
+      <span className="text-xs text-muted-foreground font-mono truncate min-w-0">
+        {path}
+      </span>
+      {copied ? (
+        <Check className="h-3 w-3 text-green-500 shrink-0" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      )}
+    </button>
+  );
+}
 
 interface Props {
   image: ImageRecordWithLabels | null;
@@ -124,11 +152,11 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
           {/* Main area: image + optional side panel */}
           <div className="flex w-full h-full pt-14">
             {/* Image area */}
-            <div className="relative flex-1 flex items-center justify-center min-w-0">
+            <div className="relative flex-1 flex items-center justify-center min-w-0 overflow-hidden">
               <img
                 src={`/api/images/${image.content_hash}/file`}
                 alt={filename}
-                className="max-w-full max-h-full object-contain p-4"
+                className="w-full h-full object-contain p-4"
               />
 
               {/* Prev / Next arrows */}
@@ -169,6 +197,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
                         {image.width} × {image.height} · {image.mime_type}
                       </p>
                     )}
+                    <CopyablePath path={image.canonical_path} />
                   </div>
                   <ImageTagEditor contentHash={image.content_hash} />
                 </div>

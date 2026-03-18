@@ -25,7 +25,7 @@ export default function GalleryCard({ image, onOpen, selected, onSelect }: Props
           <img
             src={`/api/images/${image.content_hash}/file`}
             alt={filename}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]"
             onError={() => setImgError(true)}
             loading="lazy"
           />

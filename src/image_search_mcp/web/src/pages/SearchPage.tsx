@@ -173,7 +173,7 @@ export default function SearchPage() {
           <CardContent>
             <form onSubmit={handleSimilarSearch} className="flex gap-2">
               <Input
-                placeholder="Image path..."
+                placeholder="/path/to/image.jpg"
                 value={similarPath}
                 onChange={(e) => setSimilarPath(e.target.value)}
                 disabled={loading}
