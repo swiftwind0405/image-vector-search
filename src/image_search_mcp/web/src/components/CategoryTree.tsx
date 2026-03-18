@@ -1,9 +1,8 @@
 import { ChevronRight, ChevronDown, Pencil, Trash2, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import type { CategoryNode } from "@/api/types";
 
 interface CategoryTreeProps {
@@ -59,21 +58,18 @@ function TreeNode({ node, onEdit, onDelete, onAddChild, selectedIds, onToggleSel
         </button>
 
         {/* Category name */}
-        <span className="flex-1 text-sm">
+        <Link
+          to={`/categories/${node.id}/images`}
+          className="flex-1 text-sm hover:underline"
+        >
           {node.name}
           <span className="ml-1.5 text-xs text-muted-foreground">
             ({node.image_count ?? 0})
           </span>
-        </span>
+        </Link>
 
         {/* Hover action buttons */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link
-            to={`/categories/${node.id}/images`}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-6 px-2 text-xs")}
-          >
-            View images
-          </Link>
           <Button
             variant="ghost"
             size="icon"
