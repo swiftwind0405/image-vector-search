@@ -1,91 +1,33 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/api/client";
-import type { SearchResult } from "@/api/types";
+import type { SearchResult, ImageRecordWithLabels } from "@/api/types";
 import { toast } from "sonner";
-import { Search, ScanSearch, FileImage, Ruler, Tag, FolderTree } from "lucide-react";
+import { Search, ScanSearch } from "lucide-react";
+import SearchResultCard from "@/components/SearchResultCard";
+import ImageModal from "@/components/ImageModal";
 
-function ScoreBadge({ score }: { score: number }) {
-  const pct = score * 100;
-  const variant =
-    pct >= 80 ? "default" : pct >= 60 ? "secondary" : "outline";
-  return (
-    <Badge variant={variant} className="text-xs font-mono">
-      {pct.toFixed(1)}%
-    </Badge>
-  );
-}
-
-function ResultCard({ result }: { result: SearchResult }) {
-  const filename = result.path.split("/").pop() ?? result.path;
-  const dir = result.path.split("/").slice(0, -1).join("/");
-
-  return (
-    <Card className="flex flex-col gap-0 overflow-hidden">
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <CardTitle
-              className="text-sm font-medium truncate"
-              title={result.path}
-            >
-              <FileImage className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />
-              {filename}
-            </CardTitle>
-            {dir && (
-              <p
-                className="text-xs text-muted-foreground truncate mt-0.5"
-                title={dir}
-              >
-                {dir}
-              </p>
-            )}
-          </div>
-          <ScoreBadge score={result.score} />
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-2">
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Ruler className="h-3 w-3" />
-            {result.width} × {result.height}
-          </span>
-          <span>{result.mime_type}</span>
-          <span
-            className="font-mono text-[10px] truncate max-w-[120px]"
-            title={result.content_hash}
-          >
-            {result.content_hash.slice(0, 12)}…
-          </span>
-        </div>
-
-        {result.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            <Tag className="h-3 w-3 text-muted-foreground self-center" />
-            {result.tags.map((t) => (
-              <Badge key={t.id} variant="secondary" className="text-xs h-5 px-1.5">
-                {t.name}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {result.categories.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            <FolderTree className="h-3 w-3 text-muted-foreground self-center" />
-            {result.categories.map((c) => (
-              <Badge key={c.id} variant="outline" className="text-xs h-5 px-1.5">
-                {c.name}
-              </Badge>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function searchResultToImage(r: SearchResult): ImageRecordWithLabels {
+  return {
+    content_hash: r.content_hash,
+    canonical_path: r.path,
+    file_size: 0,
+    mtime: 0,
+    mime_type: r.mime_type,
+    width: r.width,
+    height: r.height,
+    is_active: true,
+    last_seen_at: "",
+    embedding_provider: "",
+    embedding_model: "",
+    embedding_version: "",
+    created_at: "",
+    updated_at: "",
+    tags: r.tags,
+    categories: r.categories,
+  };
 }
 
 export default function SearchPage() {
@@ -94,6 +36,16 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState<"text" | "similar" | null>(null);
+  const [modalHash, setModalHash] = useState<string | null>(null);
+
+  const imageList = useMemo(
+    () => (results ?? []).map(searchResultToImage),
+    [results],
+  );
+
+  const modalImage = modalHash
+    ? imageList.find((img) => img.content_hash === modalHash) ?? null
+    : null;
 
   const handleTextSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,14 +159,26 @@ export default function SearchPage() {
             </h2>
           </div>
           {results.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {results.map((r) => (
-                <ResultCard key={r.content_hash} result={r} />
+                <SearchResultCard
+                  key={r.content_hash}
+                  result={r}
+                  onClick={() => setModalHash(r.content_hash)}
+                />
               ))}
             </div>
           )}
         </div>
       )}
+
+      <ImageModal
+        image={modalImage}
+        images={imageList}
+        open={modalHash !== null}
+        onClose={() => setModalHash(null)}
+        onNavigate={(hash) => setModalHash(hash)}
+      />
     </div>
   );
 }
