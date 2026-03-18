@@ -41,3 +41,15 @@ export function useDeleteTag() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tags"] }),
   });
 }
+
+export function useBulkDeleteTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tagIds: number[]) =>
+      apiFetch<{ deleted: number }>("/api/tags/batch-delete", {
+        method: "POST",
+        body: JSON.stringify({ tag_ids: tagIds }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tags"] }),
+  });
+}

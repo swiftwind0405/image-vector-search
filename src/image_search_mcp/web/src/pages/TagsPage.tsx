@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -11,21 +12,49 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
-import { useTags, useCreateTag, useRenameTag, useDeleteTag } from "@/api/tags";
+import { useTags, useCreateTag, useRenameTag, useDeleteTag, useBulkDeleteTags } from "@/api/tags";
 import type { Tag } from "@/api/types";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ListChecks, X } from "lucide-react";
 
 export default function TagsPage() {
   const { data: tags, isLoading } = useTags();
   const createTag = useCreateTag();
   const renameTag = useRenameTag();
   const deleteTag = useDeleteTag();
+  const bulkDeleteTags = useBulkDeleteTags();
 
   const [newName, setNewName] = useState("");
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editName, setEditName] = useState("");
   const [deletingTag, setDeletingTag] = useState<Tag | null>(null);
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!tags) return;
+    if (selectedIds.size === tags.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(tags.map((t) => t.id)));
+    }
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +104,27 @@ export default function TagsPage() {
     });
   };
 
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    bulkDeleteTags.mutate(ids, {
+      onSuccess: (data) => {
+        setShowBulkDelete(false);
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        toast.success(`Deleted ${data.deleted} tag(s)`);
+      },
+      onError: () => {
+        toast.error("Failed to delete tags");
+      },
+    });
+  };
+
+  const selectedTagNames = tags
+    ? tags.filter((t) => selectedIds.has(t.id)).map((t) => t.name)
+    : [];
+
+  const allSelected = !!tags && tags.length > 0 && selectedIds.size === tags.length;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Tags</h1>
@@ -101,8 +151,58 @@ export default function TagsPage() {
 
       {/* Tag List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">All Tags</CardTitle>
+          {tags && tags.length > 0 && (
+            <div className="flex items-center gap-2">
+              {selectMode ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Checkbox checked={allSelected} />
+                    <span>{allSelected ? "Deselect all" : "Select all"}</span>
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedIds.size} selected
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowBulkDelete(true)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Delete Selected
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={exitSelectMode}
+                    title="Exit selection mode"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSelectMode(true)}
+                  title="Batch select"
+                >
+                  <ListChecks className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -114,8 +214,15 @@ export default function TagsPage() {
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="group flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pl-3 pr-1 transition-colors hover:bg-muted"
+                  className={`group flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pr-1 transition-colors hover:bg-muted ${selectMode ? "pl-2" : "pl-3"}`}
                 >
+                  {selectMode && (
+                    <Checkbox
+                      checked={selectedIds.has(tag.id)}
+                      onClick={() => toggleSelect(tag.id)}
+                      className="h-3.5 w-3.5"
+                    />
+                  )}
                   <Link
                     className="text-sm font-medium hover:underline"
                     to={`/tags/${tag.id}/images`}
@@ -196,7 +303,7 @@ export default function TagsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Single Delete Confirmation Dialog */}
       <Dialog
         open={deletingTag !== null}
         onOpenChange={(open) => {
@@ -227,6 +334,45 @@ export default function TagsPage() {
               disabled={deleteTag.isPending}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={showBulkDelete}
+        onOpenChange={(open) => {
+          if (!open) setShowBulkDelete(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Tag(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete the following tags? This action cannot be undone.
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+              {selectedTagNames.map((name) => (
+                <Badge key={name} variant="secondary">{name}</Badge>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteTags.isPending}
+            >
+              Delete {selectedIds.size} Tag(s)
             </Button>
           </DialogFooter>
         </DialogContent>

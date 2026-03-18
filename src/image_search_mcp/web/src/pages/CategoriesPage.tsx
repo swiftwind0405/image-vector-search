@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -15,19 +17,45 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useBulkDeleteCategories,
 } from "@/api/categories";
 import type { CategoryNode } from "@/api/types";
 import CategoryTree from "@/components/CategoryTree";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, ListChecks, X } from "lucide-react";
 
 type MoveAction = "none" | "root" | "reparent";
+
+function collectAllIds(nodes: CategoryNode[]): number[] {
+  const ids: number[] = [];
+  const walk = (list: CategoryNode[]) => {
+    for (const n of list) {
+      ids.push(n.id);
+      if (n.children) walk(n.children);
+    }
+  };
+  walk(nodes);
+  return ids;
+}
+
+function findNames(nodes: CategoryNode[], ids: Set<number>): string[] {
+  const names: string[] = [];
+  const walk = (list: CategoryNode[]) => {
+    for (const n of list) {
+      if (ids.has(n.id)) names.push(n.name);
+      if (n.children) walk(n.children);
+    }
+  };
+  walk(nodes);
+  return names;
+}
 
 export default function CategoriesPage() {
   const { data: categories, isLoading } = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
+  const bulkDeleteCategories = useBulkDeleteCategories();
 
   // Create dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -42,6 +70,36 @@ export default function CategoriesPage() {
 
   // Delete dialog state
   const [deletingNode, setDeletingNode] = useState<CategoryNode | null>(null);
+
+  // Batch selection state
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const allIds = categories ? collectAllIds(categories) : [];
+  const allSelected = allIds.length > 0 && selectedIds.size === allIds.length;
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  };
 
   const countChildren = (node: CategoryNode): number => {
     let count = node.children.length;
@@ -137,22 +195,88 @@ export default function CategoriesPage() {
     });
   };
 
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    bulkDeleteCategories.mutate(ids, {
+      onSuccess: (data) => {
+        setShowBulkDelete(false);
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        toast.success(`Deleted ${data.deleted} category(ies)`);
+      },
+      onError: () => {
+        toast.error("Failed to delete categories");
+      },
+    });
+  };
+
   const childrenCount = deletingNode ? countChildren(deletingNode) : 0;
+  const selectedNames = categories ? findNames(categories, selectedIds) : [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Categories</h1>
-        <Button onClick={() => handleOpenCreate(null)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Category
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectMode && selectedIds.size > 0 && (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDelete(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete Selected
+              </Button>
+            </>
+          )}
+          {selectMode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={exitSelectMode}
+              title="Exit selection mode"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          <Button onClick={() => handleOpenCreate(null)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Category
+          </Button>
+        </div>
       </div>
 
       {/* Category Tree */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Category Hierarchy</CardTitle>
+          {allIds.length > 0 && (
+            selectMode ? (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Checkbox checked={allSelected} />
+                <span>{allSelected ? "Deselect all" : "Select all"}</span>
+              </button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setSelectMode(true)}
+                title="Batch select"
+              >
+                <ListChecks className="h-4 w-4" />
+              </Button>
+            )
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -163,6 +287,7 @@ export default function CategoriesPage() {
               onEdit={handleOpenEdit}
               onDelete={(node) => setDeletingNode(node)}
               onAddChild={(parentId) => handleOpenCreate(parentId)}
+              {...(selectMode ? { selectedIds, onToggleSelect: toggleSelect } : {})}
             />
           )}
         </CardContent>
@@ -319,7 +444,7 @@ export default function CategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Single Delete Confirmation Dialog */}
       <Dialog
         open={deletingNode !== null}
         onOpenChange={(open) => {
@@ -357,6 +482,46 @@ export default function CategoriesPage() {
               disabled={deleteCategory.isPending}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={showBulkDelete}
+        onOpenChange={(open) => {
+          if (!open) setShowBulkDelete(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Category(ies)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete the following categories and all their
+              descendants? This action cannot be undone.
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+              {selectedNames.map((name) => (
+                <Badge key={name} variant="secondary">{name}</Badge>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteCategories.isPending}
+            >
+              Delete {selectedIds.size} Category(ies)
             </Button>
           </DialogFooter>
         </DialogContent>

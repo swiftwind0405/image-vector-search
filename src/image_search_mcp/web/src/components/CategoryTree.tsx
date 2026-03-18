@@ -2,6 +2,7 @@ import { ChevronRight, ChevronDown, Pencil, Trash2, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { CategoryNode } from "@/api/types";
 
@@ -10,6 +11,8 @@ interface CategoryTreeProps {
   onEdit: (node: CategoryNode) => void;
   onDelete: (node: CategoryNode) => void;
   onAddChild: (parentId: number) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
 }
 
 interface TreeNodeProps {
@@ -17,15 +20,26 @@ interface TreeNodeProps {
   onEdit: (node: CategoryNode) => void;
   onDelete: (node: CategoryNode) => void;
   onAddChild: (parentId: number) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
 }
 
-function TreeNode({ node, onEdit, onDelete, onAddChild }: TreeNodeProps) {
+function TreeNode({ node, onEdit, onDelete, onAddChild, selectedIds, onToggleSelect }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
+  const selectable = selectedIds !== undefined && onToggleSelect !== undefined;
 
   return (
     <div>
       <div className="group flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted/50">
+        {selectable && (
+          <Checkbox
+            checked={selectedIds.has(node.id)}
+            onClick={() => onToggleSelect(node.id)}
+            className="h-3.5 w-3.5 mr-0.5"
+          />
+        )}
+
         {/* Expand/collapse chevron */}
         <button
           onClick={() => setExpanded((e) => !e)}
@@ -100,6 +114,8 @@ function TreeNode({ node, onEdit, onDelete, onAddChild }: TreeNodeProps) {
               onEdit={onEdit}
               onDelete={onDelete}
               onAddChild={onAddChild}
+              selectedIds={selectedIds}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>
@@ -113,6 +129,8 @@ export default function CategoryTree({
   onEdit,
   onDelete,
   onAddChild,
+  selectedIds,
+  onToggleSelect,
 }: CategoryTreeProps) {
   if (!nodes || nodes.length === 0) {
     return (
@@ -129,6 +147,8 @@ export default function CategoryTree({
           onEdit={onEdit}
           onDelete={onDelete}
           onAddChild={onAddChild}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </div>

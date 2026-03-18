@@ -60,6 +60,18 @@ class TagService:
     def delete_category(self, category_id: int) -> None:
         self._repo.delete_category(category_id)
 
+    # --- Bulk delete ---
+
+    def bulk_delete_tags(self, tag_ids: list[int]) -> int:
+        if len(tag_ids) > self.MAX_BULK_SIZE:
+            raise ValueError(f"tag_ids exceeds maximum of {self.MAX_BULK_SIZE}")
+        return self._repo.bulk_delete_tags(tag_ids)
+
+    def bulk_delete_categories(self, category_ids: list[int]) -> int:
+        if len(category_ids) > self.MAX_BULK_SIZE:
+            raise ValueError(f"category_ids exceeds maximum of {self.MAX_BULK_SIZE}")
+        return self._repo.bulk_delete_categories(category_ids)
+
     # --- Image associations ---
 
     def add_tag_to_image(self, content_hash: str, tag_id: int) -> None:

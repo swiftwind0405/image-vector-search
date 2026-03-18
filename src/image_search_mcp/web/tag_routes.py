@@ -21,6 +21,12 @@ class UpdateCategoryRequest(BaseModel):
     move_to_parent_id: int | None = None
     move_to_root: bool = False
 
+class BatchDeleteTagsRequest(BaseModel):
+    tag_ids: list[int]
+
+class BatchDeleteCategoriesRequest(BaseModel):
+    category_ids: list[int]
+
 class AddTagToImageRequest(BaseModel):
     tag_id: int
 
@@ -55,6 +61,14 @@ def create_tag_router(*, tag_service: TagService) -> APIRouter:
     @router.delete("/api/tags/{tag_id}", status_code=204)
     def delete_tag(tag_id: int):
         tag_service.delete_tag(tag_id)
+
+    @router.post("/api/tags/batch-delete")
+    def batch_delete_tags(body: BatchDeleteTagsRequest):
+        try:
+            deleted = tag_service.bulk_delete_tags(body.tag_ids)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"deleted": deleted}
 
     # --- Categories ---
     @router.post("/api/categories", status_code=201)
@@ -91,6 +105,14 @@ def create_tag_router(*, tag_service: TagService) -> APIRouter:
     @router.delete("/api/categories/{category_id}", status_code=204)
     def delete_category(category_id: int):
         tag_service.delete_category(category_id)
+
+    @router.post("/api/categories/batch-delete")
+    def batch_delete_categories(body: BatchDeleteCategoriesRequest):
+        try:
+            deleted = tag_service.bulk_delete_categories(body.category_ids)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        return {"deleted": deleted}
 
     # --- Image associations ---
     @router.post("/api/images/{content_hash}/tags", status_code=201)

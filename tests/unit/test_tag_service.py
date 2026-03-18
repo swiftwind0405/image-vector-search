@@ -48,3 +48,53 @@ class TestTagServiceValidation:
         svc, repo = self._make_service()
         with pytest.raises(ValueError, match="itself"):
             svc.move_category(1, 1)
+
+
+class TestBulkDeleteTags:
+    def _make_service(self):
+        repo = MagicMock()
+        return TagService(repository=repo), repo
+
+    def test_bulk_delete_tags_delegates_to_repo(self):
+        svc, repo = self._make_service()
+        repo.bulk_delete_tags.return_value = 3
+        result = svc.bulk_delete_tags([1, 2, 3])
+        repo.bulk_delete_tags.assert_called_once_with([1, 2, 3])
+        assert result == 3
+
+    def test_bulk_delete_tags_empty_list(self):
+        svc, repo = self._make_service()
+        repo.bulk_delete_tags.return_value = 0
+        result = svc.bulk_delete_tags([])
+        repo.bulk_delete_tags.assert_called_once_with([])
+        assert result == 0
+
+    def test_bulk_delete_tags_exceeds_max_raises(self):
+        svc, repo = self._make_service()
+        with pytest.raises(ValueError, match="maximum"):
+            svc.bulk_delete_tags(list(range(501)))
+
+
+class TestBulkDeleteCategories:
+    def _make_service(self):
+        repo = MagicMock()
+        return TagService(repository=repo), repo
+
+    def test_bulk_delete_categories_delegates_to_repo(self):
+        svc, repo = self._make_service()
+        repo.bulk_delete_categories.return_value = 5
+        result = svc.bulk_delete_categories([10, 20])
+        repo.bulk_delete_categories.assert_called_once_with([10, 20])
+        assert result == 5
+
+    def test_bulk_delete_categories_empty_list(self):
+        svc, repo = self._make_service()
+        repo.bulk_delete_categories.return_value = 0
+        result = svc.bulk_delete_categories([])
+        repo.bulk_delete_categories.assert_called_once_with([])
+        assert result == 0
+
+    def test_bulk_delete_categories_exceeds_max_raises(self):
+        svc, repo = self._make_service()
+        with pytest.raises(ValueError, match="maximum"):
+            svc.bulk_delete_categories(list(range(501)))

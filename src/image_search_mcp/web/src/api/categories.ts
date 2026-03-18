@@ -49,3 +49,15 @@ export function useDeleteCategory() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
+
+export function useBulkDeleteCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (categoryIds: number[]) =>
+      apiFetch<{ deleted: number }>("/api/categories/batch-delete", {
+        method: "POST",
+        body: JSON.stringify({ category_ids: categoryIds }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+  });
+}

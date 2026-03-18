@@ -483,6 +483,39 @@ class MetadataRepository:
             conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
             conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
 
+    def bulk_delete_tags(self, tag_ids: list[int]) -> int:
+        if not tag_ids:
+            return 0
+        with self.connect() as conn:
+            placeholders = ",".join("?" * len(tag_ids))
+            cursor = conn.execute(
+                f"DELETE FROM tags WHERE id IN ({placeholders})", tag_ids,
+            )
+            return cursor.rowcount
+
+    def bulk_delete_categories(self, category_ids: list[int]) -> int:
+        if not category_ids:
+            return 0
+        with self.connect() as conn:
+            all_ids: set[int] = set()
+            for cid in category_ids:
+                rows = conn.execute("""
+                    WITH RECURSIVE descendants(id) AS (
+                        SELECT id FROM categories WHERE id = ?
+                        UNION ALL
+                        SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
+                    )
+                    SELECT id FROM descendants
+                """, (cid,)).fetchall()
+                all_ids.update(r["id"] for r in rows)
+            if not all_ids:
+                return 0
+            ids = list(all_ids)
+            placeholders = ",".join("?" * len(ids))
+            conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
+            cursor = conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
+            return cursor.rowcount
+
     def add_tag_to_image(self, content_hash: str, tag_id: int) -> None:
         now = _to_iso(datetime.now(timezone.utc))
         with self.connect() as conn:
