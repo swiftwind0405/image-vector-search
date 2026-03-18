@@ -64,6 +64,7 @@ interface ImageBrowserProps {
   title: string;
   subtitle?: React.ReactNode;
   breadcrumb?: React.ReactNode;
+  hideTitle?: boolean;
   queryScope?: {
     tagId?: number;
     categoryId?: number;
@@ -93,7 +94,7 @@ function getStoredViewMode(): "list" | "gallery" {
 }
 
 export default function ImageBrowser({
-  title,
+title,
   subtitle,
   breadcrumb,
   queryScope,
@@ -325,7 +326,7 @@ export default function ImageBrowser({
     <div className="space-y-6">
       <div className="space-y-1">
         {breadcrumb}
-        <h1 className="text-2xl font-semibold">{title}</h1>
+        {title && <h1 className="text-2xl font-semibold">{title}</h1>}
         {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
       </div>
 

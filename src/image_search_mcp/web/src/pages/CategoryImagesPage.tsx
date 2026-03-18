@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import ImageBrowser from "@/components/ImageBrowser";
 import { useCategories } from "@/api/categories";
 import type { CategoryNode } from "@/api/types";
@@ -23,8 +24,9 @@ function findCategoryNode(
 
 export default function CategoryImagesPage() {
   const { categoryId } = useParams();
+  const navigate = useNavigate();
   const parsedCategoryId = Number(categoryId);
-  const { data: categories, isLoading } = useCategories();
+  const { data: categories } = useCategories();
 
   const category = useMemo(
     () => findCategoryNode(categories ?? [], parsedCategoryId),
@@ -35,25 +37,25 @@ export default function CategoryImagesPage() {
     return <p className="text-sm text-muted-foreground">Invalid category id.</p>;
   }
 
+  const displayName = category ? category.name : `Category #${parsedCategoryId}`;
+
   return (
     <ImageBrowser
-      title={category ? `Category: ${category.name}` : `Category #${parsedCategoryId}`}
-      subtitle={
-        isLoading
-          ? "Loading category..."
-          : "Includes images from this category and all descendant categories."
-      }
+      title={displayName}
       breadcrumb={
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Link to="/categories" className="hover:text-foreground transition-colors">
-            Categories
-          </Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-foreground">
-            {category ? category.name : `#${parsedCategoryId}`}
-          </span>
-        </nav>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-2 gap-1 text-muted-foreground"
+            onClick={() => navigate("/categories")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-lg font-semibold">{displayName}</h1>
+        </div>
       }
+      hideTitle
       queryScope={{ categoryId: parsedCategoryId, includeDescendants: true }}
       emptyMessage="No images are assigned to this category yet."
     />
