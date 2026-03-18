@@ -1,41 +1,13 @@
 import { useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, X, Info, Copy, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, X, Info } from "lucide-react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import ImageTagEditor from "@/components/ImageTagEditor";
+import ImageInfoPanel from "@/components/ImageInfoPanel";
 import { useOpenFile, useRevealFile } from "@/api/bulk";
 import type { ImageRecordWithLabels } from "@/api/types";
 import { useState } from "react";
-
-function CopyablePath({ path }: { path: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(path);
-    setCopied(true);
-    toast.success("Path copied");
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="group flex items-center gap-1.5 mt-2 max-w-full text-left cursor-pointer rounded px-1.5 py-1 -mx-1.5 hover:bg-muted transition-colors"
-      title={path}
-    >
-      <span className="text-xs text-muted-foreground font-mono truncate min-w-0">
-        {path}
-      </span>
-      {copied ? (
-        <Check className="h-3 w-3 text-green-500 shrink-0" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-      )}
-    </button>
-  );
-}
 
 interface Props {
   image: ImageRecordWithLabels | null;
@@ -149,10 +121,11 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
             </div>
           </div>
 
-          {/* Main area: image + optional side panel */}
-          <div className="flex w-full h-full pt-14">
+          {/* Main area: image + optional info panel */}
+          {/* Desktop: row (image left, info right) / Mobile: column (image top, info bottom) */}
+          <div className="flex flex-col md:flex-row w-full h-full pt-14 overflow-hidden">
             {/* Image area */}
-            <div className="relative flex-1 flex items-center justify-center min-w-0 overflow-hidden">
+            <div className="relative flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
               <img
                 src={`/api/images/${image.content_hash}/file`}
                 alt={filename}
@@ -178,28 +151,20 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               )}
             </div>
 
-            {/* Info side panel */}
+            {/* Info panel: desktop = side panel (right), mobile = bottom panel */}
             <div
               className={cn(
-                "h-full bg-background border-l overflow-y-auto transition-all duration-200",
-                showInfo ? "w-80" : "w-0 border-l-0",
+                "bg-background overflow-y-auto transition-all duration-200",
+                "md:h-full md:border-l",
+                "max-md:border-t max-md:w-full",
+                showInfo
+                  ? "md:w-80 max-md:max-h-[40vh] max-md:min-h-[120px]"
+                  : "md:w-0 md:border-l-0 max-md:max-h-0 max-md:min-h-0 max-md:border-t-0",
               )}
             >
               {showInfo && (
-                <div className="w-80">
-                  <div className="p-4 border-b">
-                    <p className="text-sm font-medium truncate" title={filename}>{filename}</p>
-                    <p className="text-xs text-muted-foreground font-mono truncate mt-1">
-                      {image.content_hash.slice(0, 16)}…
-                    </p>
-                    {image.width && image.height && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {image.width} × {image.height} · {image.mime_type}
-                      </p>
-                    )}
-                    <CopyablePath path={image.canonical_path} />
-                  </div>
-                  <ImageTagEditor contentHash={image.content_hash} />
+                <div className="md:w-80 w-full">
+                  <ImageInfoPanel image={image} />
                 </div>
               )}
             </div>
