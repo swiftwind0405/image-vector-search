@@ -121,6 +121,7 @@ export default function TagsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Images</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -132,6 +133,9 @@ export default function TagsPage() {
                       <Link className="hover:underline" to={`/tags/${tag.id}/images`}>
                         {tag.name}
                       </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {tag.image_count ?? 0}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(tag.created_at).toLocaleDateString()}

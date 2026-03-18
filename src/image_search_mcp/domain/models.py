@@ -13,6 +13,7 @@ class Tag(BaseModel):
     id: int
     name: str
     created_at: datetime
+    image_count: int | None = None
 
 
 class Category(BaseModel):
@@ -32,6 +33,7 @@ class CategoryNode(BaseModel):
     sort_order: int
     created_at: datetime
     children: list["CategoryNode"] = []
+    image_count: int | None = None
 
 
 class SearchResult(BaseModel):

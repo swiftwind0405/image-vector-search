@@ -45,7 +45,12 @@ function TreeNode({ node, onEdit, onDelete, onAddChild }: TreeNodeProps) {
         </button>
 
         {/* Category name */}
-        <span className="flex-1 text-sm">{node.name}</span>
+        <span className="flex-1 text-sm">
+          {node.name}
+          <span className="ml-1.5 text-xs text-muted-foreground">
+            ({node.image_count ?? 0})
+          </span>
+        </span>
 
         {/* Hover action buttons */}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

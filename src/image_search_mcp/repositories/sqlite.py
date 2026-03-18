@@ -389,8 +389,17 @@ class MetadataRepository:
 
     def list_tags(self) -> list[Tag]:
         with self.connect() as conn:
-            rows = conn.execute("SELECT id, name, created_at FROM tags ORDER BY name").fetchall()
-            return [Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"])) for r in rows]
+            rows = conn.execute("""
+                SELECT t.id, t.name, t.created_at, COUNT(it.content_hash) AS image_count
+                FROM tags t
+                LEFT JOIN image_tags it ON t.id = it.tag_id
+                GROUP BY t.id, t.name, t.created_at
+                ORDER BY t.name
+            """).fetchall()
+            return [
+                Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"]), image_count=r["image_count"])
+                for r in rows
+            ]
 
     def rename_tag(self, tag_id: int, new_name: str) -> None:
         with self.connect() as conn:
@@ -430,11 +439,16 @@ class MetadataRepository:
             rows = conn.execute(
                 "SELECT id, name, parent_id, sort_order, created_at FROM categories ORDER BY sort_order, name"
             ).fetchall()
+            count_rows = conn.execute(
+                "SELECT category_id, COUNT(DISTINCT content_hash) AS image_count FROM image_tags WHERE category_id IS NOT NULL GROUP BY category_id"
+            ).fetchall()
+        counts = {r["category_id"]: r["image_count"] for r in count_rows}
         nodes: dict[int, CategoryNode] = {}
         for r in rows:
             nodes[r["id"]] = CategoryNode(
                 id=r["id"], name=r["name"], parent_id=r["parent_id"],
                 sort_order=r["sort_order"], created_at=_from_iso(r["created_at"]),
+                image_count=counts.get(r["id"], 0),
             )
         roots: list[CategoryNode] = []
         for node in nodes.values():

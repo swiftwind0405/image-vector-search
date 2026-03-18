@@ -2,6 +2,7 @@ export interface Tag {
   id: number;
   name: string;
   created_at: string;
+  image_count: number | null;
 }
 
 export interface Category {
@@ -14,6 +15,7 @@ export interface Category {
 
 export interface CategoryNode extends Category {
   children: CategoryNode[];
+  image_count: number | null;
 }
 
 export interface ImageRecord {
