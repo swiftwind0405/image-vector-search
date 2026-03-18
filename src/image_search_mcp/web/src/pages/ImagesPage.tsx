@@ -517,7 +517,12 @@ export default function ImagesPage() {
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : viewMode === "gallery" ? (
         <>
-          <GalleryGrid images={filteredImages} onOpen={(hash) => setModalHash(hash)} />
+          <GalleryGrid
+            images={filteredImages}
+            onOpen={(hash) => setModalHash(hash)}
+            selectedHashes={selectedHashes}
+            onSelect={toggleSelect}
+          />
           {images && (
             <p className="text-sm text-muted-foreground text-center">
               Showing {filteredImages.length} of {images.length} images

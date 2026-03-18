@@ -1,24 +1,34 @@
+import { ImageOff } from "lucide-react";
 import GalleryCard from "./GalleryCard";
 import type { ImageRecordWithLabels } from "@/api/types";
 
 interface Props {
   images: ImageRecordWithLabels[];
   onOpen: (hash: string) => void;
+  selectedHashes?: Set<string>;
+  onSelect?: (hash: string) => void;
 }
 
-export default function GalleryGrid({ images, onOpen }: Props) {
+export default function GalleryGrid({ images, onOpen, selectedHashes, onSelect }: Props) {
   if (images.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-12">
-        No images match the active filters.
-      </p>
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <ImageOff className="h-12 w-12 mb-3 opacity-40" />
+        <p className="text-sm">No images match the active filters.</p>
+      </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-2 min-[560px]:grid-cols-3 min-[768px]:grid-cols-4 gap-1">
       {images.map((image) => (
-        <GalleryCard key={image.content_hash} image={image} onOpen={onOpen} />
+        <GalleryCard
+          key={image.content_hash}
+          image={image}
+          onOpen={onOpen}
+          selected={selectedHashes?.has(image.content_hash)}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );
