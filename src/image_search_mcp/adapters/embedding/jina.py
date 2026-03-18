@@ -58,12 +58,16 @@ class JinaEmbeddingClient(EmbeddingClient):
     async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         await self.aclose()
 
+    _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+    _MAX_ATTEMPTS = 5
+    _MAX_DELAY_SECONDS = 30.0
+
     async def _request_embeddings(
         self, inputs: list[str] | list[dict[str, str]]
     ) -> dict[str, Any]:
         input_type = "image" if inputs and isinstance(inputs[0], dict) else "text"
         payload = {"model": self._model, "input": inputs}
-        delay_seconds = 0.5
+        delay_seconds = 1.0
 
         logger.info(
             "Jina API request: model=%s, input_type=%s, count=%d",
@@ -72,7 +76,7 @@ class JinaEmbeddingClient(EmbeddingClient):
             len(inputs),
         )
 
-        for attempt in range(3):
+        for attempt in range(self._MAX_ATTEMPTS):
             t0 = time.monotonic()
             try:
                 response = await self._client.post(
@@ -103,7 +107,8 @@ class JinaEmbeddingClient(EmbeddingClient):
                 return data
             except httpx.HTTPStatusError as exc:
                 elapsed_ms = (time.monotonic() - t0) * 1000
-                if attempt == 2 or response.status_code < 500:
+                retryable = response.status_code in self._RETRYABLE_STATUS_CODES
+                if attempt == self._MAX_ATTEMPTS - 1 or not retryable:
                     logger.error(
                         "Jina API HTTP error: status=%d, model=%s, attempt=%d, elapsed_ms=%.0f",
                         response.status_code,
@@ -112,17 +117,25 @@ class JinaEmbeddingClient(EmbeddingClient):
                         elapsed_ms,
                     )
                     raise
+                if response.status_code == 429:
+                    retry_after = response.headers.get("retry-after")
+                    if retry_after:
+                        try:
+                            delay_seconds = max(float(retry_after), delay_seconds)
+                        except ValueError:
+                            pass
                 logger.warning(
-                    "Jina API HTTP error (will retry): status=%d, model=%s, attempt=%d/%d, elapsed_ms=%.0f",
+                    "Jina API HTTP error (will retry): status=%d, model=%s, attempt=%d/%d, elapsed_ms=%.0f, retry_in=%.1fs",
                     response.status_code,
                     self._model,
                     attempt + 1,
-                    3,
+                    self._MAX_ATTEMPTS,
                     elapsed_ms,
+                    delay_seconds,
                 )
             except httpx.RequestError as exc:
                 elapsed_ms = (time.monotonic() - t0) * 1000
-                if attempt == 2:
+                if attempt == self._MAX_ATTEMPTS - 1:
                     logger.error(
                         "Jina API request error: %s, model=%s, attempt=%d, elapsed_ms=%.0f",
                         exc,
@@ -136,12 +149,12 @@ class JinaEmbeddingClient(EmbeddingClient):
                     exc,
                     self._model,
                     attempt + 1,
-                    3,
+                    self._MAX_ATTEMPTS,
                     elapsed_ms,
                 )
 
             await asyncio.sleep(delay_seconds)
-            delay_seconds *= 2
+            delay_seconds = min(delay_seconds * 2, self._MAX_DELAY_SECONDS)
 
         raise RuntimeError("Jina embeddings request failed after retries")
 

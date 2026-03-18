@@ -29,6 +29,8 @@ class IndexService:
         self.repository = repository
         self.embedding_client = embedding_client
         self.vector_index = vector_index
+        self._embed_loop: asyncio.AbstractEventLoop | None = None
+        self._embed_thread: Thread | None = None
 
     def run_incremental_update(self) -> IndexingReport:
         return self._run_update(state_key="last_incremental_update_at", force_rehash=False)
@@ -248,25 +250,24 @@ class IndexService:
             f"{self.settings.embedding_version}"
         )
 
+    def _ensure_embed_loop(self) -> asyncio.AbstractEventLoop:
+        """Return a persistent event loop for embedding calls.
+
+        Using a single long-lived loop avoids the 'Event loop is closed' error
+        that occurs when httpx.AsyncClient is reused across multiple
+        asyncio.run() calls (each of which creates and destroys a loop).
+        """
+        if self._embed_loop is None or self._embed_loop.is_closed():
+            self._embed_loop = asyncio.new_event_loop()
+            self._embed_thread = Thread(
+                target=self._embed_loop.run_forever,
+                daemon=True,
+                name="embed-loop",
+            )
+            self._embed_thread.start()
+        return self._embed_loop
+
     def _run_embedding_task(self, coroutine):
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(coroutine)
-
-        result: dict[str, object] = {}
-        error: dict[str, BaseException] = {}
-
-        def worker() -> None:
-            try:
-                result["value"] = asyncio.run(coroutine)
-            except BaseException as exc:  # pragma: no cover - re-raised below
-                error["exc"] = exc
-
-        thread = Thread(target=worker, daemon=True)
-        thread.start()
-        thread.join()
-
-        if "exc" in error:
-            raise error["exc"]
-        return result["value"]
+        loop = self._ensure_embed_loop()
+        future = asyncio.run_coroutine_threadsafe(coroutine, loop)
+        return future.result()
