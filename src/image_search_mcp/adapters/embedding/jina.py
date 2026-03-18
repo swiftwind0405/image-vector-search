@@ -25,6 +25,7 @@ class JinaEmbeddingClient(EmbeddingClient):
         self._model = model
         self._version = version
         self._client = httpx.AsyncClient(base_url=base_url, timeout=60.0)
+        self._rate_limit_until: float = 0.0
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         logger.debug("Jina embed_texts: count=%d", len(texts))
@@ -77,6 +78,15 @@ class JinaEmbeddingClient(EmbeddingClient):
         )
 
         for attempt in range(self._MAX_ATTEMPTS):
+            wait = self._rate_limit_until - time.monotonic()
+            if wait > 0:
+                logger.info(
+                    "Jina API rate-limit cooldown: waiting %.1fs before attempt %d",
+                    wait,
+                    attempt + 1,
+                )
+                await asyncio.sleep(wait)
+
             t0 = time.monotonic()
             try:
                 response = await self._client.post(
@@ -108,6 +118,14 @@ class JinaEmbeddingClient(EmbeddingClient):
             except httpx.HTTPStatusError as exc:
                 elapsed_ms = (time.monotonic() - t0) * 1000
                 retryable = response.status_code in self._RETRYABLE_STATUS_CODES
+                if response.status_code == 429:
+                    retry_after = response.headers.get("retry-after")
+                    if retry_after:
+                        try:
+                            delay_seconds = max(float(retry_after), delay_seconds)
+                        except ValueError:
+                            pass
+                    self._rate_limit_until = time.monotonic() + delay_seconds
                 if attempt == self._MAX_ATTEMPTS - 1 or not retryable:
                     logger.error(
                         "Jina API HTTP error: status=%d, model=%s, attempt=%d, elapsed_ms=%.0f",
@@ -117,13 +135,6 @@ class JinaEmbeddingClient(EmbeddingClient):
                         elapsed_ms,
                     )
                     raise
-                if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after")
-                    if retry_after:
-                        try:
-                            delay_seconds = max(float(retry_after), delay_seconds)
-                        except ValueError:
-                            pass
                 logger.warning(
                     "Jina API HTTP error (will retry): status=%d, model=%s, attempt=%d/%d, elapsed_ms=%.0f, retry_in=%.1fs",
                     response.status_code,
