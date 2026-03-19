@@ -28,8 +28,8 @@ pytest tests/unit/
 # Run integration tests only
 pytest tests/integration/
 
-# Start the server locally
-uvicorn image_search_mcp.app:create_app --factory --port 8000
+# Start the server locally (listens on 0.0.0.0:8000, supports LAN access)
+python -m image_search_mcp
 ```
 
 ## Architecture
