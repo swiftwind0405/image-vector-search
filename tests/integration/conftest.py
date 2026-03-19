@@ -85,6 +85,10 @@ class InMemoryVectorIndex:
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool:
         return (content_hash, embedding_key) in self.records
 
+    def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
+        vector = self.records.get((content_hash, embedding_key))
+        return None if vector is None else list(vector)
+
     def search(
         self,
         vector: list[float],
