@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     embedding_model: str = "jina-clip-v2"
     embedding_version: str = "v2"
     embedding_batch_size: int = Field(default=32, ge=1)
+    jina_rpm: int = Field(default=100, ge=1, description="Jina API rate limit: requests per minute")
+    jina_max_concurrency: int = Field(default=2, ge=1, description="Jina API max concurrent requests")
     vector_index_collection_name: str = "image_embeddings"
     vector_index_db_filename: str = "milvus.db"
     admin_username: str = ""

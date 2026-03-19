@@ -1,11 +1,17 @@
+import logging
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 from milvus_lite.server_manager import server_manager_instance
 from pymilvus import DataType, MilvusClient
+from pymilvus.exceptions import MilvusException
 
 from image_search_mcp.adapters.vector_index.base import VectorIndex
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 class MilvusLiteIndex(VectorIndex):
@@ -17,12 +23,14 @@ class MilvusLiteIndex(VectorIndex):
     _EMBEDDING_VERSION_FIELD = "embedding_version"
     _SERVER_REFCOUNTS: dict[str, int] = {}
     _SERVER_REFCOUNTS_LOCK = Lock()
+    _MAX_RECONNECT_ATTEMPTS = 3
 
     def __init__(self, db_path: Path, collection_name: str) -> None:
         self.db_path = db_path.absolute().resolve()
         self.collection_name = collection_name
         self.client = None
         self._closed = False
+        self._reconnect_lock = Lock()
         uri = server_manager_instance.start_and_get_uri(str(self.db_path))
         if uri is None:
             raise RuntimeError(f"Failed to start Milvus Lite for {self.db_path}")
@@ -51,58 +59,58 @@ class MilvusLiteIndex(VectorIndex):
 
     def ensure_collection(self, dimension: int, embedding_key: str) -> None:
         self._parse_embedding_key(embedding_key)
-        client = self._client()
-        if client.has_collection(self.collection_name):
-            self._validate_existing_collection(dimension)
-            return
 
-        schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
-        schema.add_field(
-            field_name=self._PK_FIELD,
-            datatype=DataType.VARCHAR,
-            is_primary=True,
-            max_length=128,
-        )
-        schema.add_field(
-            field_name=self._EMBEDDING_KEY_FIELD,
-            datatype=DataType.VARCHAR,
-            max_length=256,
-        )
-        schema.add_field(
-            field_name=self._EMBEDDING_PROVIDER_FIELD,
-            datatype=DataType.VARCHAR,
-            max_length=64,
-        )
-        schema.add_field(
-            field_name=self._EMBEDDING_MODEL_FIELD,
-            datatype=DataType.VARCHAR,
-            max_length=128,
-        )
-        schema.add_field(
-            field_name=self._EMBEDDING_VERSION_FIELD,
-            datatype=DataType.VARCHAR,
-            max_length=128,
-        )
-        schema.add_field(
-            field_name=self._VECTOR_FIELD,
-            datatype=DataType.FLOAT_VECTOR,
-            dim=dimension,
-        )
+        def _op(client: MilvusClient) -> None:
+            if client.has_collection(self.collection_name):
+                self._validate_existing_collection(dimension)
+                return
 
-        index_params = MilvusClient.prepare_index_params()
-        index_params.add_index(field_name=self._VECTOR_FIELD, metric_type="COSINE")
-        client.create_collection(
-            collection_name=self.collection_name,
-            schema=schema,
-            index_params=index_params,
-        )
+            schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
+            schema.add_field(
+                field_name=self._PK_FIELD,
+                datatype=DataType.VARCHAR,
+                is_primary=True,
+                max_length=128,
+            )
+            schema.add_field(
+                field_name=self._EMBEDDING_KEY_FIELD,
+                datatype=DataType.VARCHAR,
+                max_length=256,
+            )
+            schema.add_field(
+                field_name=self._EMBEDDING_PROVIDER_FIELD,
+                datatype=DataType.VARCHAR,
+                max_length=64,
+            )
+            schema.add_field(
+                field_name=self._EMBEDDING_MODEL_FIELD,
+                datatype=DataType.VARCHAR,
+                max_length=128,
+            )
+            schema.add_field(
+                field_name=self._EMBEDDING_VERSION_FIELD,
+                datatype=DataType.VARCHAR,
+                max_length=128,
+            )
+            schema.add_field(
+                field_name=self._VECTOR_FIELD,
+                datatype=DataType.FLOAT_VECTOR,
+                dim=dimension,
+            )
+
+            index_params = MilvusClient.prepare_index_params()
+            index_params.add_index(field_name=self._VECTOR_FIELD, metric_type="COSINE")
+            client.create_collection(
+                collection_name=self.collection_name,
+                schema=schema,
+                index_params=index_params,
+            )
+
+        self._execute(_op)
 
     def upsert_embeddings(self, records: list[dict]) -> None:
         if not records:
             return
-        client = self._client()
-        if not client.has_collection(self.collection_name):
-            raise RuntimeError("Milvus collection is missing; call ensure_collection first")
 
         payload: list[dict[str, Any]] = []
         for record in records:
@@ -131,20 +139,26 @@ class MilvusLiteIndex(VectorIndex):
                 }
             )
 
-        client.upsert(self.collection_name, payload)
+        def _op(client: MilvusClient) -> None:
+            if not client.has_collection(self.collection_name):
+                raise RuntimeError("Milvus collection is missing; call ensure_collection first")
+            client.upsert(self.collection_name, payload)
+
+        self._execute(_op)
 
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool:
-        client = self._client()
-        if not client.has_collection(self.collection_name):
-            return False
+        def _op(client: MilvusClient) -> bool:
+            if not client.has_collection(self.collection_name):
+                return False
+            result = client.query(
+                self.collection_name,
+                filter=self._embedding_filter(embedding_key, content_hash=content_hash),
+                output_fields=[self._PK_FIELD],
+                limit=1,
+            )
+            return bool(result)
 
-        result = client.query(
-            self.collection_name,
-            filter=self._embedding_filter(embedding_key, content_hash=content_hash),
-            output_fields=[self._PK_FIELD],
-            limit=1,
-        )
-        return bool(result)
+        return self._execute(_op)
 
     def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
         client = self._client()
@@ -172,64 +186,116 @@ class MilvusLiteIndex(VectorIndex):
         embedding_key: str,
         content_hash_filter: set[str] | None = None,
     ) -> list[dict]:
-        client = self._client()
-        if not client.has_collection(self.collection_name):
-            return []
-
         filter_expr = self._embedding_filter(embedding_key)
         if content_hash_filter is not None:
             escaped = [self._escape_filter_value(h) for h in content_hash_filter]
             in_list = ", ".join(f'"{v}"' for v in escaped)
             filter_expr += f" and {self._PK_FIELD} in [{in_list}]"
 
-        hits = client.search(
-            self.collection_name,
-            data=[vector],
-            limit=limit,
-            filter=filter_expr,
-            output_fields=[
-                self._PK_FIELD,
-                self._EMBEDDING_KEY_FIELD,
-                self._EMBEDDING_PROVIDER_FIELD,
-                self._EMBEDDING_MODEL_FIELD,
-                self._EMBEDDING_VERSION_FIELD,
-            ],
-            search_params={"metric_type": "COSINE"},
-        )
-        if not hits:
-            return []
+        def _op(client: MilvusClient) -> list[dict]:
+            if not client.has_collection(self.collection_name):
+                return []
 
-        results: list[dict[str, Any]] = []
-        for hit in hits[0]:
-            entity = hit.get("entity", {})
-            results.append(
-                {
-                    "content_hash": entity.get(self._PK_FIELD, hit.get("id")),
-                    "score": hit.get("distance", hit.get("score")),
-                    "embedding_key": entity.get(self._EMBEDDING_KEY_FIELD, embedding_key),
-                    "embedding_provider": entity.get(self._EMBEDDING_PROVIDER_FIELD),
-                    "embedding_model": entity.get(self._EMBEDDING_MODEL_FIELD),
-                    "embedding_version": entity.get(self._EMBEDDING_VERSION_FIELD),
-                }
+            hits = client.search(
+                self.collection_name,
+                data=[vector],
+                limit=limit,
+                filter=filter_expr,
+                output_fields=[
+                    self._PK_FIELD,
+                    self._EMBEDDING_KEY_FIELD,
+                    self._EMBEDDING_PROVIDER_FIELD,
+                    self._EMBEDDING_MODEL_FIELD,
+                    self._EMBEDDING_VERSION_FIELD,
+                ],
+                search_params={"metric_type": "COSINE"},
             )
-        return results
+            if not hits:
+                return []
+
+            results: list[dict[str, Any]] = []
+            for hit in hits[0]:
+                entity = hit.get("entity", {})
+                results.append(
+                    {
+                        "content_hash": entity.get(self._PK_FIELD, hit.get("id")),
+                        "score": hit.get("distance", hit.get("score")),
+                        "embedding_key": entity.get(self._EMBEDDING_KEY_FIELD, embedding_key),
+                        "embedding_provider": entity.get(self._EMBEDDING_PROVIDER_FIELD),
+                        "embedding_model": entity.get(self._EMBEDDING_MODEL_FIELD),
+                        "embedding_version": entity.get(self._EMBEDDING_VERSION_FIELD),
+                    }
+                )
+            return results
+
+        return self._execute(_op)
 
     def count(self, embedding_key: str) -> int:
-        client = self._client()
-        if not client.has_collection(self.collection_name):
-            return 0
+        def _op(client: MilvusClient) -> int:
+            if not client.has_collection(self.collection_name):
+                return 0
+            result = client.query(
+                self.collection_name,
+                filter=self._embedding_filter(embedding_key),
+                output_fields=["count(*)"],
+            )
+            return result[0]["count(*)"] if result else 0
 
-        result = client.query(
-            self.collection_name,
-            filter=self._embedding_filter(embedding_key),
-            output_fields=["count(*)"],
-        )
-        return result[0]["count(*)"] if result else 0
+        return self._execute(_op)
 
     def _client(self) -> MilvusClient:
         if self._closed or self.client is None:
             raise RuntimeError("Milvus client is closed")
         return self.client
+
+    def _reconnect(self) -> MilvusClient:
+        """Replace the dead gRPC client with a fresh connection."""
+        with self._reconnect_lock:
+            if self._closed:
+                raise RuntimeError("Milvus client was explicitly closed")
+            old_client = self.client
+            if old_client is not None:
+                try:
+                    old_client.close()
+                except Exception:
+                    pass
+                self.client = None
+
+            uri = server_manager_instance.start_and_get_uri(str(self.db_path))
+            if uri is None:
+                raise RuntimeError(f"Failed to restart Milvus Lite for {self.db_path}")
+            self.client = MilvusClient(uri=uri, address=uri)
+            logger.info("Milvus client reconnected for %s", self.db_path)
+            return self.client
+
+    @staticmethod
+    def _is_channel_error(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return "closed channel" in msg or "goaway" in msg
+
+    def _execute(self, fn: Callable[[MilvusClient], T]) -> T:
+        """Run *fn(client)* with transparent reconnect on gRPC channel failures."""
+        last_exc: Exception | None = None
+        for attempt in range(self._MAX_RECONNECT_ATTEMPTS):
+            try:
+                return fn(self._client())
+            except (MilvusException, ValueError) as exc:
+                if not self._is_channel_error(exc):
+                    raise
+                last_exc = exc
+                logger.warning(
+                    "Milvus channel error (attempt %d/%d): %s",
+                    attempt + 1,
+                    self._MAX_RECONNECT_ATTEMPTS,
+                    exc,
+                )
+                if attempt < self._MAX_RECONNECT_ATTEMPTS - 1:
+                    try:
+                        self._reconnect()
+                    except Exception as re_exc:
+                        logger.error("Milvus reconnection failed: %s", re_exc)
+                        raise last_exc from re_exc
+        raise last_exc  # type: ignore[misc]
 
     def _validate_existing_collection(self, dimension: int) -> None:
         description = self._client().describe_collection(self.collection_name)

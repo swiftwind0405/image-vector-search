@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from image_search_mcp.adapters.embedding.jina import JinaEmbeddingClient
+from image_search_mcp.adapters.embedding.rate_limiter import AdaptiveRateLimiter
 from image_search_mcp.adapters.vector_index.milvus_lite import MilvusLiteIndex
 from image_search_mcp.config import Settings
 from image_search_mcp.repositories.sqlite import MetadataRepository
@@ -19,15 +20,16 @@ class RuntimeServices:
     job_runner: JobRunner
     background_worker: BackgroundJobWorker
     embedding_client: JinaEmbeddingClient
+    index_embedding_client: JinaEmbeddingClient
     vector_index: MilvusLiteIndex
     tag_service: TagService
 
     async def aclose(self) -> None:
-        try:
-            await self.embedding_client.aclose()
-        except RuntimeError:
-            # Event loop may already be closed during shutdown
-            pass
+        for client in (self.embedding_client, self.index_embedding_client):
+            try:
+                await client.aclose()
+            except RuntimeError:
+                pass
         self.vector_index.close()
 
 
@@ -38,10 +40,21 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     repository = MetadataRepository(_metadata_db_path(settings))
     repository.initialize_schema()
 
+    rate_limiter = AdaptiveRateLimiter(
+        rpm=settings.jina_rpm,
+        max_concurrency=settings.jina_max_concurrency,
+    )
     embedding_client = JinaEmbeddingClient(
         api_key=settings.jina_api_key,
         model=settings.embedding_model,
         version=settings.embedding_version,
+        rate_limiter=rate_limiter,
+    )
+    index_embedding_client = JinaEmbeddingClient(
+        api_key=settings.jina_api_key,
+        model=settings.embedding_model,
+        version=settings.embedding_version,
+        rate_limiter=rate_limiter,
     )
     vector_index = MilvusLiteIndex(
         db_path=settings.index_root / settings.vector_index_db_filename,
@@ -51,7 +64,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     index_service = IndexService(
         settings=settings,
         repository=repository,
-        embedding_client=embedding_client,
+        embedding_client=index_embedding_client,
         vector_index=vector_index,
     )
     search_service = SearchService(
@@ -74,6 +87,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         job_runner=job_runner,
         background_worker=background_worker,
         embedding_client=embedding_client,
+        index_embedding_client=index_embedding_client,
         vector_index=vector_index,
         tag_service=tag_service,
     )
