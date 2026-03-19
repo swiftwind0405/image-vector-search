@@ -146,6 +146,25 @@ class MilvusLiteIndex(VectorIndex):
         )
         return bool(result)
 
+    def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
+        client = self._client()
+        if not client.has_collection(self.collection_name):
+            return None
+
+        result = client.query(
+            self.collection_name,
+            filter=self._embedding_filter(embedding_key, content_hash=content_hash),
+            output_fields=[self._VECTOR_FIELD],
+            limit=1,
+        )
+        if not result:
+            return None
+
+        vector = result[0].get(self._VECTOR_FIELD)
+        if vector is None:
+            return None
+        return list(vector)
+
     def search(
         self,
         vector: list[float],

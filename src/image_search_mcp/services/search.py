@@ -101,7 +101,18 @@ class SearchService:
             logger.debug("Image similarity search: empty content_hash_filter, returning no results")
             return []
 
-        vector = (await self.embedding_client.embed_images([query_path]))[0]
+        query_hash = sha256_file(query_path)
+        vector = self.vector_index.get_embedding(query_hash, self._embedding_key())
+        if vector is None:
+            logger.warning(
+                "Image similarity search: no stored embedding for hash=%s, path=%s",
+                query_hash[:12],
+                query_path,
+            )
+            raise ValueError(
+                "Image similarity search requires a stored embedding. "
+                "Index the image before searching for similar images."
+            )
         raw_results = self.vector_index.search(
             vector,
             limit=self._candidate_limit(top_k),
@@ -113,7 +124,7 @@ class SearchService:
             folder=folder,
             top_k=top_k,
             min_score=min_score,
-            exclude_content_hash=sha256_file(query_path),
+            exclude_content_hash=query_hash,
         )
         self._enrich_results(results)
         logger.info("Image similarity search complete: %d results for path=%s", len(results), image_path)

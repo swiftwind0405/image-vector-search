@@ -10,10 +10,16 @@ from image_search_mcp.services.search import SearchService
 
 
 class FakeEmbeddingClient:
+    def __init__(self) -> None:
+        self.text_calls: list[list[str]] = []
+        self.image_calls: list[list[Path]] = []
+
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.text_calls.append(texts[:])
         return [[1.0, 0.0, 0.0] for _ in texts]
 
     async def embed_images(self, paths: list[Path]) -> list[list[float]]:
+        self.image_calls.append(paths[:])
         return [[0.0, 1.0, 0.0] for _ in paths]
 
     def vector_dimension(self) -> int | None:
@@ -21,8 +27,13 @@ class FakeEmbeddingClient:
 
 
 class FakeVectorIndex:
-    def __init__(self, search_results: list[dict]) -> None:
+    def __init__(
+        self,
+        search_results: list[dict],
+        embeddings: dict[tuple[str, str], list[float]] | None = None,
+    ) -> None:
         self.search_results = search_results
+        self.embeddings = embeddings or {}
         self.requested_limits: list[int] = []
         self.last_content_hash_filter: set[str] | None = None
 
@@ -39,6 +50,10 @@ class FakeVectorIndex:
         if content_hash_filter is not None:
             results = [r for r in results if r["content_hash"] in content_hash_filter]
         return results[:limit]
+
+    def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
+        vector = self.embeddings.get((content_hash, embedding_key))
+        return None if vector is None else vector[:]
 
 
 class FakeRepository:
@@ -142,12 +157,14 @@ async def test_search_similar_excludes_self_match(tmp_path: Path):
         [
             {"content_hash": query_hash, "score": 0.99},
             {"content_hash": other_hash, "score": 0.95},
-        ]
+        ],
+        embeddings={(query_hash, "jina:jina-clip-v2:v2"): [0.0, 1.0, 0.0]},
     )
+    embedding_client = FakeEmbeddingClient()
     service = SearchService(
         Settings(images_root=images_root, index_root=index_root),
         repository,
-        FakeEmbeddingClient(),
+        embedding_client,
         vector_index,
     )
 
@@ -159,6 +176,36 @@ async def test_search_similar_excludes_self_match(tmp_path: Path):
     )
 
     assert [result.content_hash for result in results] == [other_hash]
+    assert embedding_client.image_calls == []
+
+
+@pytest.mark.anyio
+async def test_search_similar_requires_stored_embedding(tmp_path: Path):
+    images_root = tmp_path / "images"
+    index_root = tmp_path / "index"
+    images_root.mkdir()
+    index_root.mkdir()
+
+    query_image = images_root / "query.png"
+    Image.new("RGB", (10, 10), color="red").save(query_image)
+
+    embedding_client = FakeEmbeddingClient()
+    service = SearchService(
+        Settings(images_root=images_root, index_root=index_root),
+        FakeRepository({}),
+        embedding_client,
+        FakeVectorIndex([]),
+    )
+
+    with pytest.raises(ValueError, match="stored embedding"):
+        await service.search_similar(
+            image_path=str(query_image),
+            top_k=2,
+            min_score=0.0,
+            folder=None,
+        )
+
+    assert embedding_client.image_calls == []
 
 
 class TestSearchWithTagFilter:
