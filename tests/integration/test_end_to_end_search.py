@@ -1,5 +1,6 @@
 import pytest
 from fastmcp import Client
+from PIL import Image
 
 
 def test_end_to_end_incremental_then_debug_search(app_bundle, image_factory, drain_job_queue):
@@ -88,3 +89,36 @@ async def test_end_to_end_mcp_and_debug_search_return_renamed_canonical_path(
     assert debug_response.json()["results"][0]["path"] == str(renamed.resolve())
     assert mcp_response.data["results"][0]["path"] == str(renamed.resolve())
     assert len(app_bundle.embedding_client.image_inputs) == 1
+
+
+def test_end_to_end_similar_search_reuses_stored_embedding(
+    app_bundle, image_factory, drain_job_queue
+):
+    query = image_factory("2024/orange.jpg", color="orange")
+    image_factory("2024/orange-2.jpg", color="orange")
+
+    app_bundle.client.post("/api/jobs/incremental")
+    drain_job_queue()
+
+    indexed_image_embed_calls = len(app_bundle.embedding_client.image_inputs)
+
+    response = app_bundle.client.post(
+        "/api/debug/search/similar",
+        json={"image_path": str(query.resolve()), "top_k": 1},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["results"][0]["path"] != str(query.resolve())
+    assert len(app_bundle.embedding_client.image_inputs) == indexed_image_embed_calls
+
+
+def test_end_to_end_similar_search_requires_indexed_image(app_bundle, tmp_path):
+    unindexed = tmp_path / "unindexed.png"
+    Image.new("RGB", (10, 10), color="red").save(unindexed)
+
+    response = app_bundle.client.post(
+        "/api/debug/search/similar",
+        json={"image_path": str(unindexed), "top_k": 1},
+    )
+
+    assert response.status_code == 500

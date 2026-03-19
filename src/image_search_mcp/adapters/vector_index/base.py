@@ -15,6 +15,9 @@ class VectorIndex(ABC):
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool: ...
 
     @abstractmethod
+    def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None: ...
+
+    @abstractmethod
     def search(
         self,
         vector: list[float],
