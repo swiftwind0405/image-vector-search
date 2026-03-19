@@ -13,6 +13,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useCategories,
   useCreateCategory,
   useUpdateCategory,
@@ -48,6 +55,27 @@ function findNames(nodes: CategoryNode[], ids: Set<number>): string[] {
   };
   walk(nodes);
   return names;
+}
+
+function flattenCategories(
+  nodes: CategoryNode[],
+  depth = 0,
+): { id: number; name: string; label: string }[] {
+  const result: { id: number; name: string; label: string }[] = [];
+  for (const node of nodes) {
+    result.push({ id: node.id, name: node.name, label: "\u00A0\u00A0".repeat(depth) + node.name });
+    result.push(...flattenCategories(node.children, depth + 1));
+  }
+  return result;
+}
+
+function findCategoryName(nodes: CategoryNode[], id: number): string | null {
+  for (const node of nodes) {
+    if (node.id === id) return node.name;
+    const found = findCategoryName(node.children, id);
+    if (found) return found;
+  }
+  return null;
 }
 
 export default function CategoriesPage() {
@@ -323,7 +351,7 @@ export default function CategoriesPage() {
             </div>
             {createParentId !== null && (
               <p className="text-sm text-muted-foreground">
-                Parent category ID: <span className="font-medium text-foreground">{createParentId}</span>
+                Parent category: <span className="font-medium text-foreground">{findCategoryName(categories ?? [], createParentId) ?? createParentId}</span>
               </p>
             )}
             <DialogFooter>
@@ -409,14 +437,29 @@ export default function CategoriesPage() {
 
             {moveAction === "reparent" && (
               <div className="space-y-2">
-                <Label htmlFor="new-parent-id">Parent Category ID</Label>
-                <Input
-                  id="new-parent-id"
-                  type="number"
-                  placeholder="Parent ID..."
+                <Label>Parent Category</Label>
+                <Select
                   value={newParentId}
-                  onChange={(e) => setNewParentId(e.target.value)}
-                />
+                  onValueChange={(v) => setNewParentId(v ?? "")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select parent category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flattenCategories(categories ?? [])
+                      .filter((c) => {
+                        if (!editingNode) return true;
+                        const excludeIds = new Set(collectAllIds(editingNode.children));
+                        excludeIds.add(editingNode.id);
+                        return !excludeIds.has(c.id);
+                      })
+                      .map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 

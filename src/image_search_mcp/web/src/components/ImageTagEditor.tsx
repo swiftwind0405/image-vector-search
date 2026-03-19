@@ -2,13 +2,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import CreatableCombobox from "@/components/CreatableCombobox";
 import {
   useImageTags,
   useImageCategories,
@@ -17,8 +11,8 @@ import {
   useAddCategoryToImage,
   useRemoveCategoryFromImage,
 } from "@/api/images";
-import { useTags } from "@/api/tags";
-import { useCategories } from "@/api/categories";
+import { useTags, useCreateTag } from "@/api/tags";
+import { useCategories, useCreateCategory } from "@/api/categories";
 import type { CategoryNode } from "@/api/types";
 
 function flattenCategories(
@@ -47,6 +41,8 @@ export default function ImageTagEditor({ contentHash }: Props) {
   const removeTag = useRemoveTagFromImage();
   const addCategory = useAddCategoryToImage();
   const removeCategory = useRemoveCategoryFromImage();
+  const createTag = useCreateTag();
+  const createCategory = useCreateCategory();
 
   const assignedTagIds = new Set((imageTags ?? []).map((t) => t.id));
   const assignedCategoryIds = new Set((imageCategories ?? []).map((c) => c.id));
@@ -57,33 +53,52 @@ export default function ImageTagEditor({ contentHash }: Props) {
     (c) => !assignedCategoryIds.has(c.id),
   );
 
-  const handleAddTag = (value: string | null) => {
-    if (!value) return;
+  const handleAddTag = (value: string) => {
     const tagId = parseInt(value, 10);
     addTag.mutate(
       { contentHash, tagId },
-      {
-        onError: () => toast.error("Failed to add tag"),
-      },
+      { onError: () => toast.error("Failed to add tag") },
     );
+  };
+
+  const handleCreateAndAddTag = (name: string) => {
+    createTag.mutate(name, {
+      onSuccess: (tag) => {
+        addTag.mutate(
+          { contentHash, tagId: tag.id },
+          { onError: () => toast.error("Failed to add tag") },
+        );
+      },
+      onError: () => toast.error("Failed to create tag"),
+    });
   };
 
   const handleRemoveTag = (tagId: number) => {
     removeTag.mutate(
       { contentHash, tagId },
-      {
-        onError: () => toast.error("Failed to remove tag"),
-      },
+      { onError: () => toast.error("Failed to remove tag") },
     );
   };
 
-  const handleAddCategory = (value: string | null) => {
-    if (!value) return;
+  const handleAddCategory = (value: string) => {
     const categoryId = parseInt(value, 10);
     addCategory.mutate(
       { contentHash, categoryId },
+      { onError: () => toast.error("Failed to add category") },
+    );
+  };
+
+  const handleCreateAndAddCategory = (name: string) => {
+    createCategory.mutate(
+      { name },
       {
-        onError: () => toast.error("Failed to add category"),
+        onSuccess: (data: { id: number }) => {
+          addCategory.mutate(
+            { contentHash, categoryId: data.id },
+            { onError: () => toast.error("Failed to add category") },
+          );
+        },
+        onError: () => toast.error("Failed to create category"),
       },
     );
   };
@@ -91,9 +106,7 @@ export default function ImageTagEditor({ contentHash }: Props) {
   const handleRemoveCategory = (categoryId: number) => {
     removeCategory.mutate(
       { contentHash, categoryId },
-      {
-        onError: () => toast.error("Failed to remove category"),
-      },
+      { onError: () => toast.error("Failed to remove category") },
     );
   };
 
@@ -120,20 +133,16 @@ export default function ImageTagEditor({ contentHash }: Props) {
             <span className="text-sm text-muted-foreground">No tags assigned</span>
           )}
         </div>
-        {availableTags.length > 0 && (
-          <Select onValueChange={handleAddTag} value="">
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Add tag..." />
-            </SelectTrigger>
-            <SelectContent>
-              {availableTags.map((tag) => (
-                <SelectItem key={tag.id} value={String(tag.id)}>
-                  {tag.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <CreatableCombobox
+          options={availableTags.map((t) => ({
+            value: String(t.id),
+            label: t.name,
+          }))}
+          placeholder="Add tag..."
+          onSelect={handleAddTag}
+          onCreate={handleCreateAndAddTag}
+          creating={createTag.isPending}
+        />
       </div>
 
       {/* Categories section */}
@@ -157,20 +166,16 @@ export default function ImageTagEditor({ contentHash }: Props) {
             <span className="text-sm text-muted-foreground">No categories assigned</span>
           )}
         </div>
-        {availableCategories.length > 0 && (
-          <Select onValueChange={handleAddCategory} value="">
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Add category..." />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCategories.map((cat) => (
-                <SelectItem key={cat.id} value={String(cat.id)}>
-                  {cat.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <CreatableCombobox
+          options={availableCategories.map((c) => ({
+            value: String(c.id),
+            label: c.label,
+          }))}
+          placeholder="Add category..."
+          onSelect={handleAddCategory}
+          onCreate={handleCreateAndAddCategory}
+          creating={createCategory.isPending}
+        />
       </div>
     </div>
   );

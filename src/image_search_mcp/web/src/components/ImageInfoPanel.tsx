@@ -4,11 +4,27 @@ import { toast } from "sonner";
 import ImageTagEditor from "@/components/ImageTagEditor";
 import type { ImageRecordWithLabels } from "@/api/types";
 
+function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  // Fallback for non-secure contexts (e.g. LAN access over HTTP on Windows)
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+  return Promise.resolve();
+}
+
 function CopyablePath({ path }: { path: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(path);
+    await copyToClipboard(path);
     setCopied(true);
     toast.success("Path copied");
     setTimeout(() => setCopied(false), 1500);

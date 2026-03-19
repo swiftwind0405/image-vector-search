@@ -163,7 +163,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               )}
             >
               {showInfo && (
-                <div className="md:w-80 w-full">
+                <div className="md:w-80 w-full h-full">
                   <ImageInfoPanel image={image} />
                 </div>
               )}
