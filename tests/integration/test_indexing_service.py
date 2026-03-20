@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 from PIL import Image
@@ -6,6 +7,7 @@ from image_search_mcp.config import Settings
 from image_search_mcp.repositories.sqlite import MetadataRepository
 from image_search_mcp.scanning.hashing import sha256_file
 from image_search_mcp.services.indexing import IndexService
+from image_search_mcp.services.status import StatusService
 
 
 class FakeEmbeddingClient:
@@ -57,19 +59,42 @@ class FakeVectorIndex:
         return sum(1 for _, key in self.records if key == embedding_key)
 
 
-def create_service(tmp_path: Path) -> tuple[IndexService, MetadataRepository, FakeEmbeddingClient]:
+class DimensionMismatchVectorIndex(FakeVectorIndex):
+    def ensure_collection(self, dimension: int, embedding_key: str) -> None:
+        raise ValueError(
+            "Existing Milvus collection dimension 3 does not match requested dimension 5 "
+            f"for embedding space {embedding_key}. Clear the index root or choose a new "
+            "collection before reindexing."
+        )
+
+
+def create_service(
+    tmp_path: Path,
+    *,
+    embedding_provider: str = "gemini",
+    embedding_model: str = "fake-clip",
+    embedding_version: str = "2026-03",
+    vector_index: FakeVectorIndex | None = None,
+    repository: MetadataRepository | None = None,
+) -> tuple[IndexService, MetadataRepository, FakeEmbeddingClient, FakeVectorIndex]:
     images_root = tmp_path / "images"
     index_root = tmp_path / "index"
-    images_root.mkdir()
-    index_root.mkdir()
+    images_root.mkdir(exist_ok=True)
+    index_root.mkdir(exist_ok=True)
 
-    settings = Settings(images_root=images_root, index_root=index_root)
-    repository = MetadataRepository(index_root / "metadata.db")
+    settings = Settings(
+        images_root=images_root,
+        index_root=index_root,
+        embedding_provider=embedding_provider,
+        embedding_model=embedding_model,
+        embedding_version=embedding_version,
+    )
+    repository = repository or MetadataRepository(index_root / "metadata.db")
     repository.initialize_schema()
     embedding_client = FakeEmbeddingClient()
-    vector_index = FakeVectorIndex()
+    vector_index = vector_index or FakeVectorIndex()
     service = IndexService(settings, repository, embedding_client, vector_index)
-    return service, repository, embedding_client
+    return service, repository, embedding_client, vector_index
 
 
 def create_image(images_root: Path, relative_path: str, *, color: str | None = None, source: Path | None = None) -> Path:
@@ -84,7 +109,7 @@ def create_image(images_root: Path, relative_path: str, *, color: str | None = N
 
 
 def test_incremental_update_reuses_embedding_on_rename(tmp_path: Path):
-    service, repository, embedding_client = create_service(tmp_path)
+    service, repository, embedding_client, _ = create_service(tmp_path)
     original = create_image(service.settings.images_root, "2024/a.jpg", color="red")
 
     first_report = service.run_incremental_update()
@@ -112,7 +137,7 @@ def test_incremental_update_reuses_embedding_on_rename(tmp_path: Path):
 
 
 def test_incremental_update_skips_unchanged_files(tmp_path: Path):
-    service, _, embedding_client = create_service(tmp_path)
+    service, _, embedding_client, _ = create_service(tmp_path)
     create_image(service.settings.images_root, "2024/a.jpg", color="blue")
 
     first_report = service.run_incremental_update()
@@ -126,7 +151,7 @@ def test_incremental_update_skips_unchanged_files(tmp_path: Path):
 
 
 def test_incremental_update_deactivates_missing_files(tmp_path: Path):
-    service, repository, _ = create_service(tmp_path)
+    service, repository, _, _ = create_service(tmp_path)
     image_path = create_image(service.settings.images_root, "2024/a.jpg", color="green")
 
     service.run_incremental_update()
@@ -140,3 +165,55 @@ def test_incremental_update_deactivates_missing_files(tmp_path: Path):
     assert image is not None
     assert image.is_active is False
     assert repository.get_system_state("last_incremental_update_at") is not None
+
+
+def test_incremental_update_rebuilds_embeddings_for_new_embedding_key(tmp_path: Path):
+    service, repository, embedding_client, vector_index = create_service(
+        tmp_path,
+        embedding_provider="gemini",
+        embedding_model="fake-clip",
+        embedding_version="2026-03",
+    )
+    image_path = create_image(service.settings.images_root, "2024/a.jpg", color="red")
+
+    first_report = service.run_incremental_update()
+    content_hash = sha256_file(image_path)
+    first_key = "gemini:fake-clip:2026-03"
+    assert first_report.added == 1
+    assert vector_index.has_embedding(content_hash, first_key)
+
+    next_service, _, next_embedding_client, same_vector_index = create_service(
+        tmp_path,
+        embedding_provider="gemini",
+        embedding_model="fake-clip",
+        embedding_version="2026-04",
+        vector_index=vector_index,
+        repository=repository,
+    )
+
+    second_report = next_service.run_incremental_update()
+
+    assert second_report.reused == 1
+    assert len(embedding_client.embed_calls) == 1
+    assert len(next_embedding_client.embed_calls) == 1
+    assert same_vector_index.has_embedding(content_hash, "gemini:fake-clip:2026-04")
+
+
+def test_incremental_update_records_clear_dimension_mismatch_error(tmp_path: Path):
+    vector_index = DimensionMismatchVectorIndex()
+    service, repository, _, _ = create_service(tmp_path, vector_index=vector_index)
+    create_image(service.settings.images_root, "2024/a.jpg", color="red")
+
+    report = service.run_incremental_update()
+    status_service = StatusService(
+        settings=service.settings,
+        repository=repository,
+        vector_index=vector_index,
+    )
+    status = asyncio.run(status_service.get_index_status())
+
+    assert report.errors == 1
+    assert "Clear the index root or choose a new collection" in status.last_error_summary
+    assert status.embedding_provider == "gemini"
+    assert status.embedding_model == "fake-clip"
+    assert status.embedding_version == "2026-03"

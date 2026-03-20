@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 import image_search_mcp.app as app_module
 from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import IndexStatus, JobRecord, SearchResult
+from image_search_mcp.runtime import _build_embedding_client
 
 
 class FakeSearchService:
@@ -132,3 +134,40 @@ def test_create_app_bootstraps_runtime_services(monkeypatch, tmp_path):
 
     assert runtime_services.background_worker.stopped == 1
     assert runtime_services.closed == 1
+
+
+def test_build_embedding_client_defaults_to_jina():
+    client = _build_embedding_client(Settings(jina_api_key="secret"))
+    try:
+        assert client.provider() == "jina"
+    finally:
+        import asyncio
+
+        asyncio.run(client.aclose())
+
+
+def test_build_embedding_client_supports_gemini():
+    client = _build_embedding_client(
+        Settings(
+            embedding_provider="gemini",
+            google_api_key="secret",
+            embedding_model="gemini-embedding-2-preview",
+        )
+    )
+    try:
+        assert client.provider() == "gemini"
+        assert client.model() == "gemini-embedding-2-preview"
+    finally:
+        import asyncio
+
+        asyncio.run(client.aclose())
+
+
+def test_build_embedding_client_requires_provider_credentials():
+    with pytest.raises(ValueError, match="google_api_key"):
+        _build_embedding_client(
+            Settings(
+                embedding_provider="gemini",
+                embedding_model="gemini-embedding-2-preview",
+            )
+        )

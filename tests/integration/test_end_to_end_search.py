@@ -1,4 +1,5 @@
 import pytest
+from fastapi.testclient import TestClient
 from fastmcp import Client
 from PIL import Image
 
@@ -95,7 +96,7 @@ def test_end_to_end_similar_search_reuses_stored_embedding(
     app_bundle, image_factory, drain_job_queue
 ):
     query = image_factory("2024/orange.jpg", color="orange")
-    image_factory("2024/orange-2.jpg", color="orange")
+    image_factory("2024/red-neighbor.jpg", color="red")
 
     app_bundle.client.post("/api/jobs/incremental")
     drain_job_queue()
@@ -112,11 +113,164 @@ def test_end_to_end_similar_search_reuses_stored_embedding(
     assert len(app_bundle.embedding_client.image_inputs) == indexed_image_embed_calls
 
 
+def test_end_to_end_reindexes_for_active_embedding_key_change(
+    tmp_path
+):
+    import math
+    from pathlib import Path
+
+    images_root = tmp_path / "images"
+    index_root = tmp_path / "index"
+    images_root.mkdir()
+    index_root.mkdir()
+
+    from fastapi.testclient import TestClient
+
+    from image_search_mcp.app import create_app
+    from image_search_mcp.config import Settings
+    from image_search_mcp.repositories.sqlite import MetadataRepository
+    from image_search_mcp.services.indexing import IndexService
+    from image_search_mcp.services.jobs import JobRunner
+    from image_search_mcp.services.search import SearchService
+    from image_search_mcp.services.status import StatusService
+
+    class FakeEmbeddingClient:
+        def __init__(self) -> None:
+            self.text_inputs: list[list[str]] = []
+            self.image_inputs: list[list[Path]] = []
+
+        async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+            self.text_inputs.append(texts[:])
+            return [[0.8, 0.2, 0.0] for _ in texts]
+
+        async def embed_images(self, paths: list[Path]) -> list[list[float]]:
+            resolved_paths = [path.resolve() for path in paths]
+            self.image_inputs.append(resolved_paths)
+            return [[0.8, 0.2, 0.0] for _ in resolved_paths]
+
+        def vector_dimension(self) -> int | None:
+            return 3
+
+    class InMemoryVectorIndex:
+        def __init__(self) -> None:
+            self.records: dict[tuple[str, str], list[float]] = {}
+
+        def close(self) -> None:
+            return None
+
+        def ensure_collection(self, dimension: int, embedding_key: str) -> None:
+            return None
+
+        def upsert_embeddings(self, records: list[dict]) -> None:
+            for record in records:
+                self.records[(record["content_hash"], record["embedding_key"])] = list(
+                    record["embedding"]
+                )
+
+        def has_embedding(self, content_hash: str, embedding_key: str) -> bool:
+            return (content_hash, embedding_key) in self.records
+
+        def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
+            vector = self.records.get((content_hash, embedding_key))
+            return None if vector is None else list(vector)
+
+        def search(
+            self,
+            vector: list[float],
+            limit: int,
+            embedding_key: str,
+            content_hash_filter: set[str] | None = None,
+        ) -> list[dict]:
+            hits: list[dict] = []
+            for (content_hash, key), stored_vector in self.records.items():
+                if key != embedding_key:
+                    continue
+                if content_hash_filter is not None and content_hash not in content_hash_filter:
+                    continue
+                numerator = sum(a * b for a, b in zip(vector, stored_vector, strict=True))
+                left_norm = math.sqrt(sum(value * value for value in vector))
+                right_norm = math.sqrt(sum(value * value for value in stored_vector))
+                score = 0.0 if left_norm == 0 or right_norm == 0 else numerator / (left_norm * right_norm)
+                hits.append({"content_hash": content_hash, "score": score})
+            hits.sort(key=lambda item: item["score"], reverse=True)
+            return hits[:limit]
+
+        def count(self, embedding_key: str) -> int:
+            return sum(1 for (_, key) in self.records if key == embedding_key)
+
+    settings_v1 = Settings(
+        images_root=images_root,
+        index_root=index_root,
+        embedding_provider="gemini",
+        embedding_model="fake-clip",
+        embedding_version="2026-03",
+    )
+    repository = MetadataRepository(index_root / "metadata.db")
+    repository.initialize_schema()
+    vector_index = InMemoryVectorIndex()
+    embedding_client_v1 = FakeEmbeddingClient()
+    index_service_v1 = IndexService(settings_v1, repository, embedding_client_v1, vector_index)
+    job_runner_v1 = JobRunner(repository, index_service_v1)
+    search_service_v1 = SearchService(settings_v1, repository, embedding_client_v1, vector_index)
+    status_service_v1 = StatusService(settings=settings_v1, repository=repository, vector_index=vector_index)
+    client_v1 = TestClient(
+        create_app(
+            settings=settings_v1,
+            search_service=search_service_v1,
+            status_service=status_service_v1,
+            job_runner=job_runner_v1,
+        )
+    )
+
+    image_path = images_root / "2024" / "sunset.jpg"
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    from PIL import Image
+
+    Image.new("RGB", (12, 8), color="orange").save(image_path)
+    client_v1.post("/api/jobs/incremental")
+    while job_runner_v1.run_next() is not None:
+        pass
+
+    settings_v2 = Settings(
+        images_root=images_root,
+        index_root=index_root,
+        embedding_provider="gemini",
+        embedding_model="fake-clip",
+        embedding_version="2026-04",
+    )
+    embedding_client_v2 = FakeEmbeddingClient()
+    index_service_v2 = IndexService(settings_v2, repository, embedding_client_v2, vector_index)
+    job_runner_v2 = JobRunner(repository, index_service_v2)
+    search_service_v2 = SearchService(settings_v2, repository, embedding_client_v2, vector_index)
+    status_service_v2 = StatusService(settings=settings_v2, repository=repository, vector_index=vector_index)
+    client_v2 = TestClient(
+        create_app(
+            settings=settings_v2,
+            search_service=search_service_v2,
+            status_service=status_service_v2,
+            job_runner=job_runner_v2,
+        )
+    )
+
+    client_v2.post("/api/jobs/incremental")
+    while job_runner_v2.run_next() is not None:
+        pass
+
+    status = client_v2.get("/api/status").json()
+
+    assert len(embedding_client_v1.image_inputs) == 1
+    assert len(embedding_client_v2.image_inputs) == 1
+    assert status["embedding_version"] == "2026-04"
+    assert status["vector_entries"] == 1
+
+
 def test_end_to_end_similar_search_requires_indexed_image(app_bundle, tmp_path):
-    unindexed = tmp_path / "unindexed.png"
+    unindexed = app_bundle.settings.images_root / "2024" / "unindexed.png"
+    unindexed.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (10, 10), color="red").save(unindexed)
 
-    response = app_bundle.client.post(
+    client = TestClient(app_bundle.app, raise_server_exceptions=False)
+    response = client.post(
         "/api/debug/search/similar",
         json={"image_path": str(unindexed), "top_k": 1},
     )

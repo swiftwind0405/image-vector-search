@@ -5,7 +5,7 @@ from pathlib import Path
 from threading import Thread
 from types import SimpleNamespace
 
-from image_search_mcp.adapters.embedding.base import EmbeddingClient
+from image_search_mcp.adapters.embedding.base import EmbeddingClient, build_embedding_key
 
 logger = logging.getLogger(__name__)
 from image_search_mcp.adapters.vector_index.base import VectorIndex
@@ -59,6 +59,7 @@ class IndexService:
                 )
             except Exception as exc:
                 logger.error("Indexing error for %s: %s", container_path, exc)
+                self.repository.set_system_state("last_error_summary", str(exc))
                 report.errors += 1
 
         report.deactivated = self.repository.mark_unseen_paths_inactive(seen_paths, now)
@@ -85,6 +86,7 @@ class IndexService:
             and existing_path.is_active
             and existing_path.file_size == current_file.file_size
             and existing_path.mtime == current_file.mtime
+            and self.vector_index.has_embedding(existing_path.content_hash, embedding_key)
         ):
             self.repository.upsert_image_path(
                 ImagePathRecord(
@@ -244,10 +246,10 @@ class IndexService:
         return self._run_embedding_task(self.embedding_client.embed_images([image_path]))[0]
 
     def _embedding_key(self) -> str:
-        return (
-            f"{self.settings.embedding_provider}:"
-            f"{self.settings.embedding_model}:"
-            f"{self.settings.embedding_version}"
+        return build_embedding_key(
+            self.settings.embedding_provider,
+            self.settings.embedding_model,
+            self.settings.embedding_version,
         )
 
     def _ensure_embed_loop(self) -> asyncio.AbstractEventLoop:

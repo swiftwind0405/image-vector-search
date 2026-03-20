@@ -6,6 +6,10 @@
 
 服务将图像元数据存储在 SQLite 中，将向量嵌入（Embeddings）存储在本地 Milvus Lite 数据库中。图像路径始终使用容器内的路径：其中 `/data/images` 挂载为只读，`/data/index` 挂载为读写。
 
+当前支持两类 embedding provider：
+- `jina`：默认值，兼容现有部署
+- `gemini`：可选，适用于 `gemini-embedding-2-preview` 这类共享文本/图像向量空间模型
+
 ## 环境要求
 
 - Python 3.12+ (推荐使用 [uv](https://docs.astral.sh/uv/) 进行依赖管理)
@@ -16,7 +20,8 @@
 ## 环境变量配置
 
 **必填项：**
-- `IMAGE_SEARCH_JINA_API_KEY`
+- 当 `IMAGE_SEARCH_EMBEDDING_PROVIDER=jina` 时：`IMAGE_SEARCH_JINA_API_KEY`
+- 当 `IMAGE_SEARCH_EMBEDDING_PROVIDER=gemini` 时：`IMAGE_SEARCH_GOOGLE_API_KEY`
 
 **可选项：**
 - `IMAGE_SEARCH_IMAGES_ROOT` （默认：`/data/images`）
@@ -29,6 +34,8 @@
 - `IMAGE_SEARCH_EMBEDDING_PROVIDER`
 - `IMAGE_SEARCH_EMBEDDING_MODEL`
 - `IMAGE_SEARCH_EMBEDDING_VERSION`
+- `IMAGE_SEARCH_GEMINI_BASE_URL`
+- `IMAGE_SEARCH_EMBEDDING_OUTPUT_DIMENSIONALITY`
 - `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME`
 - `IMAGE_SEARCH_VECTOR_INDEX_DB_FILENAME`
 
@@ -54,6 +61,17 @@ uv run --env-file .env uvicorn image_search_mcp.app:create_app --factory --host 
 export IMAGE_SEARCH_IMAGES_ROOT=./data/images
 export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
+uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+```
+
+使用 Gemini:
+
+```bash
+export IMAGE_SEARCH_IMAGES_ROOT=./data/images
+export IMAGE_SEARCH_INDEX_ROOT=./data/index
+export IMAGE_SEARCH_EMBEDDING_PROVIDER=gemini
+export IMAGE_SEARCH_EMBEDDING_MODEL=gemini-embedding-2-preview
+export IMAGE_SEARCH_GOOGLE_API_KEY=your_google_api_key_here
 uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
@@ -111,3 +129,13 @@ Compose 示例暴露了以下端口：
 - Milvus Lite 向量数据：`/data/index/milvus.db`
 
 建议定期备份 `/data/index` 目录，以保存历史任务记录、元数据以及向量索引。
+
+## Embedding 迁移说明
+
+`embedding_provider`、`embedding_model`、`embedding_version` 共同定义一个独立的 embedding space。文本搜索、图搜图、索引写入都必须使用同一个 space。
+
+切换 provider/model/version 时请按下面的原则操作：
+- 如果向量维度可能变化，不要复用原有 Milvus collection。
+- 最稳妥的做法是清空 `IMAGE_SEARCH_INDEX_ROOT`，或改用新的 `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME` / 新的索引目录。
+- 不支持把不同维度的向量混写到同一个 collection。
+- `/api/status` 会显示当前生效的 provider / model / version，以及最近一次索引错误，便于确认当前 embedding space。

@@ -140,7 +140,7 @@ def app_bundle(tmp_path: Path) -> AppFixtureBundle:
     settings = Settings(
         images_root=images_root,
         index_root=index_root,
-        embedding_provider="fake",
+        embedding_provider="gemini",
         embedding_model="fake-clip",
         embedding_version="2026-03",
     )

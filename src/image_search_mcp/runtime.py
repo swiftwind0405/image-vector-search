@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from image_search_mcp.adapters.embedding.base import EmbeddingClient
+from image_search_mcp.adapters.embedding.gemini import GeminiEmbeddingClient
 from image_search_mcp.adapters.embedding.jina import JinaEmbeddingClient
 from image_search_mcp.adapters.embedding.rate_limiter import AdaptiveRateLimiter
 from image_search_mcp.adapters.vector_index.milvus_lite import MilvusLiteIndex
@@ -19,8 +21,8 @@ class RuntimeServices:
     status_service: StatusService
     job_runner: JobRunner
     background_worker: BackgroundJobWorker
-    embedding_client: JinaEmbeddingClient
-    index_embedding_client: JinaEmbeddingClient
+    embedding_client: EmbeddingClient
+    index_embedding_client: EmbeddingClient
     vector_index: MilvusLiteIndex
     tag_service: TagService
 
@@ -40,22 +42,8 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     repository = MetadataRepository(_metadata_db_path(settings))
     repository.initialize_schema()
 
-    rate_limiter = AdaptiveRateLimiter(
-        rpm=settings.jina_rpm,
-        max_concurrency=settings.jina_max_concurrency,
-    )
-    embedding_client = JinaEmbeddingClient(
-        api_key=settings.jina_api_key,
-        model=settings.embedding_model,
-        version=settings.embedding_version,
-        rate_limiter=rate_limiter,
-    )
-    index_embedding_client = JinaEmbeddingClient(
-        api_key=settings.jina_api_key,
-        model=settings.embedding_model,
-        version=settings.embedding_version,
-        rate_limiter=rate_limiter,
-    )
+    embedding_client = _build_embedding_client(settings)
+    index_embedding_client = _build_embedding_client(settings)
     vector_index = MilvusLiteIndex(
         db_path=settings.index_root / settings.vector_index_db_filename,
         collection_name=settings.vector_index_collection_name,
@@ -95,3 +83,32 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
 
 def _metadata_db_path(settings: Settings) -> Path:
     return settings.index_root / "metadata.db"
+
+
+def _build_embedding_client(settings: Settings) -> EmbeddingClient:
+    if settings.embedding_provider == "jina":
+        if not settings.jina_api_key:
+            raise ValueError("jina_api_key is required when embedding_provider='jina'")
+        rate_limiter = AdaptiveRateLimiter(
+            rpm=settings.jina_rpm,
+            max_concurrency=settings.jina_max_concurrency,
+        )
+        return JinaEmbeddingClient(
+            api_key=settings.jina_api_key,
+            model=settings.embedding_model,
+            version=settings.embedding_version,
+            rate_limiter=rate_limiter,
+        )
+
+    if settings.embedding_provider == "gemini":
+        if not settings.google_api_key:
+            raise ValueError("google_api_key is required when embedding_provider='gemini'")
+        return GeminiEmbeddingClient(
+            api_key=settings.google_api_key,
+            model=settings.embedding_model,
+            version=settings.embedding_version,
+            output_dimensionality=settings.embedding_output_dimensionality,
+            base_url=settings.gemini_base_url,
+        )
+
+    raise ValueError(f"Unsupported embedding_provider: {settings.embedding_provider}")

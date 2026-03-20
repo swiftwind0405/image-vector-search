@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from image_search_mcp.adapters.embedding.base import EmbeddingClient
+from image_search_mcp.adapters.embedding.base import EmbeddingClient, build_embedding_key
 from image_search_mcp.adapters.vector_index.base import VectorIndex
 from image_search_mcp.config import Settings
 from image_search_mcp.domain.models import ImageRecord, SearchResult
@@ -198,10 +198,10 @@ class SearchService:
         return min(max(top_k * 5, 20), 200)
 
     def _embedding_key(self) -> str:
-        return (
-            f"{self.settings.embedding_provider}:"
-            f"{self.settings.embedding_model}:"
-            f"{self.settings.embedding_version}"
+        return build_embedding_key(
+            self.settings.embedding_provider,
+            self.settings.embedding_model,
+            self.settings.embedding_version,
         )
 
     def _is_inside_folder(self, image_path: str, folder_path: Path) -> bool:

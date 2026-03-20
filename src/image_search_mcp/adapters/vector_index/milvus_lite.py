@@ -331,7 +331,9 @@ class MilvusLiteIndex(VectorIndex):
         if existing_dimension != dimension:
             raise ValueError(
                 "Existing Milvus collection dimension "
-                f"{existing_dimension} does not match requested dimension {dimension}"
+                f"{existing_dimension} does not match requested dimension {dimension} "
+                f"for embedding space {self.collection_name}. Clear the index root or "
+                "choose a new collection before reindexing."
             )
 
         for field_name in (

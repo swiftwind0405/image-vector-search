@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 
+from image_search_mcp.adapters.embedding.base import build_embedding_key
 from image_search_mcp.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus
 from image_search_mcp.scanning.files import iter_image_files
 
@@ -73,10 +74,10 @@ class StatusService:
         return sum(1 for _ in iter_image_files(self.settings.images_root))
 
     def _embedding_key(self) -> str:
-        return (
-            f"{self.settings.embedding_provider}:"
-            f"{self.settings.embedding_model}:"
-            f"{self.settings.embedding_version}"
+        return build_embedding_key(
+            self.settings.embedding_provider,
+            self.settings.embedding_model,
+            self.settings.embedding_version,
         )
 
     def _read_datetime(self, key: str) -> datetime | None:

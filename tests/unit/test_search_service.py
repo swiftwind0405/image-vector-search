@@ -208,6 +208,84 @@ async def test_search_similar_requires_stored_embedding(tmp_path: Path):
     assert embedding_client.image_calls == []
 
 
+@pytest.mark.anyio
+async def test_search_images_uses_active_embedding_key_for_non_jina_provider(tmp_path: Path):
+    images_root = tmp_path / "images"
+    settings = Settings(
+        images_root=images_root,
+        index_root=tmp_path / "index",
+        embedding_provider="gemini",
+        embedding_model="gemini-embedding-2-preview",
+        embedding_version="2026-03-19",
+    )
+    repository = FakeRepository(
+        {"hash-a": build_image_record("hash-a", str(images_root / "a.jpg"))}
+    )
+    vector_index = FakeVectorIndex([{"content_hash": "hash-a", "score": 0.9}])
+    embedding_client = FakeEmbeddingClient()
+    service = SearchService(settings, repository, embedding_client, vector_index)
+
+    results = await service.search_images(
+        query="sunset beach",
+        folder=None,
+        top_k=5,
+        min_score=0.0,
+    )
+
+    assert embedding_client.text_calls == [["sunset beach"]]
+    assert results[0].content_hash == "hash-a"
+
+
+@pytest.mark.anyio
+async def test_search_similar_uses_active_embedding_key_for_non_jina_provider(tmp_path: Path):
+    images_root = tmp_path / "images"
+    index_root = tmp_path / "index"
+    images_root.mkdir()
+    index_root.mkdir()
+
+    query_image = images_root / "query.png"
+    Image.new("RGB", (10, 10), color="red").save(query_image)
+    sibling_image = images_root / "other.png"
+    Image.new("RGB", (10, 10), color="blue").save(sibling_image)
+
+    from image_search_mcp.scanning.hashing import sha256_file
+
+    query_hash = sha256_file(query_image)
+    other_hash = sha256_file(sibling_image)
+    settings = Settings(
+        images_root=images_root,
+        index_root=index_root,
+        embedding_provider="gemini",
+        embedding_model="gemini-embedding-2-preview",
+        embedding_version="2026-03-19",
+    )
+    repository = FakeRepository(
+        {
+            query_hash: build_image_record(query_hash, str(query_image)),
+            other_hash: build_image_record(other_hash, str(sibling_image)),
+        }
+    )
+    vector_index = FakeVectorIndex(
+        [
+            {"content_hash": query_hash, "score": 0.99},
+            {"content_hash": other_hash, "score": 0.95},
+        ],
+        embeddings={
+            (query_hash, "gemini:gemini-embedding-2-preview:2026-03-19"): [0.0, 1.0, 0.0]
+        },
+    )
+    service = SearchService(settings, repository, FakeEmbeddingClient(), vector_index)
+
+    results = await service.search_similar(
+        image_path=str(query_image),
+        top_k=2,
+        min_score=0.0,
+        folder=None,
+    )
+
+    assert [result.content_hash for result in results] == [other_hash]
+
+
 class TestSearchWithTagFilter:
     def _make_service(
         self,
