@@ -96,7 +96,7 @@ def test_end_to_end_similar_search_reuses_stored_embedding(
     app_bundle, image_factory, drain_job_queue
 ):
     query = image_factory("2024/orange.jpg", color="orange")
-    image_factory("2024/red-neighbor.jpg", color="red")
+    image_factory("2024/orange-2.jpg", color="orange", size=(13, 8))
 
     app_bundle.client.post("/api/jobs/incremental")
     drain_job_queue()
@@ -265,8 +265,7 @@ def test_end_to_end_reindexes_for_active_embedding_key_change(
 
 
 def test_end_to_end_similar_search_requires_indexed_image(app_bundle, tmp_path):
-    unindexed = app_bundle.settings.images_root / "2024" / "unindexed.png"
-    unindexed.parent.mkdir(parents=True, exist_ok=True)
+    unindexed = app_bundle.settings.images_root / "unindexed.png"
     Image.new("RGB", (10, 10), color="red").save(unindexed)
 
     client = TestClient(app_bundle.app, raise_server_exceptions=False)
@@ -275,4 +274,5 @@ def test_end_to_end_similar_search_requires_indexed_image(app_bundle, tmp_path):
         json={"image_path": str(unindexed), "top_k": 1},
     )
 
-    assert response.status_code == 500
+    assert response.status_code == 400
+    assert "stored embedding" in response.json()["detail"]

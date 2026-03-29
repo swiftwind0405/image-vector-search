@@ -187,6 +187,7 @@ def image_factory(app_bundle: AppFixtureBundle):
         *,
         color: str | None = None,
         source: Path | None = None,
+        size: tuple[int, int] = (12, 8),
     ) -> Path:
         image_path = app_bundle.settings.images_root / relative_path
         image_path.parent.mkdir(parents=True, exist_ok=True)
@@ -194,7 +195,7 @@ def image_factory(app_bundle: AppFixtureBundle):
             image_path.write_bytes(source.read_bytes())
             return image_path
 
-        Image.new("RGB", (12, 8), color=color or "red").save(image_path)
+        Image.new("RGB", size, color=color or "red").save(image_path)
         return image_path
 
     return create_image

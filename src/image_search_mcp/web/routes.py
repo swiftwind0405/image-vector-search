@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -75,12 +76,23 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
 
     @router.post("/api/debug/search/text")
     async def debug_text_search(payload: DebugTextSearchRequest):
-        results = await search_service.search_images(**payload.model_dump())
+        try:
+            results = await search_service.search_images(**payload.model_dump())
+        except httpx.ConnectError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Failed to connect to embedding service: {exc}",
+            ) from exc
         return JSONResponse(content={"results": jsonable_encoder(results)})
 
     @router.post("/api/debug/search/similar")
     async def debug_similar_search(payload: DebugSimilarSearchRequest):
-        results = await search_service.search_similar(**payload.model_dump())
+        try:
+            results = await search_service.search_similar(**payload.model_dump())
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return JSONResponse(content={"results": jsonable_encoder(results)})
 
     @router.get("/api/images/{content_hash}/file")
