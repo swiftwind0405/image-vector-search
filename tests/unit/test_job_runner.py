@@ -93,7 +93,7 @@ async def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Pa
     settings = Settings(
         images_root=images_root,
         index_root=tmp_path / "index",
-        embedding_provider="fake",
+        embedding_provider="jina",
         embedding_model="fake-clip",
         embedding_version="2026-03",
     )
@@ -158,7 +158,7 @@ async def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Pa
     assert snapshot.active_images == 1
     assert snapshot.inactive_images == 1
     assert snapshot.vector_entries == 7
-    assert snapshot.embedding_provider == "fake"
+    assert snapshot.embedding_provider == "jina"
     assert snapshot.embedding_model == "fake-clip"
     assert snapshot.embedding_version == "2026-03"
     assert snapshot.last_error_summary == "none"

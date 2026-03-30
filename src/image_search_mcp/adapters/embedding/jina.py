@@ -60,12 +60,6 @@ class JinaEmbeddingClient(EmbeddingClient):
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def __aenter__(self) -> "JinaEmbeddingClient":
-        return self
-
-    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        await self.aclose()
-
     # -- core request loop ----------------------------------------------------
 
     async def _request_embeddings(

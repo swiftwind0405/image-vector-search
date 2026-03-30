@@ -22,16 +22,14 @@ class RuntimeServices:
     job_runner: JobRunner
     background_worker: BackgroundJobWorker
     embedding_client: EmbeddingClient
-    index_embedding_client: EmbeddingClient
     vector_index: MilvusLiteIndex
     tag_service: TagService
 
     async def aclose(self) -> None:
-        for client in (self.embedding_client, self.index_embedding_client):
-            try:
-                await client.aclose()
-            except RuntimeError:
-                pass
+        try:
+            await self.embedding_client.aclose()
+        except RuntimeError:
+            pass
         self.vector_index.close()
 
 
@@ -43,7 +41,6 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     repository.initialize_schema()
 
     embedding_client = _build_embedding_client(settings)
-    index_embedding_client = _build_embedding_client(settings)
     vector_index = MilvusLiteIndex(
         db_path=settings.index_root / settings.vector_index_db_filename,
         collection_name=settings.vector_index_collection_name,
@@ -52,7 +49,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     index_service = IndexService(
         settings=settings,
         repository=repository,
-        embedding_client=index_embedding_client,
+        embedding_client=embedding_client,
         vector_index=vector_index,
     )
     search_service = SearchService(
@@ -75,7 +72,6 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         job_runner=job_runner,
         background_worker=background_worker,
         embedding_client=embedding_client,
-        index_embedding_client=index_embedding_client,
         vector_index=vector_index,
         tag_service=tag_service,
     )
@@ -109,6 +105,7 @@ def _build_embedding_client(settings: Settings) -> EmbeddingClient:
             version=settings.embedding_version,
             output_dimensionality=settings.embedding_output_dimensionality,
             base_url=settings.gemini_base_url,
+            batch_size=settings.embedding_batch_size,
         )
 
     raise ValueError(f"Unsupported embedding_provider: {settings.embedding_provider}")

@@ -19,6 +19,8 @@ class GeminiEmbeddingClient(EmbeddingClient):
     _MAX_ATTEMPTS = 5
     _MAX_DELAY_SECONDS = 30.0
 
+    _DEFAULT_BATCH_SIZE = 32
+
     def __init__(
         self,
         api_key: str,
@@ -27,27 +29,37 @@ class GeminiEmbeddingClient(EmbeddingClient):
         version: str | None = None,
         output_dimensionality: int | None = None,
         base_url: str = "https://generativelanguage.googleapis.com/v1beta",
+        batch_size: int = _DEFAULT_BATCH_SIZE,
     ) -> None:
         self._api_key = api_key
         self._model = model.removeprefix("models/")
         self._version = version
         self._output_dimensionality = output_dimensionality
+        self._batch_size = batch_size
         self._client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=60.0)
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        payload = {
-            "requests": [self._text_request(text, task_type="RETRIEVAL_QUERY") for text in texts]
-        }
-        data = await self._request_embeddings(payload, expected_count=len(texts))
-        return [item["values"] for item in data["embeddings"]]
+        all_vectors: list[list[float]] = []
+        for i in range(0, len(texts), self._batch_size):
+            batch = texts[i : i + self._batch_size]
+            payload = {
+                "requests": [self._text_request(text, task_type="RETRIEVAL_QUERY") for text in batch]
+            }
+            data = await self._request_embeddings(payload, expected_count=len(batch))
+            all_vectors.extend(item["values"] for item in data["embeddings"])
+        return all_vectors
 
     async def embed_images(self, paths: list[Path]) -> list[list[float]]:
-        requests = await asyncio.to_thread(self._build_image_requests, paths)
-        data = await self._request_embeddings(
-            {"requests": requests},
-            expected_count=len(paths),
-        )
-        return [item["values"] for item in data["embeddings"]]
+        all_vectors: list[list[float]] = []
+        for i in range(0, len(paths), self._batch_size):
+            batch = paths[i : i + self._batch_size]
+            requests = await asyncio.to_thread(self._build_image_requests, batch)
+            data = await self._request_embeddings(
+                {"requests": requests},
+                expected_count=len(batch),
+            )
+            all_vectors.extend(item["values"] for item in data["embeddings"])
+        return all_vectors
 
     def vector_dimension(self) -> int | None:
         return self._output_dimensionality
@@ -63,12 +75,6 @@ class GeminiEmbeddingClient(EmbeddingClient):
 
     async def aclose(self) -> None:
         await self._client.aclose()
-
-    async def __aenter__(self) -> "GeminiEmbeddingClient":
-        return self
-
-    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
-        await self.aclose()
 
     async def _request_embeddings(
         self,

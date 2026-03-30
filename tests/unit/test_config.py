@@ -41,3 +41,26 @@ def test_settings_normalize_embedding_provider():
 def test_settings_reject_unsupported_embedding_provider():
     with pytest.raises(ValueError, match="embedding_provider"):
         Settings(embedding_provider="unsupported")
+
+
+def test_settings_gemini_provider_applies_model_defaults():
+    settings = Settings(embedding_provider="gemini")
+    assert settings.embedding_model == "gemini-embedding-2-preview"
+    assert settings.embedding_version == "preview"
+
+
+def test_settings_gemini_provider_preserves_explicit_model():
+    settings = Settings(
+        embedding_provider="gemini",
+        embedding_model="custom-model",
+        embedding_version="v3",
+    )
+    assert settings.embedding_model == "custom-model"
+    assert settings.embedding_version == "v3"
+
+
+def test_build_embedding_key_handles_none_version():
+    from image_search_mcp.adapters.embedding.base import build_embedding_key
+
+    assert build_embedding_key("gemini", "model", None) == "gemini:model:default"
+    assert build_embedding_key("jina", "clip", "v2") == "jina:clip:v2"

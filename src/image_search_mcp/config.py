@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     admin_password: str = ""
     admin_session_secret: str = ""
 
+    _PROVIDER_DEFAULTS: dict[str, dict[str, str]] = {
+        "jina": {"embedding_model": "jina-clip-v2", "embedding_version": "v2"},
+        "gemini": {"embedding_model": "gemini-embedding-2-preview", "embedding_version": "preview"},
+    }
+
     @field_validator("embedding_provider", mode="before")
     @classmethod
     def _normalize_embedding_provider(cls, value: str) -> str:
@@ -38,3 +43,16 @@ class Settings(BaseSettings):
         if normalized not in {"jina", "gemini"}:
             raise ValueError("embedding_provider must be one of: jina, gemini")
         return normalized
+
+    @model_validator(mode="after")
+    def _apply_provider_defaults(self) -> "Settings":
+        """Apply provider-specific defaults for model/version when they
+        still hold the Jina defaults but a different provider is selected."""
+        jina_defaults = self._PROVIDER_DEFAULTS["jina"]
+        provider_defaults = self._PROVIDER_DEFAULTS.get(self.embedding_provider)
+        if provider_defaults and self.embedding_provider != "jina":
+            if self.embedding_model == jina_defaults["embedding_model"]:
+                self.embedding_model = provider_defaults["embedding_model"]
+            if self.embedding_version == jina_defaults["embedding_version"]:
+                self.embedding_version = provider_defaults["embedding_version"]
+        return self
