@@ -7,9 +7,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import FileResponse
 
+from image_search_mcp.adapters.http_tool_adapter import build_tool_router
+from image_search_mcp.adapters.mcp_adapter import build_mcp_from_registry
 from image_search_mcp.config import Settings
-from image_search_mcp.mcp.server import build_mcp_server
+from image_search_mcp.services.tagging import TagService
 from image_search_mcp.runtime import RuntimeServices, build_runtime_services
+from image_search_mcp.tools import ToolContext, default_registry
 from image_search_mcp.web.bulk_routes import create_bulk_router
 from image_search_mcp.web.routes import create_auth_router, create_web_router
 from image_search_mcp.web.tag_routes import create_tag_router
@@ -20,6 +23,7 @@ def create_app(
     search_service=None,
     status_service=None,
     job_runner=None,
+    tag_service=None,
 ) -> FastAPI:
     app_settings = settings or Settings()
     runtime_services: RuntimeServices | None = None
@@ -32,6 +36,9 @@ def create_app(
         search_service = runtime_services.search_service
         status_service = runtime_services.status_service
         job_runner = runtime_services.job_runner
+        tag_service = runtime_services.tag_service
+    elif tag_service is None:
+        tag_service = _derive_tag_service(status_service)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -60,9 +67,18 @@ def create_app(
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    tool_ctx: ToolContext | None = None
     if search_service is not None:
-        mcp_server = build_mcp_server(search_service)
+        tool_ctx = ToolContext(
+            search_service=search_service,
+            tag_service=tag_service,
+            status_service=status_service,
+            job_runner=job_runner,
+            settings=app_settings,
+        )
+        mcp_server = build_mcp_from_registry(default_registry, tool_ctx)
         app.mount("/mcp", mcp_server.http_app(path="/"))
+        app.include_router(build_tool_router(default_registry, tool_ctx))
 
     if search_service is not None and status_service is not None and job_runner is not None:
         app.include_router(
@@ -73,13 +89,13 @@ def create_app(
             )
         )
 
-    if runtime_services is not None:
-        app.include_router(create_tag_router(tag_service=runtime_services.tag_service))
+    if tag_service is not None:
+        app.include_router(create_tag_router(tag_service=tag_service))
 
-    if runtime_services is not None:
+    if tag_service is not None:
         app.include_router(
             create_bulk_router(
-                tag_service=runtime_services.tag_service,
+                tag_service=tag_service,
                 images_root=str(app_settings.images_root),
             )
         )
@@ -97,3 +113,10 @@ def create_app(
             return FileResponse(str(spa_index))
 
     return app
+
+
+def _derive_tag_service(status_service) -> TagService | None:
+    repository = getattr(status_service, "repository", None)
+    if repository is None:
+        return None
+    return TagService(repository=repository)
