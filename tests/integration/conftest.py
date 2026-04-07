@@ -1,4 +1,5 @@
 import math
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -210,6 +211,21 @@ def drain_job_queue(app_bundle: AppFixtureBundle):
                 break
 
     return drain
+
+
+@pytest.fixture
+def copy_auto_fixture_tree(app_bundle: AppFixtureBundle):
+    source_root = Path(__file__).resolve().parents[1] / "fixtures" / "images" / "auto"
+
+    def copy_tree() -> Path:
+        shutil.copytree(
+            source_root,
+            app_bundle.settings.images_root,
+            dirs_exist_ok=True,
+        )
+        return app_bundle.settings.images_root
+
+    return copy_tree
 
 
 def _distance(left: tuple[int, int, int], right: tuple[int, int, int]) -> float:
