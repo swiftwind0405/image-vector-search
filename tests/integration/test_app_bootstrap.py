@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
-import image_search_mcp.app as app_module
-from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import IndexStatus, JobRecord, SearchResult
-from image_search_mcp.runtime import _build_embedding_client
+import image_vector_search.app as app_module
+from image_vector_search.config import Settings
+from image_vector_search.domain.models import IndexStatus, JobRecord, SearchResult
+from image_vector_search.runtime import _build_embedding_client
 
 
 class FakeSearchService:

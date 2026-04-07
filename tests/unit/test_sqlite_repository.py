@@ -1,8 +1,8 @@
 import pytest
 from datetime import UTC, datetime
 
-from image_search_mcp.domain.models import ImagePathRecord, ImageRecord, JobRecord, Tag
-from image_search_mcp.repositories.sqlite import MetadataRepository, choose_canonical_path
+from image_vector_search.domain.models import ImagePathRecord, ImageRecord, JobRecord, Tag
+from image_vector_search.repositories.sqlite import MetadataRepository, choose_canonical_path
 
 
 def _build_repository(tmp_path):

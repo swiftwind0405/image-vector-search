@@ -25,13 +25,13 @@
 
 ### 前提条件
 
-在此技能生效之前，`image-search-mcp` 服务必须处于运行状态，并且图像文件必须已经被系统成功建立了索引。
+在此技能生效之前，`image-vector-search` 服务必须处于运行状态，并且图像文件必须已经被系统成功建立了索引。
 
 ```bash
 # 进入项目目录
 cd /Users/stanley/Workspace/main/image-vector-search
 # 启动 MCP 服务实例
-python -m image_search_mcp
+python -m image_vector_search
 ```
 
 默认的服务基础 URL (Server base URL) 为：`http://localhost:8000`

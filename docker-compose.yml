@@ -1,8 +1,8 @@
 services:
-  image-search-mcp:
+  image-vector-search:
     build:
       context: .
-    container_name: image-search-mcp
+    container_name: image-vector-search
     ports:
       - "8000:8000"
     environment:

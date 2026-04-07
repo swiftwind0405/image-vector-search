@@ -5,7 +5,7 @@
 
 ## Goal
 
-Modify `src/image_search_mcp/runtime.py` to:
+Modify `src/image_vector_search/runtime.py` to:
 1. Add `index_service`, `repository`, and `settings` fields to `RuntimeServices`
 2. Add `async reload_embedding_client()` method to `RuntimeServices`
 3. Modify `build_runtime_services()` to resolve embedding config from DB first, then env var fallback, without crashing when neither is set
@@ -33,7 +33,7 @@ Scenario: Startup with env vars only (existing deployment)
 
 ## Files to Modify
 
-- `src/image_search_mcp/runtime.py`
+- `src/image_vector_search/runtime.py`
 
 ## What to Implement
 

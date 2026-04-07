@@ -14,16 +14,16 @@
 
 | Action | Path | Responsibility |
 |--------|------|----------------|
-| Modify | `src/image_search_mcp/repositories/sqlite.py` | Add `list_folders()`, extend `list_active_images()` with folder filter, add 4 bulk methods + 4 folder-bulk methods |
-| Modify | `src/image_search_mcp/services/tagging.py` | Add 8 bulk service methods with validation |
-| Modify | `src/image_search_mcp/services/status.py` | Extend `list_active_images()` with folder param |
-| Create | `src/image_search_mcp/web/bulk_routes.py` | HTTP routes for bulk ops, folders, file open/reveal |
-| Modify | `src/image_search_mcp/web/routes.py` | Extend `GET /api/images` with `folder` query param |
-| Modify | `src/image_search_mcp/app.py` | Register bulk router |
-| Create | `src/image_search_mcp/web/src/api/bulk.ts` | React Query hooks for all bulk + folder + file operations |
-| Modify | `src/image_search_mcp/web/src/api/images.ts` | Add `folder` param to `useImages()` |
-| Modify | `src/image_search_mcp/web/src/api/types.ts` | Add `BulkResponse` type |
-| Modify | `src/image_search_mcp/web/src/pages/ImagesPage.tsx` | Folder filter, checkboxes, bulk action bar, file buttons, folder actions dialog |
+| Modify | `src/image_vector_search/repositories/sqlite.py` | Add `list_folders()`, extend `list_active_images()` with folder filter, add 4 bulk methods + 4 folder-bulk methods |
+| Modify | `src/image_vector_search/services/tagging.py` | Add 8 bulk service methods with validation |
+| Modify | `src/image_vector_search/services/status.py` | Extend `list_active_images()` with folder param |
+| Create | `src/image_vector_search/frontend/bulk_routes.py` | HTTP routes for bulk ops, folders, file open/reveal |
+| Modify | `src/image_vector_search/frontend/routes.py` | Extend `GET /api/images` with `folder` query param |
+| Modify | `src/image_vector_search/app.py` | Register bulk router |
+| Create | `src/image_vector_search/frontend/src/api/bulk.ts` | React Query hooks for all bulk + folder + file operations |
+| Modify | `src/image_vector_search/frontend/src/api/images.ts` | Add `folder` param to `useImages()` |
+| Modify | `src/image_vector_search/frontend/src/api/types.ts` | Add `BulkResponse` type |
+| Modify | `src/image_vector_search/frontend/src/pages/ImagesPage.tsx` | Folder filter, checkboxes, bulk action bar, file buttons, folder actions dialog |
 | Create | `tests/unit/test_bulk_service.py` | Unit tests for TagService bulk methods |
 | Create | `tests/integration/test_bulk_api.py` | Integration tests for all bulk + folder + file endpoints |
 
@@ -32,7 +32,7 @@
 ### Task 1: Repository Bulk Methods
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Create: `tests/unit/test_bulk_repository.py`
 
 This task adds all new repository methods: `list_folders`, folder-filtered `list_active_images`, and 4 bulk add/remove methods for tags and categories.
@@ -44,8 +44,8 @@ This task adds all new repository methods: `list_folders`, folder-filtered `list
 import pytest
 from datetime import datetime, timezone
 from pathlib import Path
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.domain.models import ImageRecord
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.domain.models import ImageRecord
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -100,7 +100,7 @@ Expected: FAIL — `list_folders` method does not exist
 
 - [ ] **Step 3: Implement `list_folders`**
 
-Add to `MetadataRepository` in `src/image_search_mcp/repositories/sqlite.py`, after the existing `list_active_images` method:
+Add to `MetadataRepository` in `src/image_vector_search/repositories/sqlite.py`, after the existing `list_active_images` method:
 
 ```python
 def list_folders(self, images_root: str) -> list[str]:
@@ -161,7 +161,7 @@ Expected: FAIL — `list_active_images` does not accept `folder`/`images_root` p
 
 - [ ] **Step 7: Extend `list_active_images` with folder filtering**
 
-Replace the existing `list_active_images` method in `src/image_search_mcp/repositories/sqlite.py`:
+Replace the existing `list_active_images` method in `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def list_active_images(self, folder: str | None = None, images_root: str | None = None) -> list[ImageRecord]:
@@ -243,7 +243,7 @@ Expected: FAIL — `bulk_add_tag` does not exist
 
 - [ ] **Step 11: Implement bulk add/remove methods**
 
-Add to `MetadataRepository` in `src/image_search_mcp/repositories/sqlite.py`:
+Add to `MetadataRepository` in `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def bulk_add_tag(self, content_hashes: list[str], tag_id: int) -> int:
@@ -304,7 +304,7 @@ Expected: No regressions from `list_active_images` signature change (existing ca
 - [ ] **Step 14: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py tests/unit/test_bulk_repository.py
+git add src/image_vector_search/repositories/sqlite.py tests/unit/test_bulk_repository.py
 git commit -m "feat: add repository bulk methods and folder listing"
 ```
 
@@ -313,7 +313,7 @@ git commit -m "feat: add repository bulk methods and folder listing"
 ### Task 2: Repository Folder-Bulk Methods
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Modify: `tests/unit/test_bulk_repository.py`
 
 These are dedicated methods that resolve folder → content_hashes → bulk operation in a single transaction.
@@ -366,7 +366,7 @@ Expected: FAIL
 
 - [ ] **Step 3: Implement folder-bulk methods**
 
-Add to `MetadataRepository` in `src/image_search_mcp/repositories/sqlite.py`:
+Add to `MetadataRepository` in `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def bulk_folder_add_tag(self, folder: str, tag_id: int, images_root: str) -> int:
@@ -446,7 +446,7 @@ Expected: ALL PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py tests/unit/test_bulk_repository.py
+git add src/image_vector_search/repositories/sqlite.py tests/unit/test_bulk_repository.py
 git commit -m "feat: add folder-bulk repository methods with single-transaction atomicity"
 ```
 
@@ -455,7 +455,7 @@ git commit -m "feat: add folder-bulk repository methods with single-transaction 
 ### Task 3: TagService Bulk Methods
 
 **Files:**
-- Modify: `src/image_search_mcp/services/tagging.py`
+- Modify: `src/image_vector_search/services/tagging.py`
 - Create: `tests/unit/test_bulk_service.py`
 
 Add bulk methods to TagService with validation (max 500 hashes, catch IntegrityError).
@@ -467,7 +467,7 @@ Add bulk methods to TagService with validation (max 500 hashes, catch IntegrityE
 import sqlite3
 import pytest
 from unittest.mock import MagicMock
-from image_search_mcp.services.tagging import TagService
+from image_vector_search.services.tagging import TagService
 
 
 class TestBulkTagServiceValidation:
@@ -551,7 +551,7 @@ Expected: FAIL — `bulk_add_tag` not on TagService
 
 - [ ] **Step 3: Implement TagService bulk methods**
 
-Add to `TagService` class in `src/image_search_mcp/services/tagging.py`. First add `import sqlite3` at the top of the file. Then add these as class members after the image associations section (indented inside the class body):
+Add to `TagService` class in `src/image_vector_search/services/tagging.py`. First add `import sqlite3` at the top of the file. Then add these as class members after the image associations section (indented inside the class body):
 
 ```python
     # --- Bulk operations ---
@@ -611,7 +611,7 @@ Expected: ALL PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/tagging.py tests/unit/test_bulk_service.py
+git add src/image_vector_search/services/tagging.py tests/unit/test_bulk_service.py
 git commit -m "feat: add TagService bulk methods with validation"
 ```
 
@@ -620,14 +620,14 @@ git commit -m "feat: add TagService bulk methods with validation"
 ### Task 4: StatusService Folder Filtering & Routes Update
 
 **Files:**
-- Modify: `src/image_search_mcp/services/status.py`
-- Modify: `src/image_search_mcp/web/routes.py`
+- Modify: `src/image_vector_search/services/status.py`
+- Modify: `src/image_vector_search/frontend/routes.py`
 
 Extend `list_active_images()` on StatusService and the `GET /api/images` endpoint to accept a folder filter.
 
 - [ ] **Step 1: Extend StatusService**
 
-In `src/image_search_mcp/services/status.py`, change `list_active_images`:
+In `src/image_vector_search/services/status.py`, change `list_active_images`:
 
 ```python
 def list_active_images(self, folder: str | None = None) -> list[ImageRecord]:
@@ -637,7 +637,7 @@ def list_active_images(self, folder: str | None = None) -> list[ImageRecord]:
 
 - [ ] **Step 2: Extend `GET /api/images` in routes.py**
 
-In `src/image_search_mcp/web/routes.py`, change the `list_images` endpoint:
+In `src/image_vector_search/frontend/routes.py`, change the `list_images` endpoint:
 
 ```python
 @router.get("/api/images")
@@ -655,7 +655,7 @@ Expected: ALL PASS (no regressions — existing callers still work with default 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/image_search_mcp/services/status.py src/image_search_mcp/web/routes.py
+git add src/image_vector_search/services/status.py src/image_vector_search/frontend/routes.py
 git commit -m "feat: extend GET /api/images with folder query param"
 ```
 
@@ -664,8 +664,8 @@ git commit -m "feat: extend GET /api/images with folder query param"
 ### Task 5: Bulk & File Operations HTTP Routes
 
 **Files:**
-- Create: `src/image_search_mcp/web/bulk_routes.py`
-- Modify: `src/image_search_mcp/app.py`
+- Create: `src/image_vector_search/frontend/bulk_routes.py`
+- Modify: `src/image_vector_search/app.py`
 - Create: `tests/integration/test_bulk_api.py`
 
 Create all HTTP endpoints for bulk operations, folder listing, and file open/reveal.
@@ -677,11 +677,11 @@ Create all HTTP endpoints for bulk operations, folder listing, and file open/rev
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.web.tag_routes import create_tag_router
-from image_search_mcp.web.bulk_routes import create_bulk_router
-from image_search_mcp.domain.models import ImageRecord
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.tagging import TagService
+from image_vector_search.api.tag_routes import create_tag_router
+from image_vector_search.api.bulk_routes import create_bulk_router
+from image_vector_search.domain.models import ImageRecord
 from datetime import datetime, timezone
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -842,7 +842,7 @@ Expected: FAIL — `bulk_routes` module does not exist
 
 - [ ] **Step 3: Implement `bulk_routes.py`**
 
-Create `src/image_search_mcp/web/bulk_routes.py`:
+Create `src/image_vector_search/frontend/bulk_routes.py`:
 
 ```python
 from __future__ import annotations
@@ -855,7 +855,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from image_search_mcp.services.tagging import TagService
+from image_vector_search.services.tagging import TagService
 
 
 class BulkTagRequest(BaseModel):
@@ -1001,10 +1001,10 @@ def create_bulk_router(*, tag_service: TagService, images_root: str) -> APIRoute
 
 - [ ] **Step 4: Register bulk router in `app.py`**
 
-In `src/image_search_mcp/app.py`, add import at top:
+In `src/image_vector_search/app.py`, add import at top:
 
 ```python
-from image_search_mcp.web.bulk_routes import create_bulk_router
+from image_vector_search.api.bulk_routes import create_bulk_router
 ```
 
 Add after the existing `create_tag_router` registration (line 64), before `dist_dir`:
@@ -1032,7 +1032,7 @@ Expected: ALL PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/image_search_mcp/web/bulk_routes.py src/image_search_mcp/app.py tests/integration/test_bulk_api.py
+git add src/image_vector_search/frontend/bulk_routes.py src/image_vector_search/app.py tests/integration/test_bulk_api.py
 git commit -m "feat: add HTTP routes for bulk operations, folder listing, and file open/reveal"
 ```
 
@@ -1041,15 +1041,15 @@ git commit -m "feat: add HTTP routes for bulk operations, folder listing, and fi
 ### Task 6: Frontend API Hooks
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/api/bulk.ts`
-- Modify: `src/image_search_mcp/web/src/api/images.ts`
-- Modify: `src/image_search_mcp/web/src/api/types.ts`
+- Create: `src/image_vector_search/frontend/src/api/bulk.ts`
+- Modify: `src/image_vector_search/frontend/src/api/images.ts`
+- Modify: `src/image_vector_search/frontend/src/api/types.ts`
 
 Add all React Query hooks for bulk operations, folder listing, and file operations.
 
 - [ ] **Step 1: Add `BulkResponse` type**
 
-In `src/image_search_mcp/web/src/api/types.ts`, add at the end:
+In `src/image_vector_search/frontend/src/api/types.ts`, add at the end:
 
 ```typescript
 export interface BulkResponse {
@@ -1060,7 +1060,7 @@ export interface BulkResponse {
 
 - [ ] **Step 2: Update `useImages` to accept folder param**
 
-In `src/image_search_mcp/web/src/api/images.ts`, change `useImages`:
+In `src/image_vector_search/frontend/src/api/images.ts`, change `useImages`:
 
 ```typescript
 export function useImages(folder?: string) {
@@ -1076,7 +1076,7 @@ export function useImages(folder?: string) {
 
 - [ ] **Step 3: Create `bulk.ts` with all hooks**
 
-Create `src/image_search_mcp/web/src/api/bulk.ts`:
+Create `src/image_vector_search/frontend/src/api/bulk.ts`:
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1233,13 +1233,13 @@ export function useRevealFile() {
 
 - [ ] **Step 4: Verify TypeScript compiles**
 
-Run: `cd src/image_search_mcp/web && npx tsc --noEmit`
+Run: `cd src/image_vector_search/frontend && npx tsc --noEmit`
 Expected: No errors
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/api/bulk.ts src/image_search_mcp/web/src/api/images.ts src/image_search_mcp/web/src/api/types.ts
+git add src/image_vector_search/frontend/src/api/bulk.ts src/image_vector_search/frontend/src/api/images.ts src/image_vector_search/frontend/src/api/types.ts
 git commit -m "feat: add frontend API hooks for bulk ops, folders, and file operations"
 ```
 
@@ -1248,13 +1248,13 @@ git commit -m "feat: add frontend API hooks for bulk ops, folders, and file oper
 ### Task 7: Frontend Images Page — Folder Filter & File Buttons
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/ImagesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/ImagesPage.tsx`
 
 Add folder filter dropdown at top, and open/reveal icon buttons per row. This is the simpler UI change before the bulk action bar.
 
 - [ ] **Step 1: Update ImagesPage with folder filter and file buttons**
 
-Replace `src/image_search_mcp/web/src/pages/ImagesPage.tsx` with:
+Replace `src/image_vector_search/frontend/src/pages/ImagesPage.tsx` with:
 
 ```tsx
 import React, { useState } from "react";
@@ -1441,18 +1441,18 @@ export default function ImagesPage() {
 
 - [ ] **Step 2: Verify TypeScript compiles**
 
-Run: `cd src/image_search_mcp/web && npx tsc --noEmit`
+Run: `cd src/image_vector_search/frontend && npx tsc --noEmit`
 Expected: No errors
 
 - [ ] **Step 3: Verify build succeeds**
 
-Run: `cd src/image_search_mcp/web && npm run build`
+Run: `cd src/image_vector_search/frontend && npm run build`
 Expected: Build completes successfully
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/ImagesPage.tsx
+git add src/image_vector_search/frontend/src/pages/ImagesPage.tsx
 git commit -m "feat: add folder filter and file open/reveal buttons to Images page"
 ```
 
@@ -1461,13 +1461,13 @@ git commit -m "feat: add folder filter and file open/reveal buttons to Images pa
 ### Task 8: Frontend Images Page — Checkbox Selection & Bulk Action Bar
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/ImagesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/ImagesPage.tsx`
 
 Add checkbox selection, floating bulk action bar, and folder quick actions dialog.
 
 - [ ] **Step 1: Update ImagesPage with checkboxes and bulk action bar**
 
-Replace `src/image_search_mcp/web/src/pages/ImagesPage.tsx` with the full version that adds:
+Replace `src/image_vector_search/frontend/src/pages/ImagesPage.tsx` with the full version that adds:
 - Checkbox column with select-all in header
 - `selectedHashes` state (Set)
 - Floating bulk action bar at bottom when selection is active
@@ -2062,28 +2062,28 @@ export default function ImagesPage() {
 
 **Note:** This requires the `Checkbox` and `Dialog` shadcn/ui components. If not already installed, run:
 ```bash
-cd src/image_search_mcp/web && npx shadcn@latest add checkbox dialog
+cd src/image_vector_search/frontend && npx shadcn@latest add checkbox dialog
 ```
 
 - [ ] **Step 2: Install missing shadcn/ui components if needed**
 
-Run: `cd src/image_search_mcp/web && npx shadcn@latest add checkbox dialog`
+Run: `cd src/image_vector_search/frontend && npx shadcn@latest add checkbox dialog`
 Expected: Components added to `src/components/ui/`
 
 - [ ] **Step 3: Verify TypeScript compiles**
 
-Run: `cd src/image_search_mcp/web && npx tsc --noEmit`
+Run: `cd src/image_vector_search/frontend && npx tsc --noEmit`
 Expected: No errors
 
 - [ ] **Step 4: Verify build succeeds**
 
-Run: `cd src/image_search_mcp/web && npm run build`
+Run: `cd src/image_vector_search/frontend && npm run build`
 Expected: Build completes successfully
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/
+git add src/image_vector_search/frontend/
 git commit -m "feat: add checkbox selection, bulk action bar, and folder actions to Images page"
 ```
 
@@ -2103,19 +2103,19 @@ Expected: ALL PASS
 
 - [ ] **Step 2: Build frontend**
 
-Run: `cd src/image_search_mcp/web && npm run build`
+Run: `cd src/image_vector_search/frontend && npm run build`
 Expected: Build succeeds
 
 - [ ] **Step 3: Run TypeScript checks**
 
-Run: `cd src/image_search_mcp/web && npx tsc --noEmit`
+Run: `cd src/image_vector_search/frontend && npx tsc --noEmit`
 Expected: No errors
 
 - [ ] **Step 4: Verify all new endpoints exist**
 
 Start the server (manual verification):
 ```bash
-uvicorn image_search_mcp.app:create_app --factory --port 8000
+uvicorn image_vector_search.app:create_app --factory --port 8000
 ```
 Then verify endpoints respond:
 - `GET /api/folders` → 200

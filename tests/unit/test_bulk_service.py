@@ -2,7 +2,7 @@ import sqlite3
 import pytest
 from unittest.mock import MagicMock
 
-from image_search_mcp.services.tagging import TagService
+from image_vector_search.services.tagging import TagService
 
 
 class TestBulkTagService:

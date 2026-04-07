@@ -3,9 +3,9 @@
 **depends-on**: ["001-registry-core-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/tools/__init__.py` (create)
-- `src/image_search_mcp/tools/registry.py` (create)
-- `src/image_search_mcp/tools/context.py` (create)
+- `src/image_vector_search/tools/__init__.py` (create)
+- `src/image_vector_search/tools/registry.py` (create)
+- `src/image_vector_search/tools/context.py` (create)
 
 ## Description
 

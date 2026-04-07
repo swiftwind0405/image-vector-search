@@ -3,11 +3,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from image_search_mcp.config import Settings
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.scanning.hashing import sha256_file
-from image_search_mcp.services.indexing import IndexService
-from image_search_mcp.services.status import StatusService
+from image_vector_search.config import Settings
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.scanning.hashing import sha256_file
+from image_vector_search.services.indexing import IndexService
+from image_vector_search.services.status import StatusService
 
 
 class FakeEmbeddingClient:

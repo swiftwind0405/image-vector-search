@@ -2,9 +2,9 @@ from typing import Literal
 
 import pytest
 
-from image_search_mcp.adapters.mcp_adapter import build_mcp_from_registry
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.registry import ToolRegistry
+from image_vector_search.adapters.mcp_adapter import build_mcp_from_registry
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.registry import ToolRegistry
 
 
 def make_test_registry():

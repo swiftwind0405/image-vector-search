@@ -4,10 +4,10 @@ import pytest
 from fastapi.routing import Mount
 from fastmcp import Client
 
-from image_search_mcp.app import create_app
-from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import SearchResult
-from image_search_mcp.mcp.server import build_mcp_server
+from image_vector_search.app import create_app
+from image_vector_search.config import Settings
+from image_vector_search.domain.models import SearchResult
+from image_vector_search.mcp.server import build_mcp_server
 
 
 class FakeSearchService:

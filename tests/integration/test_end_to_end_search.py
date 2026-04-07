@@ -126,13 +126,13 @@ def test_end_to_end_reindexes_for_active_embedding_key_change(
 
     from fastapi.testclient import TestClient
 
-    from image_search_mcp.app import create_app
-    from image_search_mcp.config import Settings
-    from image_search_mcp.repositories.sqlite import MetadataRepository
-    from image_search_mcp.services.indexing import IndexService
-    from image_search_mcp.services.jobs import JobRunner
-    from image_search_mcp.services.search import SearchService
-    from image_search_mcp.services.status import StatusService
+    from image_vector_search.app import create_app
+    from image_vector_search.config import Settings
+    from image_vector_search.repositories.sqlite import MetadataRepository
+    from image_vector_search.services.indexing import IndexService
+    from image_vector_search.services.jobs import JobRunner
+    from image_vector_search.services.search import SearchService
+    from image_vector_search.services.status import StatusService
 
     class FakeEmbeddingClient:
         def __init__(self) -> None:

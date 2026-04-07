@@ -3,7 +3,7 @@
 **depends-on**: ["002-search-tools-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/tools/search_tools.py` (create)
+- `src/image_vector_search/tools/search_tools.py` (create)
 
 ## Description
 

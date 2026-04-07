@@ -5,7 +5,7 @@
 
 ## Goal
 
-Create `src/image_search_mcp/web/src/api/settings.ts` with React Query hooks for the embedding settings endpoints. Add the corresponding TypeScript types to `api/types.ts`.
+Create `src/image_vector_search/frontend/src/api/settings.ts` with React Query hooks for the embedding settings endpoints. Add the corresponding TypeScript types to `api/types.ts`.
 
 ## BDD Scenario
 
@@ -21,8 +21,8 @@ Scenario: Frontend API client fetches and updates settings
 
 ## Files to Create / Modify
 
-- **Create**: `src/image_search_mcp/web/src/api/settings.ts`
-- **Modify**: `src/image_search_mcp/web/src/api/types.ts`
+- **Create**: `src/image_vector_search/frontend/src/api/settings.ts`
+- **Modify**: `src/image_vector_search/frontend/src/api/types.ts`
 
 ## What to Implement
 
@@ -57,5 +57,5 @@ Verified by `SettingsPage` component tests in task-008. No separate test file fo
 
 Manually verify TypeScript types compile without errors:
 ```bash
-cd src/image_search_mcp/web && npx tsc --noEmit
+cd src/image_vector_search/frontend && npx tsc --noEmit
 ```

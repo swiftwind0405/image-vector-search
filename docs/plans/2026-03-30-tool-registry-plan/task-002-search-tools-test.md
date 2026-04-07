@@ -30,7 +30,7 @@ Scenario: Execute search_similar tool
 4. Write tests:
    - `test_search_images_tool` — call `search_images(ctx, query="sunset", top_k=3)`, assert returns dict with "results" key, results have correct fields
    - `test_search_similar_tool` — call `search_similar(ctx, image_path="/images/test.jpg", top_k=2)`, assert returns dict with "results"
-5. Import tool functions from `image_search_mcp.tools.search_tools` (does not exist yet)
+5. Import tool functions from `image_vector_search.tools.search_tools` (does not exist yet)
 
 ## Verification
 

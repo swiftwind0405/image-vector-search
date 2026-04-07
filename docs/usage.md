@@ -52,7 +52,7 @@ mkdir -p ./data/images ./data/index
 ### 使用 uv 运行（推荐）
 
 ```bash
-uv run --env-file .env uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uv run --env-file .env uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 或者手动导出环境变量运行：
@@ -61,7 +61,7 @@ uv run --env-file .env uvicorn image_search_mcp.app:create_app --factory --host 
 export IMAGE_SEARCH_IMAGES_ROOT=./data/images
 export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 使用 Gemini:
@@ -72,7 +72,7 @@ export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_EMBEDDING_PROVIDER=gemini
 export IMAGE_SEARCH_EMBEDDING_MODEL=gemini-embedding-2-preview
 export IMAGE_SEARCH_GOOGLE_API_KEY=your_google_api_key_here
-uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 ### 传统方式运行
@@ -82,7 +82,7 @@ source .venv/bin/activate
 export IMAGE_SEARCH_IMAGES_ROOT=./data/images
 export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 ## Docker 运行指南
@@ -90,7 +90,7 @@ uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
 构建镜像：
 
 ```bash
-docker build -t image-search-mcp:test .
+docker build -t image-vector-search:test .
 ```
 
 使用 Docker Compose 启动：

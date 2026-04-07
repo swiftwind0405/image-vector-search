@@ -5,12 +5,12 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from image_search_mcp.domain.models import ImageRecord
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.status import StatusService
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.web.routes import create_web_router
-from image_search_mcp.web.tag_routes import create_tag_router
+from image_vector_search.domain.models import ImageRecord
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.status import StatusService
+from image_vector_search.services.tagging import TagService
+from image_vector_search.api.admin_routes import create_admin_router
+from image_vector_search.api.admin_tag_routes import create_admin_tag_router
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -79,9 +79,9 @@ def app(tmp_path):
     )
 
     app = FastAPI()
-    app.include_router(create_tag_router(tag_service=tag_service))
+    app.include_router(create_admin_tag_router(tag_service=tag_service))
     app.include_router(
-        create_web_router(
+        create_admin_router(
             status_service=status_service,
             job_runner=DummyJobRunner(),
             search_service=DummySearchService(),

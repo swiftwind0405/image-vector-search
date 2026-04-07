@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.domain.models import Tag, Category, CategoryNode
+from image_vector_search.services.tagging import TagService
+from image_vector_search.domain.models import Tag, Category, CategoryNode
 from datetime import datetime, timezone
 
 

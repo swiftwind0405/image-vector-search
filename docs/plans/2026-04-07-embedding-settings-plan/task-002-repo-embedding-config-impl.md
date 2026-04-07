@@ -5,7 +5,7 @@
 
 ## Goal
 
-Add `get_embedding_config()` and `set_embedding_config()` methods to `MetadataRepository` in `src/image_search_mcp/repositories/sqlite.py`.
+Add `get_embedding_config()` and `set_embedding_config()` methods to `MetadataRepository` in `src/image_vector_search/repositories/sqlite.py`.
 
 ## BDD Scenario
 
@@ -23,7 +23,7 @@ Scenario: set_embedding_config with None key does not overwrite existing
 
 ## Files to Modify
 
-- `src/image_search_mcp/repositories/sqlite.py`
+- `src/image_vector_search/repositories/sqlite.py`
 
 ## What to Implement
 

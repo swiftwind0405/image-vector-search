@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from image_search_mcp.adapters.embedding.base import build_embedding_key
-from image_search_mcp.scanning.hashing import sha256_file
+from image_vector_search.adapters.embedding.base import build_embedding_key
+from image_vector_search.scanning.hashing import sha256_file
 
 
 @pytest.mark.asyncio

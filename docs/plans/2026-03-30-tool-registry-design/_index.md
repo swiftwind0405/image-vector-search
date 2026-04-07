@@ -81,7 +81,7 @@ Matches the existing FastMCP `@mcp.tool` pattern the codebase already uses. Type
 ### New File Layout
 
 ```
-src/image_search_mcp/
+src/image_vector_search/
 ├── tools/                          # NEW: Tool Registry
 │   ├── __init__.py                 # exports registry, ToolContext
 │   ├── registry.py                 # ToolRegistry class, @tool decorator, ToolDef
@@ -327,10 +327,10 @@ Minimal changes to `app.py`:
 
 ```python
 # In create_app():
-from image_search_mcp.tools import default_registry
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.adapters.mcp_adapter import build_mcp_from_registry
-from image_search_mcp.adapters.http_tool_adapter import build_tool_router
+from image_vector_search.tools import default_registry
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.adapters.mcp_adapter import build_mcp_from_registry
+from image_vector_search.adapters.http_tool_adapter import build_tool_router
 
 # Build context from runtime services
 tool_ctx = ToolContext(

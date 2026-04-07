@@ -34,9 +34,9 @@ Expected: FAIL because `/api/images` does not accept or apply the new filters ye
 
 Modify:
 
-- `src/image_search_mcp/web/routes.py`
-- `src/image_search_mcp/services/status.py`
-- `src/image_search_mcp/repositories/sqlite.py`
+- `src/image_vector_search/frontend/routes.py`
+- `src/image_vector_search/services/status.py`
+- `src/image_vector_search/repositories/sqlite.py`
 
 Add optional filter params and apply them before returning labeled image records.
 
@@ -48,16 +48,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/integration/test_tag_api.py src/image_search_mcp/web/routes.py src/image_search_mcp/services/status.py src/image_search_mcp/repositories/sqlite.py
+git add tests/integration/test_tag_api.py src/image_vector_search/frontend/routes.py src/image_vector_search/services/status.py src/image_vector_search/repositories/sqlite.py
 git commit -m "feat: support filtered image listing"
 ```
 
 ### Task 2: Add frontend API coverage for scoped image queries
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/api/images.ts`
-- Create or Modify: `src/image_search_mcp/web/src/test/images-api.test.ts`
-- Test: `src/image_search_mcp/web/src/test/images-api.test.ts`
+- Modify: `src/image_vector_search/frontend/src/api/images.ts`
+- Create or Modify: `src/image_vector_search/frontend/src/test/images-api.test.ts`
+- Test: `src/image_vector_search/frontend/src/test/images-api.test.ts`
 
 **Step 1: Write the failing test**
 
@@ -85,16 +85,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/api/images.ts src/image_search_mcp/web/src/test/images-api.test.ts
+git add src/image_vector_search/frontend/src/api/images.ts src/image_vector_search/frontend/src/test/images-api.test.ts
 git commit -m "feat: add scoped image query hook"
 ```
 
 ### Task 3: Extract shared image browser UI from Images page
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/components/ImageBrowser.tsx`
-- Modify: `src/image_search_mcp/web/src/pages/ImagesPage.tsx`
-- Test: `src/image_search_mcp/web/src/test/FilterBar.test.tsx`
+- Create: `src/image_vector_search/frontend/src/components/ImageBrowser.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/ImagesPage.tsx`
+- Test: `src/image_vector_search/frontend/src/test/FilterBar.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -122,20 +122,20 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/components/ImageBrowser.tsx src/image_search_mcp/web/src/pages/ImagesPage.tsx src/image_search_mcp/web/src/test/FilterBar.test.tsx
+git add src/image_vector_search/frontend/src/components/ImageBrowser.tsx src/image_vector_search/frontend/src/pages/ImagesPage.tsx src/image_vector_search/frontend/src/test/FilterBar.test.tsx
 git commit -m "refactor: extract shared image browser"
 ```
 
 ### Task 4: Add tag and category image detail routes and pages
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/pages/TagImagesPage.tsx`
-- Create: `src/image_search_mcp/web/src/pages/CategoryImagesPage.tsx`
-- Modify: `src/image_search_mcp/web/src/App.tsx`
-- Modify: `src/image_search_mcp/web/src/pages/TagsPage.tsx`
-- Modify: `src/image_search_mcp/web/src/pages/CategoriesPage.tsx`
-- Possibly Modify: `src/image_search_mcp/web/src/components/CategoryTree.tsx`
-- Test: `src/image_search_mcp/web/src/test/categories.test.ts`
+- Create: `src/image_vector_search/frontend/src/pages/TagImagesPage.tsx`
+- Create: `src/image_vector_search/frontend/src/pages/CategoryImagesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/App.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/TagsPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`
+- Possibly Modify: `src/image_vector_search/frontend/src/components/CategoryTree.tsx`
+- Test: `src/image_vector_search/frontend/src/test/categories.test.ts`
 
 **Step 1: Write the failing test**
 
@@ -162,7 +162,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/TagImagesPage.tsx src/image_search_mcp/web/src/pages/CategoryImagesPage.tsx src/image_search_mcp/web/src/App.tsx src/image_search_mcp/web/src/pages/TagsPage.tsx src/image_search_mcp/web/src/pages/CategoriesPage.tsx src/image_search_mcp/web/src/components/CategoryTree.tsx src/image_search_mcp/web/src/test/categories.test.ts
+git add src/image_vector_search/frontend/src/pages/TagImagesPage.tsx src/image_vector_search/frontend/src/pages/CategoryImagesPage.tsx src/image_vector_search/frontend/src/App.tsx src/image_vector_search/frontend/src/pages/TagsPage.tsx src/image_vector_search/frontend/src/pages/CategoriesPage.tsx src/image_vector_search/frontend/src/components/CategoryTree.tsx src/image_vector_search/frontend/src/test/categories.test.ts
 git commit -m "feat: add tag and category image detail pages"
 ```
 

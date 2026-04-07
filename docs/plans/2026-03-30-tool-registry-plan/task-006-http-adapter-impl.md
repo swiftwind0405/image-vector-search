@@ -3,7 +3,7 @@
 **depends-on**: ["006-http-adapter-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/adapters/http_tool_adapter.py` (create)
+- `src/image_vector_search/adapters/http_tool_adapter.py` (create)
 
 ## Description
 

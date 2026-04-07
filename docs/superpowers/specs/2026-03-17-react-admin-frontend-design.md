@@ -2,7 +2,7 @@
 
 ## Summary
 
-Migrate the admin console from Jinja2 + vanilla JS to a React SPA. The React app lives inside `src/image_search_mcp/web/`, builds to `web/dist/`, and is served by FastAPI as static files. This iteration implements the existing dashboard features plus three new management pages for tags, categories, and image associations.
+Migrate the admin console from Jinja2 + vanilla JS to a React SPA. The React app lives inside `src/image_vector_search/frontend/`, builds to `frontend/dist/`, and is served by FastAPI as static files. This iteration implements the existing dashboard features plus three new management pages for tags, categories, and image associations.
 
 ## Tech Stack
 
@@ -22,7 +22,7 @@ No global state library. No axios — plain fetch wrapper.
 ## Project Structure
 
 ```
-src/image_search_mcp/web/
+src/image_vector_search/frontend/
   package.json
   tsconfig.json
   vite.config.ts
@@ -67,14 +67,14 @@ The following new endpoint is required before the Images page can be built:
 ### Vite Config
 
 - `base: "/"`
-- `build.outDir: "../dist"` (outputs to `web/dist/`)
+- `build.outDir: "../dist"` (outputs to `frontend/dist/`)
 - Dev server on port 5173, proxy `/api/*` to `http://localhost:8000`
 
 Note: Vite's default build places JS/CSS in an `assets/` subfolder within `outDir`, so `dist/assets/` is served by the `/assets` static mount below.
 
 ### FastAPI Integration
 
-Production mode: mount `web/dist/` as static files. Add SPA fallback route. **Route ordering is critical** — the catch-all must be registered last, after all API routes, the `/mcp` mount, and `/healthz`:
+Production mode: mount `frontend/dist/` as static files. Add SPA fallback route. **Route ordering is critical** — the catch-all must be registered last, after all API routes, the `/mcp` mount, and `/healthz`:
 
 ```python
 # app.py — registration order matters
@@ -82,18 +82,18 @@ Production mode: mount `web/dist/` as static files. Add SPA fallback route. **Ro
 # 2. MCP mount (already exists): /mcp
 # 3. Health check (already exists): /healthz
 # 4. Static assets from Vite build:
-app.mount("/assets", StaticFiles(directory="web/dist/assets"), name="assets")
+app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
 # 5. SPA fallback — MUST be last:
 @app.get("/{path:path}")
 async def spa_fallback():
-    return FileResponse("web/dist/index.html")
+    return FileResponse("frontend/dist/index.html")
 ```
 
 Remove Jinja2Templates, old `GET /` route, `/static` mount, `templates/`, and `static/` after migration.
 
 ### Package Data
 
-`pyproject.toml` updated to include `web/dist/**` in package-data so the built frontend ships with the Python package.
+`pyproject.toml` updated to include `frontend/dist/**` in package-data so the built frontend ships with the Python package.
 
 ### Docker
 
@@ -103,7 +103,7 @@ Multi-stage build:
 
 ### .gitignore
 
-Add `src/image_search_mcp/web/dist/` and `src/image_search_mcp/web/node_modules/`.
+Add `src/image_vector_search/frontend/dist/` and `src/image_vector_search/frontend/node_modules/`.
 
 ## Pages
 

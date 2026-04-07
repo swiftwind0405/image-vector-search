@@ -17,8 +17,8 @@
 The Images page needs a list of all indexed images. No such endpoint exists.
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
-- Modify: `src/image_search_mcp/web/routes.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
+- Modify: `src/image_vector_search/frontend/routes.py`
 - Modify: `tests/integration/test_web_admin.py`
 
 - [ ] **Step 1: Write the failing test for the repository method**
@@ -27,7 +27,7 @@ In `tests/unit/test_sqlite_repository.py`, add a fixture and test:
 
 ```python
 from datetime import UTC, datetime
-from image_search_mcp.domain.models import ImageRecord, ImagePathRecord
+from image_vector_search.domain.models import ImageRecord, ImagePathRecord
 
 @pytest.fixture
 def repo_with_active_image(tmp_path):
@@ -68,7 +68,7 @@ Expected: FAIL — `AttributeError: 'MetadataRepository' object has no attribute
 
 - [ ] **Step 3: Implement `list_active_images` in MetadataRepository**
 
-In `src/image_search_mcp/repositories/sqlite.py`, add after `get_image` (around line 90):
+In `src/image_vector_search/repositories/sqlite.py`, add after `get_image` (around line 90):
 
 ```python
 def list_active_images(self) -> list[ImageRecord]:
@@ -103,16 +103,16 @@ Expected: FAIL — 404 or 405
 
 - [ ] **Step 7: Add `GET /api/images` endpoint to routes.py**
 
-In `src/image_search_mcp/web/routes.py`, the `create_web_router` function needs a `repository` parameter. However, to keep changes minimal, add it to `tag_routes.py` instead (which already has access to `TagService` and its repository). Or better, expose it via `StatusService` which already has repository access.
+In `src/image_vector_search/frontend/routes.py`, the `create_web_router` function needs a `repository` parameter. However, to keep changes minimal, add it to `tag_routes.py` instead (which already has access to `TagService` and its repository). Or better, expose it via `StatusService` which already has repository access.
 
-Add to `src/image_search_mcp/services/status.py`:
+Add to `src/image_vector_search/services/status.py`:
 
 ```python
 def list_active_images(self) -> list[ImageRecord]:
     return self._repository.list_active_images()
 ```
 
-Add to `src/image_search_mcp/web/routes.py` inside `create_web_router`:
+Add to `src/image_vector_search/frontend/routes.py` inside `create_web_router`:
 
 ```python
 @router.get("/api/images")
@@ -128,7 +128,7 @@ The `FakeStatusService` needs `list_active_images`. Add to the class:
 
 ```python
 def list_active_images(self):
-    from image_search_mcp.domain.models import ImageRecord
+    from image_vector_search.domain.models import ImageRecord
     from datetime import UTC, datetime
     now = datetime.now(UTC)
     return [
@@ -159,7 +159,7 @@ Expected: ALL PASS
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py src/image_search_mcp/services/status.py src/image_search_mcp/web/routes.py tests/
+git add src/image_vector_search/repositories/sqlite.py src/image_vector_search/services/status.py src/image_vector_search/frontend/routes.py tests/
 git commit -m "feat: add GET /api/images endpoint for listing active images"
 ```
 
@@ -168,25 +168,25 @@ git commit -m "feat: add GET /api/images endpoint for listing active images"
 ## Task 2: Scaffold Vite + React project in `web/`
 
 **Files:**
-- Create: `src/image_search_mcp/web/package.json`
-- Create: `src/image_search_mcp/web/tsconfig.json`
-- Create: `src/image_search_mcp/web/tsconfig.app.json`
-- Create: `src/image_search_mcp/web/tsconfig.node.json`
-- Create: `src/image_search_mcp/web/vite.config.ts`
-- Create: `src/image_search_mcp/web/index.html`
-- Create: `src/image_search_mcp/web/postcss.config.js`
-- Create: `src/image_search_mcp/web/tailwind.config.ts` (or `components.json` for shadcn)
-- Create: `src/image_search_mcp/web/src/main.tsx`
-- Create: `src/image_search_mcp/web/src/App.tsx`
-- Create: `src/image_search_mcp/web/src/index.css`
-- Create: `src/image_search_mcp/web/src/lib/utils.ts`
-- Create: `src/image_search_mcp/web/src/components/ErrorBoundary.tsx`
+- Create: `src/image_vector_search/frontend/package.json`
+- Create: `src/image_vector_search/frontend/tsconfig.json`
+- Create: `src/image_vector_search/frontend/tsconfig.app.json`
+- Create: `src/image_vector_search/frontend/tsconfig.node.json`
+- Create: `src/image_vector_search/frontend/vite.config.ts`
+- Create: `src/image_vector_search/frontend/index.html`
+- Create: `src/image_vector_search/frontend/postcss.config.js`
+- Create: `src/image_vector_search/frontend/tailwind.config.ts` (or `components.json` for shadcn)
+- Create: `src/image_vector_search/frontend/src/main.tsx`
+- Create: `src/image_vector_search/frontend/src/App.tsx`
+- Create: `src/image_vector_search/frontend/src/index.css`
+- Create: `src/image_vector_search/frontend/src/lib/utils.ts`
+- Create: `src/image_vector_search/frontend/src/components/ErrorBoundary.tsx`
 - Modify: `.gitignore`
 
 - [ ] **Step 1: Initialize the Vite project**
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npm create vite@latest . -- --template react-ts
 ```
 
@@ -194,12 +194,12 @@ If the directory is not empty (it has `routes.py` etc.), use a temp directory th
 
 ```bash
 cd /tmp && npm create vite@latest react-scaffold -- --template react-ts
-cp /tmp/react-scaffold/tsconfig.json src/image_search_mcp/web/
-cp /tmp/react-scaffold/tsconfig.app.json src/image_search_mcp/web/
-cp /tmp/react-scaffold/tsconfig.node.json src/image_search_mcp/web/
-cp /tmp/react-scaffold/vite.config.ts src/image_search_mcp/web/
-cp /tmp/react-scaffold/index.html src/image_search_mcp/web/
-cp -r /tmp/react-scaffold/src/main.tsx src/image_search_mcp/web/src/
+cp /tmp/react-scaffold/tsconfig.json src/image_vector_search/frontend/
+cp /tmp/react-scaffold/tsconfig.app.json src/image_vector_search/frontend/
+cp /tmp/react-scaffold/tsconfig.node.json src/image_vector_search/frontend/
+cp /tmp/react-scaffold/vite.config.ts src/image_vector_search/frontend/
+cp /tmp/react-scaffold/index.html src/image_vector_search/frontend/
+cp -r /tmp/react-scaffold/src/main.tsx src/image_vector_search/frontend/src/
 rm -rf /tmp/react-scaffold
 ```
 
@@ -240,7 +240,7 @@ rm -rf /tmp/react-scaffold
 
 - [ ] **Step 3: Configure Vite**
 
-`src/image_search_mcp/web/vite.config.ts`:
+`src/image_vector_search/frontend/vite.config.ts`:
 
 ```typescript
 import { defineConfig } from "vite";
@@ -267,11 +267,11 @@ export default defineConfig({
 });
 ```
 
-`outDir: "dist"` resolves to `web/dist/` since `vite.config.ts` lives in `web/`.
+`outDir: "dist"` resolves to `frontend/dist/` since `vite.config.ts` lives in `web/`.
 
 - [ ] **Step 4: Configure Tailwind CSS**
 
-`src/image_search_mcp/web/postcss.config.js`:
+`src/image_vector_search/frontend/postcss.config.js`:
 
 ```javascript
 export default {
@@ -282,7 +282,7 @@ export default {
 };
 ```
 
-`src/image_search_mcp/web/tailwind.config.ts`:
+`src/image_vector_search/frontend/tailwind.config.ts`:
 
 ```typescript
 import type { Config } from "tailwindcss";
@@ -300,7 +300,7 @@ export default config;
 
 - [ ] **Step 5: Create entry files**
 
-`src/image_search_mcp/web/index.html`:
+`src/image_vector_search/frontend/index.html`:
 
 ```html
 <!DOCTYPE html>
@@ -317,7 +317,7 @@ export default config;
 </html>
 ```
 
-`src/image_search_mcp/web/src/index.css`:
+`src/image_vector_search/frontend/src/index.css`:
 
 ```css
 @tailwind base;
@@ -325,7 +325,7 @@ export default config;
 @tailwind utilities;
 ```
 
-`src/image_search_mcp/web/src/lib/utils.ts`:
+`src/image_vector_search/frontend/src/lib/utils.ts`:
 
 ```typescript
 import { type ClassValue, clsx } from "clsx";
@@ -336,7 +336,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-`src/image_search_mcp/web/src/components/ErrorBoundary.tsx`:
+`src/image_vector_search/frontend/src/components/ErrorBoundary.tsx`:
 
 ```tsx
 import React from "react";
@@ -380,7 +380,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 }
 ```
 
-`src/image_search_mcp/web/src/main.tsx`:
+`src/image_vector_search/frontend/src/main.tsx`:
 
 ```tsx
 import React from "react";
@@ -410,7 +410,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 ```
 
-`src/image_search_mcp/web/src/App.tsx`:
+`src/image_vector_search/frontend/src/App.tsx`:
 
 ```tsx
 import { Routes, Route } from "react-router-dom";
@@ -433,7 +433,7 @@ export default function App() {
 
 - [ ] **Step 6: Create minimal Layout component**
 
-`src/image_search_mcp/web/src/components/Layout.tsx`:
+`src/image_vector_search/frontend/src/components/Layout.tsx`:
 
 ```tsx
 import { NavLink, Outlet } from "react-router-dom";
@@ -483,14 +483,14 @@ Add to `.gitignore`:
 
 ```
 # React frontend
-src/image_search_mcp/web/node_modules/
-src/image_search_mcp/web/dist/
+src/image_vector_search/frontend/node_modules/
+src/image_vector_search/frontend/dist/
 ```
 
 - [ ] **Step 8: Install dependencies and verify dev server starts**
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npm install
 npm run dev
 ```
@@ -502,10 +502,10 @@ Press Ctrl+C to stop.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/image_search_mcp/web/package.json src/image_search_mcp/web/package-lock.json \
-  src/image_search_mcp/web/tsconfig*.json src/image_search_mcp/web/vite.config.ts \
-  src/image_search_mcp/web/index.html src/image_search_mcp/web/postcss.config.js \
-  src/image_search_mcp/web/tailwind.config.ts src/image_search_mcp/web/src/ \
+git add src/image_vector_search/frontend/package.json src/image_vector_search/frontend/package-lock.json \
+  src/image_vector_search/frontend/tsconfig*.json src/image_vector_search/frontend/vite.config.ts \
+  src/image_vector_search/frontend/index.html src/image_vector_search/frontend/postcss.config.js \
+  src/image_vector_search/frontend/tailwind.config.ts src/image_vector_search/frontend/src/ \
   .gitignore
 git commit -m "feat: scaffold Vite + React + Tailwind project in web/"
 ```
@@ -515,14 +515,14 @@ git commit -m "feat: scaffold Vite + React + Tailwind project in web/"
 ## Task 3: Set up shadcn/ui
 
 **Files:**
-- Modify: `src/image_search_mcp/web/package.json`
-- Create: `src/image_search_mcp/web/components.json`
-- Create: `src/image_search_mcp/web/src/components/ui/` (multiple files)
+- Modify: `src/image_vector_search/frontend/package.json`
+- Create: `src/image_vector_search/frontend/components.json`
+- Create: `src/image_vector_search/frontend/src/components/ui/` (multiple files)
 
 - [ ] **Step 1: Initialize shadcn/ui**
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npx shadcn@latest init
 ```
 
@@ -533,7 +533,7 @@ This creates `components.json` and updates `tailwind.config.ts` and `index.css` 
 - [ ] **Step 2: Add core UI components needed for the app**
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npx shadcn@latest add button card input label table dialog badge select toast sonner
 ```
 
@@ -541,7 +541,7 @@ This creates files under `src/components/ui/`.
 
 - [ ] **Step 3: Set up Sonner toast provider**
 
-In `src/image_search_mcp/web/src/main.tsx`, add after `<App />`:
+In `src/image_vector_search/frontend/src/main.tsx`, add after `<App />`:
 
 ```tsx
 import { Toaster } from "@/components/ui/sonner";
@@ -560,7 +560,7 @@ import { Toaster } from "@/components/ui/sonner";
 - [ ] **Step 4: Verify the dev server still works**
 
 ```bash
-cd src/image_search_mcp/web && npm run dev
+cd src/image_vector_search/frontend && npm run dev
 ```
 
 Expected: App renders with styled components, no console errors.
@@ -568,7 +568,7 @@ Expected: App renders with styled components, no console errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/
+git add src/image_vector_search/frontend/
 git commit -m "feat: set up shadcn/ui with core components"
 ```
 
@@ -577,17 +577,17 @@ git commit -m "feat: set up shadcn/ui with core components"
 ## Task 4: API client layer
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/api/client.ts`
-- Create: `src/image_search_mcp/web/src/api/types.ts`
-- Create: `src/image_search_mcp/web/src/api/status.ts`
-- Create: `src/image_search_mcp/web/src/api/jobs.ts`
-- Create: `src/image_search_mcp/web/src/api/tags.ts`
-- Create: `src/image_search_mcp/web/src/api/categories.ts`
-- Create: `src/image_search_mcp/web/src/api/images.ts`
+- Create: `src/image_vector_search/frontend/src/api/client.ts`
+- Create: `src/image_vector_search/frontend/src/api/types.ts`
+- Create: `src/image_vector_search/frontend/src/api/status.ts`
+- Create: `src/image_vector_search/frontend/src/api/jobs.ts`
+- Create: `src/image_vector_search/frontend/src/api/tags.ts`
+- Create: `src/image_vector_search/frontend/src/api/categories.ts`
+- Create: `src/image_vector_search/frontend/src/api/images.ts`
 
 - [ ] **Step 1: Create the fetch wrapper and API error class**
 
-`src/image_search_mcp/web/src/api/client.ts`:
+`src/image_vector_search/frontend/src/api/client.ts`:
 
 ```typescript
 export class ApiError extends Error {
@@ -619,7 +619,7 @@ export async function apiFetch<T>(
 
 - [ ] **Step 2: Create TypeScript types matching backend models**
 
-`src/image_search_mcp/web/src/api/types.ts`:
+`src/image_vector_search/frontend/src/api/types.ts`:
 
 ```typescript
 export interface Tag {
@@ -696,7 +696,7 @@ export interface SearchResult {
 
 - [ ] **Step 3: Create React Query hooks for status**
 
-`src/image_search_mcp/web/src/api/status.ts`:
+`src/image_vector_search/frontend/src/api/status.ts`:
 
 ```typescript
 import { useQuery } from "@tanstack/react-query";
@@ -714,7 +714,7 @@ export function useStatus() {
 
 - [ ] **Step 4: Create React Query hooks for jobs**
 
-`src/image_search_mcp/web/src/api/jobs.ts`:
+`src/image_vector_search/frontend/src/api/jobs.ts`:
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -744,7 +744,7 @@ export function useQueueJob() {
 
 - [ ] **Step 5: Create React Query hooks for tags**
 
-`src/image_search_mcp/web/src/api/tags.ts`:
+`src/image_vector_search/frontend/src/api/tags.ts`:
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -794,7 +794,7 @@ export function useDeleteTag() {
 
 - [ ] **Step 6: Create React Query hooks for categories**
 
-`src/image_search_mcp/web/src/api/categories.ts`:
+`src/image_vector_search/frontend/src/api/categories.ts`:
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -852,7 +852,7 @@ export function useDeleteCategory() {
 
 - [ ] **Step 7: Create React Query hooks for images**
 
-`src/image_search_mcp/web/src/api/images.ts`:
+`src/image_vector_search/frontend/src/api/images.ts`:
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -969,7 +969,7 @@ export function useRemoveCategoryFromImage() {
 - [ ] **Step 8: Verify TypeScript compiles**
 
 ```bash
-cd src/image_search_mcp/web && npx tsc --noEmit
+cd src/image_vector_search/frontend && npx tsc --noEmit
 ```
 
 Expected: No errors
@@ -977,7 +977,7 @@ Expected: No errors
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/api/
+git add src/image_vector_search/frontend/src/api/
 git commit -m "feat: add API client layer with React Query hooks"
 ```
 
@@ -986,12 +986,12 @@ git commit -m "feat: add API client layer with React Query hooks"
 ## Task 5: Dashboard page
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/pages/DashboardPage.tsx`
-- Modify: `src/image_search_mcp/web/src/App.tsx`
+- Create: `src/image_vector_search/frontend/src/pages/DashboardPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/App.tsx`
 
 - [ ] **Step 1: Create DashboardPage component**
 
-`src/image_search_mcp/web/src/pages/DashboardPage.tsx`:
+`src/image_vector_search/frontend/src/pages/DashboardPage.tsx`:
 
 ```tsx
 import { useState } from "react";
@@ -1229,10 +1229,10 @@ Start both backend and frontend:
 
 ```bash
 # Terminal 1:
-uvicorn image_search_mcp.app:create_app --factory --port 8000
+uvicorn image_vector_search.app:create_app --factory --port 8000
 
 # Terminal 2:
-cd src/image_search_mcp/web && npm run dev
+cd src/image_vector_search/frontend && npm run dev
 ```
 
 Visit http://localhost:5173. Verify: sidebar renders, Dashboard shows status cards, jobs list, search forms. (Data may be empty if no index exists, but the UI should render without errors.)
@@ -1240,7 +1240,7 @@ Visit http://localhost:5173. Verify: sidebar renders, Dashboard shows status car
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/DashboardPage.tsx src/image_search_mcp/web/src/App.tsx
+git add src/image_vector_search/frontend/src/pages/DashboardPage.tsx src/image_vector_search/frontend/src/App.tsx
 git commit -m "feat: implement Dashboard page with status, jobs, and debug search"
 ```
 
@@ -1251,12 +1251,12 @@ git commit -m "feat: implement Dashboard page with status, jobs, and debug searc
 Note: The spec mentions "associated image count" in the tag table. There is no API endpoint for tag usage counts, so the table shows Name, Created, and Actions for now. Image count can be added when a count endpoint is implemented.
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/pages/TagsPage.tsx`
-- Modify: `src/image_search_mcp/web/src/App.tsx`
+- Create: `src/image_vector_search/frontend/src/pages/TagsPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/App.tsx`
 
 - [ ] **Step 1: Create TagsPage component**
 
-`src/image_search_mcp/web/src/pages/TagsPage.tsx`:
+`src/image_vector_search/frontend/src/pages/TagsPage.tsx`:
 
 ```tsx
 import { useState } from "react";
@@ -1476,7 +1476,7 @@ Navigate to http://localhost:5173/tags. Create a tag, rename it, delete it.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/TagsPage.tsx src/image_search_mcp/web/src/App.tsx
+git add src/image_vector_search/frontend/src/pages/TagsPage.tsx src/image_vector_search/frontend/src/App.tsx
 git commit -m "feat: implement Tags management page"
 ```
 
@@ -1485,13 +1485,13 @@ git commit -m "feat: implement Tags management page"
 ## Task 7: Categories page
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/components/CategoryTree.tsx`
-- Create: `src/image_search_mcp/web/src/pages/CategoriesPage.tsx`
-- Modify: `src/image_search_mcp/web/src/App.tsx`
+- Create: `src/image_vector_search/frontend/src/components/CategoryTree.tsx`
+- Create: `src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/App.tsx`
 
 - [ ] **Step 1: Create CategoryTree component**
 
-`src/image_search_mcp/web/src/components/CategoryTree.tsx`:
+`src/image_vector_search/frontend/src/components/CategoryTree.tsx`:
 
 ```tsx
 import { ChevronRight, ChevronDown, Pencil, Trash2, Plus } from "lucide-react";
@@ -1611,7 +1611,7 @@ export default function CategoryTree({
 
 - [ ] **Step 2: Create CategoriesPage**
 
-`src/image_search_mcp/web/src/pages/CategoriesPage.tsx`:
+`src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`:
 
 ```tsx
 import { useState } from "react";
@@ -1896,9 +1896,9 @@ Navigate to http://localhost:5173/categories. Create root and child categories, 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/components/CategoryTree.tsx \
-  src/image_search_mcp/web/src/pages/CategoriesPage.tsx \
-  src/image_search_mcp/web/src/App.tsx
+git add src/image_vector_search/frontend/src/components/CategoryTree.tsx \
+  src/image_vector_search/frontend/src/pages/CategoriesPage.tsx \
+  src/image_vector_search/frontend/src/App.tsx
 git commit -m "feat: implement Categories management page with tree view"
 ```
 
@@ -1907,13 +1907,13 @@ git commit -m "feat: implement Categories management page with tree view"
 ## Task 8: Images page
 
 **Files:**
-- Create: `src/image_search_mcp/web/src/components/ImageTagEditor.tsx`
-- Create: `src/image_search_mcp/web/src/pages/ImagesPage.tsx`
-- Modify: `src/image_search_mcp/web/src/App.tsx`
+- Create: `src/image_vector_search/frontend/src/components/ImageTagEditor.tsx`
+- Create: `src/image_vector_search/frontend/src/pages/ImagesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/App.tsx`
 
 - [ ] **Step 1: Create ImageTagEditor component**
 
-`src/image_search_mcp/web/src/components/ImageTagEditor.tsx`:
+`src/image_vector_search/frontend/src/components/ImageTagEditor.tsx`:
 
 ```tsx
 import { Badge } from "@/components/ui/badge";
@@ -2107,7 +2107,7 @@ export default function ImageTagEditor({
 
 - [ ] **Step 2: Create ImagesPage**
 
-`src/image_search_mcp/web/src/pages/ImagesPage.tsx`:
+`src/image_vector_search/frontend/src/pages/ImagesPage.tsx`:
 
 ```tsx
 import React, { useState } from "react";
@@ -2219,9 +2219,9 @@ Navigate to http://localhost:5173/images. If images are indexed, they should app
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/components/ImageTagEditor.tsx \
-  src/image_search_mcp/web/src/pages/ImagesPage.tsx \
-  src/image_search_mcp/web/src/App.tsx
+git add src/image_vector_search/frontend/src/components/ImageTagEditor.tsx \
+  src/image_vector_search/frontend/src/pages/ImagesPage.tsx \
+  src/image_vector_search/frontend/src/App.tsx
 git commit -m "feat: implement Images page with tag/category association editor"
 ```
 
@@ -2232,22 +2232,22 @@ git commit -m "feat: implement Images page with tag/category association editor"
 Replace Jinja2 serving with static SPA serving.
 
 **Files:**
-- Modify: `src/image_search_mcp/app.py`
-- Modify: `src/image_search_mcp/web/routes.py`
+- Modify: `src/image_vector_search/app.py`
+- Modify: `src/image_vector_search/frontend/routes.py`
 - Modify: `pyproject.toml`
 - Modify: `tests/integration/test_web_admin.py`
 
 - [ ] **Step 1: Build the React app**
 
 ```bash
-cd src/image_search_mcp/web && npm run build
+cd src/image_vector_search/frontend && npm run build
 ```
 
 Expected: `dist/` directory created with `index.html` and `assets/`.
 
 - [ ] **Step 2: Update app.py to serve SPA**
 
-Replace the old static mount and add SPA serving. Key changes in `src/image_search_mcp/app.py`:
+Replace the old static mount and add SPA serving. Key changes in `src/image_vector_search/app.py`:
 
 Remove:
 ```python
@@ -2283,7 +2283,7 @@ if dist_dir.is_dir():
 
 - [ ] **Step 3: Remove Jinja2 route from routes.py**
 
-In `src/image_search_mcp/web/routes.py`:
+In `src/image_vector_search/frontend/routes.py`:
 
 Remove the `TEMPLATES` variable, the `Jinja2Templates` import, the `Request` import, the `HTMLResponse` import, and the `admin_home` route (`GET /`).
 
@@ -2300,7 +2300,7 @@ from pydantic import BaseModel, Field
 Replace:
 ```toml
 [tool.setuptools.package-data]
-image_search_mcp = [
+image_vector_search = [
   "web/templates/*.html",
   "web/static/*.css",
   "web/static/*.js",
@@ -2310,8 +2310,8 @@ image_search_mcp = [
 With:
 ```toml
 [tool.setuptools.package-data]
-image_search_mcp = [
-  "web/dist/**",
+image_vector_search = [
+  "frontend/dist/**",
 ]
 ```
 
@@ -2359,16 +2359,16 @@ Expected: ALL PASS
 - [ ] **Step 8: Delete old template and static files**
 
 ```bash
-rm -rf src/image_search_mcp/web/templates/
-rm -rf src/image_search_mcp/web/static/
+rm -rf src/image_vector_search/frontend/templates/
+rm -rf src/image_vector_search/frontend/static/
 ```
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/image_search_mcp/app.py src/image_search_mcp/web/routes.py \
+git add src/image_vector_search/app.py src/image_vector_search/frontend/routes.py \
   pyproject.toml tests/integration/test_web_admin.py
-git rm -r src/image_search_mcp/web/templates/ src/image_search_mcp/web/static/
+git rm -r src/image_vector_search/frontend/templates/ src/image_vector_search/frontend/static/
 git commit -m "feat: replace Jinja2 with SPA static serving, remove old templates"
 ```
 
@@ -2385,9 +2385,9 @@ git commit -m "feat: replace Jinja2 with SPA static serving, remove old template
 # Stage 1: Build React frontend
 FROM node:20-alpine AS frontend
 WORKDIR /app/web
-COPY src/image_search_mcp/web/package.json src/image_search_mcp/web/package-lock.json ./
+COPY src/image_vector_search/frontend/package.json src/image_vector_search/frontend/package-lock.json ./
 RUN npm ci
-COPY src/image_search_mcp/web/ ./
+COPY src/image_vector_search/frontend/ ./
 RUN npm run build
 
 # Stage 2: Python application
@@ -2402,13 +2402,13 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 
 # Copy built frontend into the Python package
-COPY --from=frontend /app/web/dist ./src/image_search_mcp/web/dist
+COPY --from=frontend /app/frontend/dist ./src/image_vector_search/frontend/dist
 
 RUN pip install .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "image_search_mcp.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "image_vector_search.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 - [ ] **Step 2: Test Docker build**
@@ -2449,7 +2449,7 @@ Expected: ALL PASS
 - [ ] **Step 2: Run TypeScript type check**
 
 ```bash
-cd src/image_search_mcp/web && npx tsc --noEmit
+cd src/image_vector_search/frontend && npx tsc --noEmit
 ```
 
 Expected: No errors
@@ -2457,7 +2457,7 @@ Expected: No errors
 - [ ] **Step 3: Build frontend**
 
 ```bash
-cd src/image_search_mcp/web && npm run build
+cd src/image_vector_search/frontend && npm run build
 ```
 
 Expected: Clean build, no warnings

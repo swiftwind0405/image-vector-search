@@ -229,6 +229,6 @@ def fake_tool_context():
 @pytest.fixture
 def registry_with_tools():
     """Registry with all tools registered."""
-    from image_search_mcp.tools import default_registry
+    from image_vector_search.tools import default_registry
     return default_registry
 ```

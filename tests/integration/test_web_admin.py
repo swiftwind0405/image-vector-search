@@ -4,9 +4,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from PIL import Image as PILImage
 
-from image_search_mcp.app import create_app
-from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus, JobRecord, SearchResult
+from image_vector_search.app import create_app
+from image_vector_search.config import Settings
+from image_vector_search.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus, JobRecord, SearchResult
 
 
 class FakeStatusService:

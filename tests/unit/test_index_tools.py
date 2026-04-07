@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.image_tools import get_image_info, list_images
-from image_search_mcp.tools.index_tools import get_index_status, trigger_index
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.image_tools import get_image_info, list_images
+from image_vector_search.tools.index_tools import get_index_status, trigger_index
 
 
 class FakeStatusService:

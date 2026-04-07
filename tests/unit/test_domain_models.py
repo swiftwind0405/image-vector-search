@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from image_search_mcp.domain.models import (
+from image_vector_search.domain.models import (
     Category,
     CategoryNode,
     SearchFilters,
@@ -65,7 +65,7 @@ class TestCategoryNode:
 def test_schema_image_paths_has_content_hash_fk_and_index() -> None:
     schema_path = (
         Path(__file__).resolve().parents[2]
-        / "src/image_search_mcp/repositories/schema.sql"
+        / "src/image_vector_search/repositories/schema.sql"
     )
     conn = sqlite3.connect(":memory:")
     try:

@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import ImageRecord
-from image_search_mcp.services.search import SearchService
+from image_vector_search.config import Settings
+from image_vector_search.domain.models import ImageRecord
+from image_vector_search.services.search import SearchService
 
 
 class FakeEmbeddingClient:
@@ -143,7 +143,7 @@ async def test_search_similar_excludes_self_match(tmp_path: Path):
     sibling_image = images_root / "other.png"
     Image.new("RGB", (10, 10), color="blue").save(sibling_image)
 
-    from image_search_mcp.scanning.hashing import sha256_file
+    from image_vector_search.scanning.hashing import sha256_file
 
     query_hash = sha256_file(query_image)
     other_hash = sha256_file(sibling_image)
@@ -248,7 +248,7 @@ async def test_search_similar_uses_active_embedding_key_for_non_jina_provider(tm
     sibling_image = images_root / "other.png"
     Image.new("RGB", (10, 10), color="blue").save(sibling_image)
 
-    from image_search_mcp.scanning.hashing import sha256_file
+    from image_vector_search.scanning.hashing import sha256_file
 
     query_hash = sha256_file(query_image)
     other_hash = sha256_file(sibling_image)
@@ -386,7 +386,7 @@ class TestSearchWithTagFilter:
         """SearchResult should have populated tags and categories."""
         from datetime import UTC, datetime
 
-        from image_search_mcp.domain.models import Category, Tag
+        from image_vector_search.domain.models import Category, Tag
 
         images_root = tmp_path / "images"
         now = datetime.now(UTC)

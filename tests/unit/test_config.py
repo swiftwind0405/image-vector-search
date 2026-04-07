@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from image_search_mcp.config import Settings
+from image_vector_search.config import Settings
 
 
 def test_settings_defaults(monkeypatch):
@@ -60,7 +60,7 @@ def test_settings_gemini_provider_preserves_explicit_model():
 
 
 def test_build_embedding_key_handles_none_version():
-    from image_search_mcp.adapters.embedding.base import build_embedding_key
+    from image_vector_search.adapters.embedding.base import build_embedding_key
 
     assert build_embedding_key("gemini", "model", None) == "gemini:model:default"
     assert build_embedding_key("jina", "clip", "v2") == "jina:clip:v2"

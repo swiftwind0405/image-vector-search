@@ -202,10 +202,14 @@ data/
 tmp/
 
 # React frontend
-src/image_search_mcp/web/node_modules/
-src/image_search_mcp/web/dist/
-# Unignore web src/lib (the `lib/` rule above catches it otherwise)
-!src/image_search_mcp/web/src/lib/
+src/image_vector_search/frontend/node_modules/
+src/image_vector_search/frontend/dist/
+# Unignore frontend src/lib (the `lib/` rule above catches it otherwise)
+!src/image_vector_search/frontend/src/lib/
 *.tsbuildinfo
 
 .superpowers
+
+findings.md
+progress.md
+task_plan.md

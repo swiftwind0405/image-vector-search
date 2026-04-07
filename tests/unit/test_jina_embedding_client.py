@@ -4,7 +4,7 @@ import pytest
 import respx
 from pathlib import Path
 
-from image_search_mcp.adapters.embedding.jina import JinaEmbeddingClient
+from image_vector_search.adapters.embedding.jina import JinaEmbeddingClient
 
 
 @pytest.mark.anyio
@@ -36,7 +36,7 @@ async def test_embed_texts_retries_up_to_three_attempts(monkeypatch: pytest.Monk
     async def _no_sleep(_: float) -> None:
         return None
 
-    monkeypatch.setattr("image_search_mcp.adapters.embedding.jina.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("image_vector_search.adapters.embedding.jina.asyncio.sleep", _no_sleep)
 
     route = respx.post("https://api.jina.ai/v1/embeddings").mock(
         side_effect=[
@@ -113,7 +113,7 @@ async def test_embed_images_uses_to_thread_and_sends_expected_payload(
         return func(*args, **kwargs)  # type: ignore[misc]
 
     monkeypatch.setattr(
-        "image_search_mcp.adapters.embedding.jina.asyncio.to_thread", _fake_to_thread
+        "image_vector_search.adapters.embedding.jina.asyncio.to_thread", _fake_to_thread
     )
 
     image_one = tmp_path / "one.png"

@@ -15,7 +15,7 @@
 ### Task 1: Domain Models
 
 **Files:**
-- Modify: `src/image_search_mcp/domain/models.py`
+- Modify: `src/image_vector_search/domain/models.py`
 - Test: `tests/unit/test_domain_models.py`
 
 - [ ] **Step 1: Write test for new domain models**
@@ -23,7 +23,7 @@
 ```python
 # Append to tests/unit/test_domain_models.py
 
-from image_search_mcp.domain.models import Tag, Category, CategoryNode
+from image_vector_search.domain.models import Tag, Category, CategoryNode
 from datetime import datetime, timezone
 
 
@@ -59,7 +59,7 @@ Expected: ImportError — `Tag` not defined
 
 - [ ] **Step 3: Add domain models to models.py**
 
-Add to `src/image_search_mcp/domain/models.py`:
+Add to `src/image_vector_search/domain/models.py`:
 
 ```python
 class Tag(BaseModel):
@@ -91,7 +91,7 @@ Expected: 4 PASS
 
 - [ ] **Step 5: Extend SearchResult with tags and categories fields**
 
-In `src/image_search_mcp/domain/models.py`, add to `SearchResult`:
+In `src/image_vector_search/domain/models.py`, add to `SearchResult`:
 
 ```python
 class SearchResult(BaseModel):
@@ -113,7 +113,7 @@ Expected: All PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/image_search_mcp/domain/models.py tests/unit/test_domain_models.py
+git add src/image_vector_search/domain/models.py tests/unit/test_domain_models.py
 git commit -m "feat: add Tag, Category, CategoryNode domain models and extend SearchResult"
 ```
 
@@ -122,7 +122,7 @@ git commit -m "feat: add Tag, Category, CategoryNode domain models and extend Se
 ### Task 2: Database Schema
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/schema.sql`
+- Modify: `src/image_vector_search/repositories/schema.sql`
 - Test: `tests/unit/test_sqlite_repository.py`
 
 - [ ] **Step 1: Write test for schema creation**
@@ -188,7 +188,7 @@ Expected: FAIL — tables don't exist
 
 - [ ] **Step 3: Add DDL to schema.sql**
 
-Append to `src/image_search_mcp/repositories/schema.sql`:
+Append to `src/image_vector_search/repositories/schema.sql`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS tags (
@@ -230,7 +230,7 @@ Expected: 4 PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/schema.sql tests/unit/test_sqlite_repository.py
+git add src/image_vector_search/repositories/schema.sql tests/unit/test_sqlite_repository.py
 git commit -m "feat: add tags, categories, image_tags tables to schema"
 ```
 
@@ -239,7 +239,7 @@ git commit -m "feat: add tags, categories, image_tags tables to schema"
 ### Task 3: Repository — Tag CRUD
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Test: `tests/unit/test_sqlite_repository.py`
 
 - [ ] **Step 1: Write tests for tag CRUD**
@@ -247,7 +247,7 @@ git commit -m "feat: add tags, categories, image_tags tables to schema"
 Add to `tests/unit/test_sqlite_repository.py`:
 
 ```python
-from image_search_mcp.domain.models import Tag
+from image_vector_search.domain.models import Tag
 
 
 class TestTagCRUD:
@@ -303,7 +303,7 @@ Expected: FAIL — methods not defined
 
 - [ ] **Step 3: Implement tag CRUD in MetadataRepository**
 
-Add to `src/image_search_mcp/repositories/sqlite.py`:
+Add to `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def create_tag(self, name: str) -> Tag:
@@ -339,7 +339,7 @@ Expected: 6 PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py tests/unit/test_sqlite_repository.py
+git add src/image_vector_search/repositories/sqlite.py tests/unit/test_sqlite_repository.py
 git commit -m "feat: add tag CRUD to MetadataRepository"
 ```
 
@@ -348,7 +348,7 @@ git commit -m "feat: add tag CRUD to MetadataRepository"
 ### Task 4: Repository — Category CRUD
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Test: `tests/unit/test_sqlite_repository.py`
 
 - [ ] **Step 1: Write tests for category CRUD**
@@ -356,7 +356,7 @@ git commit -m "feat: add tag CRUD to MetadataRepository"
 Add to `tests/unit/test_sqlite_repository.py`:
 
 ```python
-from image_search_mcp.domain.models import Category, CategoryNode
+from image_vector_search.domain.models import Category, CategoryNode
 
 
 class TestCategoryCRUD:
@@ -450,7 +450,7 @@ Expected: FAIL — methods not defined
 
 - [ ] **Step 3: Implement category CRUD in MetadataRepository**
 
-Add to `src/image_search_mcp/repositories/sqlite.py`:
+Add to `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def create_category(self, name: str, parent_id: int | None = None) -> Category:
@@ -540,7 +540,7 @@ Expected: 10 PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py tests/unit/test_sqlite_repository.py
+git add src/image_vector_search/repositories/sqlite.py tests/unit/test_sqlite_repository.py
 git commit -m "feat: add category CRUD to MetadataRepository"
 ```
 
@@ -549,7 +549,7 @@ git commit -m "feat: add category CRUD to MetadataRepository"
 ### Task 5: Repository — Image Associations & Filters
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Test: `tests/unit/test_sqlite_repository.py`
 
 - [ ] **Step 1: Write tests for image-tag/category associations**
@@ -675,7 +675,7 @@ Expected: FAIL — methods not defined
 
 - [ ] **Step 3: Implement association and filter methods**
 
-Add to `src/image_search_mcp/repositories/sqlite.py`:
+Add to `src/image_vector_search/repositories/sqlite.py`:
 
 ```python
 def add_tag_to_image(self, content_hash: str, tag_id: int) -> None:
@@ -810,7 +810,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/image_search_mcp/repositories/sqlite.py tests/unit/test_sqlite_repository.py
+git add src/image_vector_search/repositories/sqlite.py tests/unit/test_sqlite_repository.py
 git commit -m "feat: add image-tag/category associations and filter queries"
 ```
 
@@ -819,8 +819,8 @@ git commit -m "feat: add image-tag/category associations and filter queries"
 ### Task 6: VectorIndex — content_hash_filter Parameter
 
 **Files:**
-- Modify: `src/image_search_mcp/adapters/vector_index/base.py`
-- Modify: `src/image_search_mcp/adapters/vector_index/milvus_lite.py`
+- Modify: `src/image_vector_search/adapters/vector_index/base.py`
+- Modify: `src/image_vector_search/adapters/vector_index/milvus_lite.py`
 - Modify: `tests/unit/test_search_service.py` (update `FakeVectorIndex`)
 - Modify: `tests/integration/conftest.py` (update `InMemoryVectorIndex`)
 - Test: `tests/unit/test_milvus_lite_index.py`
@@ -832,7 +832,7 @@ git commit -m "feat: add image-tag/category associations and filter queries"
 
 - [ ] **Step 1: Update VectorIndex base class**
 
-In `src/image_search_mcp/adapters/vector_index/base.py`, update the `search` signature:
+In `src/image_vector_search/adapters/vector_index/base.py`, update the `search` signature:
 
 ```python
 @abc.abstractmethod
@@ -847,7 +847,7 @@ def search(
 
 - [ ] **Step 2: Update MilvusLiteIndex.search()**
 
-In `src/image_search_mcp/adapters/vector_index/milvus_lite.py`, update the `search` method:
+In `src/image_vector_search/adapters/vector_index/milvus_lite.py`, update the `search` method:
 
 ```python
 def search(
@@ -906,7 +906,7 @@ Expected: All PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/image_search_mcp/adapters/vector_index/base.py src/image_search_mcp/adapters/vector_index/milvus_lite.py tests/unit/test_milvus_lite_index.py tests/unit/test_search_service.py tests/integration/conftest.py
+git add src/image_vector_search/adapters/vector_index/base.py src/image_vector_search/adapters/vector_index/milvus_lite.py tests/unit/test_milvus_lite_index.py tests/unit/test_search_service.py tests/integration/conftest.py
 git commit -m "feat: add content_hash_filter to VectorIndex.search()"
 ```
 
@@ -915,7 +915,7 @@ git commit -m "feat: add content_hash_filter to VectorIndex.search()"
 ### Task 7: TagService
 
 **Files:**
-- Create: `src/image_search_mcp/services/tagging.py`
+- Create: `src/image_vector_search/services/tagging.py`
 - Test: `tests/unit/test_tag_service.py`
 
 - [ ] **Step 1: Write tests for TagService**
@@ -925,8 +925,8 @@ Create `tests/unit/test_tag_service.py`:
 ```python
 import pytest
 from unittest.mock import MagicMock
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.domain.models import Tag, Category, CategoryNode
+from image_vector_search.services.tagging import TagService
+from image_vector_search.domain.models import Tag, Category, CategoryNode
 from datetime import datetime, timezone
 
 
@@ -982,13 +982,13 @@ Expected: FAIL — module not found
 
 - [ ] **Step 3: Implement TagService**
 
-Create `src/image_search_mcp/services/tagging.py`:
+Create `src/image_vector_search/services/tagging.py`:
 
 ```python
 from __future__ import annotations
 
-from image_search_mcp.domain.models import Tag, Category, CategoryNode
-from image_search_mcp.repositories.sqlite import MetadataRepository
+from image_vector_search.domain.models import Tag, Category, CategoryNode
+from image_vector_search.repositories.sqlite import MetadataRepository
 
 
 class TagService:
@@ -1072,7 +1072,7 @@ Expected: 6 PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/tagging.py tests/unit/test_tag_service.py
+git add src/image_vector_search/services/tagging.py tests/unit/test_tag_service.py
 git commit -m "feat: add TagService with input validation"
 ```
 
@@ -1081,7 +1081,7 @@ git commit -m "feat: add TagService with input validation"
 ### Task 8: SearchService — Combination Filtering
 
 **Files:**
-- Modify: `src/image_search_mcp/services/search.py`
+- Modify: `src/image_vector_search/services/search.py`
 - Test: `tests/unit/test_search_service.py`
 
 - [ ] **Step 1: Write tests for combination filtering**
@@ -1164,7 +1164,7 @@ class TestSearchWithTagFilter:
         """SearchResult should have populated tags and categories from batch methods."""
         repo = FakeRepository()
         repo.images = {"img1": build_image_record(content_hash="img1")}
-        from image_search_mcp.domain.models import Tag, Category
+        from image_vector_search.domain.models import Tag, Category
         from datetime import datetime, timezone
         now = datetime(2026, 1, 1, tzinfo=timezone.utc)
         repo.tags_for_images = {"img1": [Tag(id=1, name="sunset", created_at=now)]}
@@ -1208,7 +1208,7 @@ Expected: FAIL
 
 - [ ] **Step 3: Update SearchService.search_images() and search_similar()**
 
-In `src/image_search_mcp/services/search.py`:
+In `src/image_vector_search/services/search.py`:
 
 1. Add `tag_ids`, `category_id`, `include_subcategories` parameters to `search_images()` and `search_similar()`
 2. Before calling `self._vector_index.search()`, compute the content_hash filter:
@@ -1252,7 +1252,7 @@ Expected: All PASS (including existing tests — the new parameters have default
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/search.py tests/unit/test_search_service.py
+git add src/image_vector_search/services/search.py tests/unit/test_search_service.py
 git commit -m "feat: add tag/category combination filtering to SearchService"
 ```
 
@@ -1261,12 +1261,12 @@ git commit -m "feat: add tag/category combination filtering to SearchService"
 ### Task 9: DI Wiring — RuntimeServices & App
 
 **Files:**
-- Modify: `src/image_search_mcp/runtime.py`
-- Modify: `src/image_search_mcp/app.py`
+- Modify: `src/image_vector_search/runtime.py`
+- Modify: `src/image_vector_search/app.py`
 
 - [ ] **Step 1: Add TagService to RuntimeServices**
 
-In `src/image_search_mcp/runtime.py`:
+In `src/image_vector_search/runtime.py`:
 
 1. Import `TagService`
 2. Add `tag_service: TagService` field to `RuntimeServices` dataclass
@@ -1280,7 +1280,7 @@ Expected: All existing tests pass. Some may need updating if they construct `Run
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/image_search_mcp/runtime.py src/image_search_mcp/app.py
+git add src/image_vector_search/runtime.py src/image_vector_search/app.py
 git commit -m "feat: wire TagService into RuntimeServices"
 ```
 
@@ -1289,8 +1289,8 @@ git commit -m "feat: wire TagService into RuntimeServices"
 ### Task 10: HTTP API — Tag & Category Routes
 
 **Files:**
-- Create: `src/image_search_mcp/web/tag_routes.py`
-- Modify: `src/image_search_mcp/app.py`
+- Create: `src/image_vector_search/frontend/tag_routes.py`
+- Modify: `src/image_vector_search/app.py`
 - Test: `tests/integration/test_tag_api.py`
 
 - [ ] **Step 1: Write integration tests for tag API**
@@ -1303,9 +1303,9 @@ Create `tests/integration/test_tag_api.py`.
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.web.tag_routes import create_tag_router
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.tagging import TagService
+from image_vector_search.api.tag_routes import create_tag_router
 
 
 @pytest.fixture
@@ -1419,7 +1419,7 @@ Expected: FAIL — 404 (routes don't exist)
 
 - [ ] **Step 3: Create tag_routes.py**
 
-Create `src/image_search_mcp/web/tag_routes.py`:
+Create `src/image_vector_search/frontend/tag_routes.py`:
 
 ```python
 from __future__ import annotations
@@ -1427,7 +1427,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from image_search_mcp.services.tagging import TagService
+from image_vector_search.services.tagging import TagService
 
 
 # --- Request models ---
@@ -1553,7 +1553,7 @@ def create_tag_router(*, tag_service: TagService) -> APIRouter:
 
 - [ ] **Step 4: Register router in app.py**
 
-In `src/image_search_mcp/app.py`:
+In `src/image_vector_search/app.py`:
 
 1. Import `create_tag_router` from `web.tag_routes`
 2. After the existing `include_router` call, add:
@@ -1569,7 +1569,7 @@ Expected: All PASS
 
 - [ ] **Step 6: Extend search endpoints with filter params**
 
-Update the existing debug search endpoints in `src/image_search_mcp/web/routes.py`:
+Update the existing debug search endpoints in `src/image_vector_search/frontend/routes.py`:
 
 Add optional `tag_ids` and `category_id` fields to `DebugTextSearchRequest` and `DebugSimilarSearchRequest`, and pass them through to the service.
 
@@ -1581,7 +1581,7 @@ Expected: All PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/image_search_mcp/web/tag_routes.py src/image_search_mcp/app.py src/image_search_mcp/web/routes.py tests/integration/test_tag_api.py
+git add src/image_vector_search/frontend/tag_routes.py src/image_vector_search/app.py src/image_vector_search/frontend/routes.py tests/integration/test_tag_api.py
 git commit -m "feat: add HTTP API for tags, categories, and image associations"
 ```
 
@@ -1598,7 +1598,7 @@ Expected: All PASS
 
 ```bash
 # In one terminal:
-uvicorn image_search_mcp.app:create_app --factory --port 8000
+uvicorn image_vector_search.app:create_app --factory --port 8000
 
 # In another terminal:
 curl -X POST http://localhost:8000/api/tags -H 'Content-Type: application/json' -d '{"name":"test-tag"}'

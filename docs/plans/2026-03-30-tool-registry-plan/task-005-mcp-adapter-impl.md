@@ -3,7 +3,7 @@
 **depends-on**: ["005-mcp-adapter-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/adapters/mcp_adapter.py` (create)
+- `src/image_vector_search/adapters/mcp_adapter.py` (create)
 
 ## Description
 

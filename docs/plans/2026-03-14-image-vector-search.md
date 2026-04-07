@@ -14,9 +14,9 @@
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `src/image_search_mcp/__init__.py`
-- Create: `src/image_search_mcp/app.py`
-- Create: `src/image_search_mcp/config.py`
+- Create: `src/image_vector_search/__init__.py`
+- Create: `src/image_vector_search/app.py`
+- Create: `src/image_vector_search/config.py`
 - Create: `tests/unit/test_config.py`
 
 **Step 1: Write the failing test**
@@ -24,7 +24,7 @@
 ```python
 from pathlib import Path
 
-from image_search_mcp.config import Settings
+from image_vector_search.config import Settings
 
 
 def test_settings_defaults():
@@ -38,7 +38,7 @@ def test_settings_defaults():
 **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/unit/test_config.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'image_search_mcp'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'image_vector_search'`
 
 **Step 3: Write minimal implementation**
 
@@ -98,21 +98,21 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add pyproject.toml src/image_search_mcp/__init__.py src/image_search_mcp/app.py src/image_search_mcp/config.py tests/unit/test_config.py
+git add pyproject.toml src/image_vector_search/__init__.py src/image_vector_search/app.py src/image_vector_search/config.py tests/unit/test_config.py
 git commit -m "feat: bootstrap python service"
 ```
 
 ### Task 2: Define Domain Models And SQLite Schema
 
 **Files:**
-- Create: `src/image_search_mcp/domain/models.py`
-- Create: `src/image_search_mcp/repositories/schema.sql`
+- Create: `src/image_vector_search/domain/models.py`
+- Create: `src/image_vector_search/repositories/schema.sql`
 - Create: `tests/unit/test_domain_models.py`
 
 **Step 1: Write the failing test**
 
 ```python
-from image_search_mcp.domain.models import SearchResult, SearchFilters
+from image_vector_search.domain.models import SearchResult, SearchFilters
 
 
 def test_search_filters_normalizes_folder():
@@ -137,7 +137,7 @@ def test_search_result_serialization():
 **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/unit/test_domain_models.py -v`
-Expected: FAIL because `image_search_mcp.domain.models` does not exist
+Expected: FAIL because `image_vector_search.domain.models` does not exist
 
 **Step 3: Write minimal implementation**
 
@@ -224,21 +224,21 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/domain/models.py src/image_search_mcp/repositories/schema.sql tests/unit/test_domain_models.py
+git add src/image_vector_search/domain/models.py src/image_vector_search/repositories/schema.sql tests/unit/test_domain_models.py
 git commit -m "feat: define domain models and schema"
 ```
 
 ### Task 3: Implement SQLite Repository And Canonical Path Rules
 
 **Files:**
-- Create: `src/image_search_mcp/repositories/sqlite.py`
+- Create: `src/image_vector_search/repositories/sqlite.py`
 - Create: `tests/unit/test_sqlite_repository.py`
-- Modify: `src/image_search_mcp/domain/models.py`
+- Modify: `src/image_vector_search/domain/models.py`
 
 **Step 1: Write the failing test**
 
 ```python
-from image_search_mcp.repositories.sqlite import choose_canonical_path
+from image_vector_search.repositories.sqlite import choose_canonical_path
 
 
 def test_choose_canonical_path_keeps_existing_active_path():
@@ -300,17 +300,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/domain/models.py src/image_search_mcp/repositories/sqlite.py tests/unit/test_sqlite_repository.py
+git add src/image_vector_search/domain/models.py src/image_vector_search/repositories/sqlite.py tests/unit/test_sqlite_repository.py
 git commit -m "feat: add sqlite metadata repository"
 ```
 
 ### Task 4: Add Embedding Abstraction And Jina Client
 
 **Files:**
-- Create: `src/image_search_mcp/adapters/embedding/base.py`
-- Create: `src/image_search_mcp/adapters/embedding/jina.py`
+- Create: `src/image_vector_search/adapters/embedding/base.py`
+- Create: `src/image_vector_search/adapters/embedding/jina.py`
 - Create: `tests/unit/test_jina_embedding_client.py`
-- Modify: `src/image_search_mcp/config.py`
+- Modify: `src/image_vector_search/config.py`
 
 **Step 1: Write the failing test**
 
@@ -319,7 +319,7 @@ import pytest
 import respx
 import httpx
 
-from image_search_mcp.adapters.embedding.jina import JinaEmbeddingClient
+from image_vector_search.adapters.embedding.jina import JinaEmbeddingClient
 
 
 @pytest.mark.asyncio
@@ -399,24 +399,24 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/adapters/embedding/base.py src/image_search_mcp/adapters/embedding/jina.py src/image_search_mcp/config.py tests/unit/test_jina_embedding_client.py
+git add src/image_vector_search/adapters/embedding/base.py src/image_vector_search/adapters/embedding/jina.py src/image_vector_search/config.py tests/unit/test_jina_embedding_client.py
 git commit -m "feat: add embedding adapter abstraction"
 ```
 
 ### Task 5: Add Vector Index Abstraction With Milvus Lite
 
 **Files:**
-- Create: `src/image_search_mcp/adapters/vector_index/base.py`
-- Create: `src/image_search_mcp/adapters/vector_index/milvus_lite.py`
+- Create: `src/image_vector_search/adapters/vector_index/base.py`
+- Create: `src/image_vector_search/adapters/vector_index/milvus_lite.py`
 - Create: `tests/unit/test_milvus_lite_index.py`
-- Modify: `src/image_search_mcp/config.py`
+- Modify: `src/image_vector_search/config.py`
 
 **Step 1: Write the failing test**
 
 ```python
 from pathlib import Path
 
-from image_search_mcp.adapters.vector_index.milvus_lite import MilvusLiteIndex
+from image_vector_search.adapters.vector_index.milvus_lite import MilvusLiteIndex
 
 
 def test_milvus_lite_index_creates_collection(tmp_path: Path):
@@ -473,16 +473,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/adapters/vector_index/base.py src/image_search_mcp/adapters/vector_index/milvus_lite.py src/image_search_mcp/config.py tests/unit/test_milvus_lite_index.py
+git add src/image_vector_search/adapters/vector_index/base.py src/image_vector_search/adapters/vector_index/milvus_lite.py src/image_vector_search/config.py tests/unit/test_milvus_lite_index.py
 git commit -m "feat: add milvus lite vector index adapter"
 ```
 
 ### Task 6: Build File Scanning And Image Metadata Utilities
 
 **Files:**
-- Create: `src/image_search_mcp/scanning/files.py`
-- Create: `src/image_search_mcp/scanning/hashing.py`
-- Create: `src/image_search_mcp/scanning/image_metadata.py`
+- Create: `src/image_vector_search/scanning/files.py`
+- Create: `src/image_vector_search/scanning/hashing.py`
+- Create: `src/image_vector_search/scanning/image_metadata.py`
 - Create: `tests/unit/test_scanning.py`
 
 **Step 1: Write the failing test**
@@ -490,8 +490,8 @@ git commit -m "feat: add milvus lite vector index adapter"
 ```python
 from pathlib import Path
 
-from image_search_mcp.scanning.files import is_supported_image
-from image_search_mcp.scanning.hashing import sha256_file
+from image_vector_search.scanning.files import is_supported_image
+from image_vector_search.scanning.hashing import sha256_file
 
 
 def test_supported_image_extensions():
@@ -548,17 +548,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/scanning/files.py src/image_search_mcp/scanning/hashing.py src/image_search_mcp/scanning/image_metadata.py tests/unit/test_scanning.py
+git add src/image_vector_search/scanning/files.py src/image_vector_search/scanning/hashing.py src/image_vector_search/scanning/image_metadata.py tests/unit/test_scanning.py
 git commit -m "feat: add filesystem scanning helpers"
 ```
 
 ### Task 7: Implement IndexService For Incremental Update And Rebuild
 
 **Files:**
-- Create: `src/image_search_mcp/services/indexing.py`
+- Create: `src/image_vector_search/services/indexing.py`
 - Create: `tests/integration/test_indexing_service.py`
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
-- Modify: `src/image_search_mcp/domain/models.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
+- Modify: `src/image_vector_search/domain/models.py`
 
 **Step 1: Write the failing test**
 
@@ -620,16 +620,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/indexing.py src/image_search_mcp/repositories/sqlite.py src/image_search_mcp/domain/models.py tests/integration/test_indexing_service.py
+git add src/image_vector_search/services/indexing.py src/image_vector_search/repositories/sqlite.py src/image_vector_search/domain/models.py tests/integration/test_indexing_service.py
 git commit -m "feat: implement indexing service"
 ```
 
 ### Task 8: Implement SearchService With Folder Filtering And Oversampling
 
 **Files:**
-- Create: `src/image_search_mcp/services/search.py`
+- Create: `src/image_vector_search/services/search.py`
 - Create: `tests/unit/test_search_service.py`
-- Modify: `src/image_search_mcp/domain/models.py`
+- Modify: `src/image_vector_search/domain/models.py`
 
 **Step 1: Write the failing test**
 
@@ -685,16 +685,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/search.py src/image_search_mcp/domain/models.py tests/unit/test_search_service.py
+git add src/image_vector_search/services/search.py src/image_vector_search/domain/models.py tests/unit/test_search_service.py
 git commit -m "feat: implement search service"
 ```
 
 ### Task 9: Expose Search Through MCP Tools
 
 **Files:**
-- Create: `src/image_search_mcp/mcp/server.py`
+- Create: `src/image_vector_search/mcp/server.py`
 - Create: `tests/integration/test_mcp_tools.py`
-- Modify: `src/image_search_mcp/app.py`
+- Modify: `src/image_vector_search/app.py`
 
 **Step 1: Write the failing test**
 
@@ -744,17 +744,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/mcp/server.py src/image_search_mcp/app.py tests/integration/test_mcp_tools.py
+git add src/image_vector_search/mcp/server.py src/image_vector_search/app.py tests/integration/test_mcp_tools.py
 git commit -m "feat: expose search tools via mcp"
 ```
 
 ### Task 10: Implement Job Worker And StatusService
 
 **Files:**
-- Create: `src/image_search_mcp/services/status.py`
-- Create: `src/image_search_mcp/services/jobs.py`
+- Create: `src/image_vector_search/services/status.py`
+- Create: `src/image_vector_search/services/jobs.py`
 - Create: `tests/unit/test_job_runner.py`
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 
 **Step 1: Write the failing test**
 
@@ -806,19 +806,19 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/status.py src/image_search_mcp/services/jobs.py src/image_search_mcp/repositories/sqlite.py tests/unit/test_job_runner.py
+git add src/image_vector_search/services/status.py src/image_vector_search/services/jobs.py src/image_vector_search/repositories/sqlite.py tests/unit/test_job_runner.py
 git commit -m "feat: add job runner and status service"
 ```
 
 ### Task 11: Add Admin HTTP API And Management Page
 
 **Files:**
-- Create: `src/image_search_mcp/web/routes.py`
-- Create: `src/image_search_mcp/web/templates/index.html`
-- Create: `src/image_search_mcp/web/static/app.js`
-- Create: `src/image_search_mcp/web/static/styles.css`
+- Create: `src/image_vector_search/frontend/routes.py`
+- Create: `src/image_vector_search/frontend/templates/index.html`
+- Create: `src/image_vector_search/frontend/static/app.js`
+- Create: `src/image_vector_search/frontend/static/styles.css`
 - Create: `tests/integration/test_web_admin.py`
-- Modify: `src/image_search_mcp/app.py`
+- Modify: `src/image_vector_search/app.py`
 
 **Step 1: Write the failing test**
 
@@ -845,7 +845,7 @@ from fastapi.templating import Jinja2Templates
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="src/image_search_mcp/web/templates")
+templates = Jinja2Templates(directory="src/image_vector_search/frontend/templates")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -878,7 +878,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/routes.py src/image_search_mcp/web/templates/index.html src/image_search_mcp/web/static/app.js src/image_search_mcp/web/static/styles.css src/image_search_mcp/app.py tests/integration/test_web_admin.py
+git add src/image_vector_search/frontend/routes.py src/image_vector_search/frontend/templates/index.html src/image_vector_search/frontend/static/app.js src/image_vector_search/frontend/static/styles.css src/image_vector_search/app.py tests/integration/test_web_admin.py
 git commit -m "feat: add admin web interface"
 ```
 
@@ -979,7 +979,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir .
 
-CMD ["uvicorn", "image_search_mcp.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "image_vector_search.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 Add `docker-compose.yml` with:

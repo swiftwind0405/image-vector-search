@@ -52,7 +52,7 @@ Scenario: HTTP error mapping for FileNotFoundError
    - `test_invoke_nonexistent_tool` — POST /api/tools/nonexistent, assert 404
    - `test_invoke_tool_value_error` — POST tool that raises ValueError, assert 400
    - `test_invoke_tool_file_not_found` — POST tool that raises FileNotFoundError, assert 404
-7. Import `build_tool_router` from `image_search_mcp.adapters.http_tool_adapter` (does not exist yet)
+7. Import `build_tool_router` from `image_vector_search.adapters.http_tool_adapter` (does not exist yet)
 
 ## Verification
 

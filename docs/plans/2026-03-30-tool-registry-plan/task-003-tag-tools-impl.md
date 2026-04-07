@@ -3,7 +3,7 @@
 **depends-on**: ["003-tag-tools-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/tools/tag_tools.py` (create)
+- `src/image_vector_search/tools/tag_tools.py` (create)
 
 ## Description
 

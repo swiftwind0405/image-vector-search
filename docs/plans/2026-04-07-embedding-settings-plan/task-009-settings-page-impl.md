@@ -5,7 +5,7 @@
 
 ## Goal
 
-Create `src/image_search_mcp/web/src/pages/SettingsPage.tsx` — the admin settings page for configuring embedding provider and API keys.
+Create `src/image_vector_search/frontend/src/pages/SettingsPage.tsx` — the admin settings page for configuring embedding provider and API keys.
 
 ## BDD Scenarios
 
@@ -38,7 +38,7 @@ Scenario 8: Dirty-state handling
 
 ## Files to Create
 
-- `src/image_search_mcp/web/src/pages/SettingsPage.tsx`
+- `src/image_vector_search/frontend/src/pages/SettingsPage.tsx`
 
 ## What to Implement
 
@@ -89,7 +89,7 @@ On retry:
 ## Verification
 
 ```bash
-cd src/image_search_mcp/web && npm test -- SettingsPage
+cd src/image_vector_search/frontend && npm test -- SettingsPage
 ```
 
 All 9 tests must pass (Green).

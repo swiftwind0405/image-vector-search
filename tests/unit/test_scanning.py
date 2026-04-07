@@ -3,13 +3,13 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from image_search_mcp.scanning.files import (
+from image_vector_search.scanning.files import (
     iter_image_files,
     is_supported_image,
     to_container_path,
 )
-from image_search_mcp.scanning.hashing import sha256_file
-from image_search_mcp.scanning.image_metadata import read_image_metadata
+from image_vector_search.scanning.hashing import sha256_file
+from image_vector_search.scanning.image_metadata import read_image_metadata
 
 
 def test_supported_image_extensions():

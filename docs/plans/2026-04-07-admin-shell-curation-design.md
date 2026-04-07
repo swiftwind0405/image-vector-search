@@ -156,22 +156,22 @@
 
 重点修改文件：
 
-- `src/image_search_mcp/web/src/components/Layout.tsx`
-- `src/image_search_mcp/web/src/index.css`
-- `src/image_search_mcp/web/src/pages/DashboardPage.tsx`
-- `src/image_search_mcp/web/src/pages/SearchPage.tsx`
-- `src/image_search_mcp/web/src/pages/LoginPage.tsx`
+- `src/image_vector_search/frontend/src/components/Layout.tsx`
+- `src/image_vector_search/frontend/src/index.css`
+- `src/image_vector_search/frontend/src/pages/DashboardPage.tsx`
+- `src/image_vector_search/frontend/src/pages/SearchPage.tsx`
+- `src/image_vector_search/frontend/src/pages/LoginPage.tsx`
 
 次级修改文件：
 
-- `src/image_search_mcp/web/src/pages/ImagesPage.tsx`
-- `src/image_search_mcp/web/src/pages/TagsPage.tsx`
-- `src/image_search_mcp/web/src/pages/CategoriesPage.tsx`
-- `src/image_search_mcp/web/src/components/ImageBrowser.tsx`
-- `src/image_search_mcp/web/src/components/SearchResultCard.tsx`
-- `src/image_search_mcp/web/src/components/ImageModal.tsx`
-- `src/image_search_mcp/web/src/components/CategoryTree.tsx`
-- `src/image_search_mcp/web/src/components/FilterBar.tsx`
+- `src/image_vector_search/frontend/src/pages/ImagesPage.tsx`
+- `src/image_vector_search/frontend/src/pages/TagsPage.tsx`
+- `src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`
+- `src/image_vector_search/frontend/src/components/ImageBrowser.tsx`
+- `src/image_vector_search/frontend/src/components/SearchResultCard.tsx`
+- `src/image_vector_search/frontend/src/components/ImageModal.tsx`
+- `src/image_vector_search/frontend/src/components/CategoryTree.tsx`
+- `src/image_vector_search/frontend/src/components/FilterBar.tsx`
 
 实现原则：
 

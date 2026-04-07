@@ -2,8 +2,8 @@
 import pytest
 from datetime import datetime, timezone
 
-from image_search_mcp.domain.models import ImageRecord
-from image_search_mcp.repositories.sqlite import MetadataRepository
+from image_vector_search.domain.models import ImageRecord
+from image_vector_search.repositories.sqlite import MetadataRepository
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 

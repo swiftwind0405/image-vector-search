@@ -57,7 +57,7 @@ Scenario: Get tool by name
    - `test_exclude_tool_context_from_schema` — register a function with `ctx: ToolContext` as first param, assert "ctx" not in schema properties
    - `test_list_all_tools` — register 3 tools, call `get_tools()`, assert 3 ToolDef objects with correct fields
    - `test_get_tool_by_name` — register a tool, assert `get_tool("name")` returns it, `get_tool("missing")` returns None
-3. All tests should import from `image_search_mcp.tools.registry` (which does not exist yet — tests will fail)
+3. All tests should import from `image_vector_search.tools.registry` (which does not exist yet — tests will fail)
 
 ## Verification
 

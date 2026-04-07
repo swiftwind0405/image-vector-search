@@ -7,14 +7,14 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from image_search_mcp.app import create_app
-from image_search_mcp.config import Settings
-from image_search_mcp.mcp.server import build_mcp_server
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.indexing import IndexService
-from image_search_mcp.services.jobs import JobRunner
-from image_search_mcp.services.search import SearchService
-from image_search_mcp.services.status import StatusService
+from image_vector_search.app import create_app
+from image_vector_search.config import Settings
+from image_vector_search.mcp.server import build_mcp_server
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.indexing import IndexService
+from image_vector_search.services.jobs import JobRunner
+from image_vector_search.services.search import SearchService
+from image_vector_search.services.status import StatusService
 
 
 COLOR_VECTORS = {

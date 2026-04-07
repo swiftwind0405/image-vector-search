@@ -93,7 +93,7 @@ mkdir -p ./data/images ./data/index
 Then run with environment file:
 
 ```bash
-uv run --env-file .env uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uv run --env-file .env uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 Or export variables manually:
@@ -102,7 +102,7 @@ Or export variables manually:
 export IMAGE_SEARCH_IMAGES_ROOT=./data/images
 export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uv run uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 #### Traditional method
@@ -112,7 +112,7 @@ source .venv/bin/activate
 export IMAGE_SEARCH_IMAGES_ROOT=./data/images
 export IMAGE_SEARCH_INDEX_ROOT=./data/index
 export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uvicorn image_search_mcp.app:create_app --factory --host 0.0.0.0 --port 8000
+uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
 
 Server runs at `http://localhost:8000/` (serves static React frontend) and `/mcp` for MCP protocol.
@@ -122,7 +122,7 @@ Server runs at `http://localhost:8000/` (serves static React frontend) and `/mcp
 For development with hot reload:
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npm install
 npm run dev
 ```
@@ -132,7 +132,7 @@ Vite dev server runs at `http://localhost:5173/` and proxies `/api/*` to `http:/
 To build for production:
 
 ```bash
-cd src/image_search_mcp/web
+cd src/image_vector_search/frontend
 npm run build
 ```
 
@@ -143,7 +143,7 @@ Build output goes to `dist/` (served by FastAPI in production).
 Build:
 
 ```bash
-docker build -t image-search-mcp:test .
+docker build -t image-vector-search:test .
 ```
 
 Run with Docker Compose:

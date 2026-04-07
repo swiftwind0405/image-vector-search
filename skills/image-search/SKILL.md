@@ -12,11 +12,11 @@ Search the local indexed image library via HTTP API. Supports two modes:
 
 ## Prerequisites
 
-The image-search-mcp server must be running and images must be indexed.
+The image-vector-search server must be running and images must be indexed.
 
 ```bash
 cd /Users/stanley/Workspace/main/image-vector-search
-python -m image_search_mcp
+python -m image_vector_search
 ```
 
 Server base URL: `http://localhost:8000`

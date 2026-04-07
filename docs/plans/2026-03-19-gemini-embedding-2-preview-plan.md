@@ -52,7 +52,7 @@
 ### Task 1: Extend settings for provider-specific configuration
 
 **Files:**
-- Modify: `src/image_search_mcp/config.py`
+- Modify: `src/image_vector_search/config.py`
 - Modify: `tests/unit/test_config.py`
 
 **Step 1: Write the failing test**
@@ -84,7 +84,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/config.py tests/unit/test_config.py
+git add src/image_vector_search/config.py tests/unit/test_config.py
 git commit -m "feat: add gemini embedding settings"
 ```
 
@@ -93,8 +93,8 @@ git commit -m "feat: add gemini embedding settings"
 ### Task 2: Implement a Gemini embedding adapter
 
 **Files:**
-- Create: `src/image_search_mcp/adapters/embedding/gemini.py`
-- Modify: `src/image_search_mcp/adapters/embedding/__init__.py` (if package exports are introduced)
+- Create: `src/image_vector_search/adapters/embedding/gemini.py`
+- Modify: `src/image_vector_search/adapters/embedding/__init__.py` (if package exports are introduced)
 - Create: `tests/unit/test_gemini_embedding_client.py`
 
 **Step 1: Write the failing test**
@@ -129,7 +129,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/adapters/embedding/gemini.py tests/unit/test_gemini_embedding_client.py
+git add src/image_vector_search/adapters/embedding/gemini.py tests/unit/test_gemini_embedding_client.py
 git commit -m "feat: add gemini embedding adapter"
 ```
 
@@ -138,8 +138,8 @@ git commit -m "feat: add gemini embedding adapter"
 ### Task 3: Replace runtime hard-coding with a provider factory
 
 **Files:**
-- Modify: `src/image_search_mcp/runtime.py`
-- Possibly Modify: `src/image_search_mcp/adapters/embedding/base.py`
+- Modify: `src/image_vector_search/runtime.py`
+- Possibly Modify: `src/image_vector_search/adapters/embedding/base.py`
 - Create or Modify: `tests/integration/test_app_bootstrap.py`
 
 **Step 1: Write the failing test**
@@ -171,7 +171,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/runtime.py src/image_search_mcp/adapters/embedding/base.py tests/integration/test_app_bootstrap.py
+git add src/image_vector_search/runtime.py src/image_vector_search/adapters/embedding/base.py tests/integration/test_app_bootstrap.py
 git commit -m "refactor: select embedding client by provider"
 ```
 
@@ -180,8 +180,8 @@ git commit -m "refactor: select embedding client by provider"
 ### Task 4: Define and enforce vector migration expectations
 
 **Files:**
-- Modify: `src/image_search_mcp/services/indexing.py`
-- Modify: `src/image_search_mcp/services/status.py`
+- Modify: `src/image_vector_search/services/indexing.py`
+- Modify: `src/image_vector_search/services/status.py`
 - Modify: `docs/usage.md`
 - Create or Modify: `tests/integration/test_indexing_service.py`
 
@@ -212,7 +212,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/services/indexing.py src/image_search_mcp/services/status.py docs/usage.md tests/integration/test_indexing_service.py
+git add src/image_vector_search/services/indexing.py src/image_vector_search/services/status.py docs/usage.md tests/integration/test_indexing_service.py
 git commit -m "docs: clarify embedding migration workflow"
 ```
 

@@ -25,8 +25,8 @@ Scenario 5: Reload fails after successful DB write
 
 ## Files to Modify
 
-- `src/image_search_mcp/web/routes.py`
-- `src/image_search_mcp/app.py`
+- `src/image_vector_search/frontend/routes.py`
+- `src/image_vector_search/app.py`
 
 ## What to Implement
 

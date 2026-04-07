@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from image_search_mcp.config import Settings
-from image_search_mcp.repositories.sqlite import MetadataRepository
+from image_vector_search.config import Settings
+from image_vector_search.repositories.sqlite import MetadataRepository
 
 
 def _build_repository(tmp_path):
@@ -15,17 +15,19 @@ def _build_repository(tmp_path):
 
 
 def _build_client(tmp_path, *, settings: Settings | None = None, repository: MetadataRepository | None = None):
-    from image_search_mcp.web.settings_routes import create_settings_router
+    from image_vector_search.api.admin_settings_routes import create_admin_settings_router
 
     repository = repository or _build_repository(tmp_path)
     settings = settings or Settings(
         images_root=tmp_path / "images",
         index_root=tmp_path / "index",
+        jina_api_key="",
+        google_api_key="",
     )
     runtime_services = SimpleNamespace(reload_embedding_client=AsyncMock())
     app = FastAPI()
     app.include_router(
-        create_settings_router(
+        create_admin_settings_router(
             runtime_services=runtime_services,
             repository=repository,
             settings=settings,

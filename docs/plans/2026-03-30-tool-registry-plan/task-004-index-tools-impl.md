@@ -3,8 +3,8 @@
 **depends-on**: ["004-index-tools-test"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/tools/index_tools.py` (create)
-- `src/image_search_mcp/tools/image_tools.py` (create)
+- `src/image_vector_search/tools/index_tools.py` (create)
+- `src/image_vector_search/tools/image_tools.py` (create)
 
 ## Description
 

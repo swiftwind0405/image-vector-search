@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.tag_tools import manage_categories, manage_tags, tag_images
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.tag_tools import manage_categories, manage_tags, tag_images
 
 
 class FakeTagService:

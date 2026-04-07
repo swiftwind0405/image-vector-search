@@ -62,7 +62,7 @@ Scenario 8: Frontend dirty-state handling
 
 ## Files to Create
 
-- `src/image_search_mcp/web/src/test/SettingsPage.test.tsx`
+- `src/image_vector_search/frontend/src/test/SettingsPage.test.tsx`
 
 ## Test Cases
 
@@ -78,7 +78,7 @@ Scenario 8: Frontend dirty-state handling
 
 ## Test Setup Pattern
 
-Follow the existing patterns in `src/image_search_mcp/web/src/test/auth-flow.test.tsx`:
+Follow the existing patterns in `src/image_vector_search/frontend/src/test/auth-flow.test.tsx`:
 - Use `@testing-library/react` for rendering
 - Mock API hooks using `vi.mock("@/api/settings")`
 - Wrap in required providers (QueryClient, BrowserRouter)
@@ -86,7 +86,7 @@ Follow the existing patterns in `src/image_search_mcp/web/src/test/auth-flow.tes
 ## Verification
 
 ```bash
-cd src/image_search_mcp/web && npm test -- SettingsPage
+cd src/image_vector_search/frontend && npm test -- SettingsPage
 ```
 
 All 9 tests must fail (Red) before implementation.

@@ -1,4 +1,4 @@
-from image_search_mcp.repositories.sqlite import MetadataRepository
+from image_vector_search.repositories.sqlite import MetadataRepository
 
 
 def _build_repository(tmp_path):

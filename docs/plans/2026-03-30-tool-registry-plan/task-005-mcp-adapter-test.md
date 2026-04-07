@@ -45,7 +45,7 @@ Scenario: MCP tool schema matches registry schema
    - `test_mcp_tool_invocation` — use `mcp.Client` to connect and call a tool, assert correct result returned
    - `test_mcp_tool_error_handling` — register a tool that raises ValueError, call it via MCP client, assert isError=True
    - `test_mcp_tool_schema_enum` — build MCP, get tool schema, assert action param has correct enum values
-5. Import `build_mcp_from_registry` from `image_search_mcp.adapters.mcp_adapter` (does not exist yet)
+5. Import `build_mcp_from_registry` from `image_vector_search.adapters.mcp_adapter` (does not exist yet)
 
 ## Verification
 

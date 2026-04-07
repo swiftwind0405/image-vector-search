@@ -6,11 +6,11 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from image_search_mcp.domain.models import ImageRecord
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.tagging import TagService
-from image_search_mcp.web.bulk_routes import create_bulk_router
-from image_search_mcp.web.tag_routes import create_tag_router
+from image_vector_search.domain.models import ImageRecord
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.tagging import TagService
+from image_vector_search.api.admin_bulk_routes import create_admin_bulk_router
+from image_vector_search.api.admin_tag_routes import create_admin_tag_router
 
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -44,8 +44,10 @@ def app(tmp_path):
     repo.upsert_image(_make_image("ccc", "/data/images/urban/city.jpg"))
     tag_service = TagService(repository=repo)
     app = FastAPI()
-    app.include_router(create_tag_router(tag_service=tag_service))
-    app.include_router(create_bulk_router(tag_service=tag_service, images_root="/data/images"))
+    app.include_router(create_admin_tag_router(tag_service=tag_service))
+    app.include_router(
+        create_admin_bulk_router(tag_service=tag_service, images_root="/data/images")
+    )
     return app
 
 

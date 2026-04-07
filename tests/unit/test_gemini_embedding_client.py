@@ -5,7 +5,7 @@ import httpx
 import pytest
 import respx
 
-from image_search_mcp.adapters.embedding.gemini import GeminiEmbeddingClient
+from image_vector_search.adapters.embedding.gemini import GeminiEmbeddingClient
 
 
 @pytest.mark.anyio
@@ -77,7 +77,7 @@ async def test_embed_texts_retries_transient_failures(monkeypatch: pytest.Monkey
     async def _no_sleep(_: float) -> None:
         return None
 
-    monkeypatch.setattr("image_search_mcp.adapters.embedding.gemini.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("image_vector_search.adapters.embedding.gemini.asyncio.sleep", _no_sleep)
 
     route = respx.post(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2-preview:batchEmbedContents"

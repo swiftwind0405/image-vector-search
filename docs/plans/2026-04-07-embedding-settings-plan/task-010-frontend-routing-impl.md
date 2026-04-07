@@ -19,8 +19,8 @@ Scenario: Admin navigates to Settings page
 
 ## Files to Modify
 
-- `src/image_search_mcp/web/src/App.tsx`
-- `src/image_search_mcp/web/src/components/Layout.tsx`
+- `src/image_vector_search/frontend/src/App.tsx`
+- `src/image_vector_search/frontend/src/components/Layout.tsx`
 
 ## What to Implement
 
@@ -47,7 +47,7 @@ Place it at the bottom of the navigation items list (above the sign-out button),
 ## Verification
 
 ```bash
-cd src/image_search_mcp/web && npm test -- admin-navigation
+cd src/image_vector_search/frontend && npm test -- admin-navigation
 npx tsc --noEmit
 ```
 

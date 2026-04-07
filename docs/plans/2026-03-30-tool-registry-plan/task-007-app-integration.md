@@ -3,9 +3,9 @@
 **depends-on**: ["002-search-tools-impl", "003-tag-tools-impl", "004-index-tools-impl", "005-mcp-adapter-impl", "006-http-adapter-impl"]
 **type**: impl
 **files**:
-- `src/image_search_mcp/tools/__init__.py` (modify — add tool module imports)
-- `src/image_search_mcp/app.py` (modify)
-- `src/image_search_mcp/mcp/server.py` (modify — delegate to mcp_adapter)
+- `src/image_vector_search/tools/__init__.py` (modify — add tool module imports)
+- `src/image_vector_search/app.py` (modify)
+- `src/image_vector_search/mcp/server.py` (modify — delegate to mcp_adapter)
 
 ## Description
 
@@ -16,10 +16,10 @@ Wire everything together in the application factory.
   - `from . import search_tools, image_tools, tag_tools, index_tools`
 
 ### `app.py` changes
-- Import `default_registry` from `image_search_mcp.tools`
-- Import `ToolContext` from `image_search_mcp.tools.context`
-- Import `build_mcp_from_registry` from `image_search_mcp.adapters.mcp_adapter`
-- Import `build_tool_router` from `image_search_mcp.adapters.http_tool_adapter`
+- Import `default_registry` from `image_vector_search.tools`
+- Import `ToolContext` from `image_vector_search.tools.context`
+- Import `build_mcp_from_registry` from `image_vector_search.adapters.mcp_adapter`
+- Import `build_tool_router` from `image_vector_search.adapters.http_tool_adapter`
 - After building runtime_services, create `ToolContext` from runtime services
 - Replace `build_mcp_server(search_service)` with `build_mcp_from_registry(default_registry, tool_ctx)`
 - Add `app.include_router(build_tool_router(default_registry, tool_ctx))`
@@ -36,7 +36,7 @@ Wire everything together in the application factory.
 pytest -v
 
 # Manually verify the server starts
-python -m image_search_mcp &
+python -m image_vector_search &
 # Test tool discovery
 curl http://localhost:8000/api/tools
 # Test tool invocation

@@ -13,7 +13,7 @@
 ### Task 1: Repository purge support
 
 **Files:**
-- Modify: `src/image_search_mcp/repositories/sqlite.py`
+- Modify: `src/image_vector_search/repositories/sqlite.py`
 - Test: `tests/unit/test_sqlite_repository.py`
 
 **Step 1: Write the failing test**
@@ -40,17 +40,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/unit/test_sqlite_repository.py src/image_search_mcp/repositories/sqlite.py
+git add tests/unit/test_sqlite_repository.py src/image_vector_search/repositories/sqlite.py
 git commit -m "feat: add inactive image purge repository support"
 ```
 
 ### Task 2: Status service and API endpoints
 
 **Files:**
-- Modify: `src/image_search_mcp/services/status.py`
-- Modify: `src/image_search_mcp/adapters/vector_index/base.py`
-- Modify: `src/image_search_mcp/adapters/vector_index/milvus_lite.py`
-- Modify: `src/image_search_mcp/web/routes.py`
+- Modify: `src/image_vector_search/services/status.py`
+- Modify: `src/image_vector_search/adapters/vector_index/base.py`
+- Modify: `src/image_vector_search/adapters/vector_index/milvus_lite.py`
+- Modify: `src/image_vector_search/frontend/routes.py`
 - Test: `tests/integration/test_web_admin.py`
 
 **Step 1: Write the failing test**
@@ -80,17 +80,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/integration/test_web_admin.py src/image_search_mcp/services/status.py src/image_search_mcp/adapters/vector_index/base.py src/image_search_mcp/adapters/vector_index/milvus_lite.py src/image_search_mcp/web/routes.py
+git add tests/integration/test_web_admin.py src/image_vector_search/services/status.py src/image_vector_search/adapters/vector_index/base.py src/image_vector_search/adapters/vector_index/milvus_lite.py src/image_vector_search/frontend/routes.py
 git commit -m "feat: expose inactive image purge api"
 ```
 
 ### Task 3: Dashboard selection dialog
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/api/images.ts`
-- Modify: `src/image_search_mcp/web/src/api/types.ts`
-- Modify: `src/image_search_mcp/web/src/pages/DashboardPage.tsx`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/api/images.ts`
+- Modify: `src/image_vector_search/frontend/src/api/types.ts`
+- Modify: `src/image_vector_search/frontend/src/pages/DashboardPage.tsx`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -117,7 +117,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/api/images.ts src/image_search_mcp/web/src/api/types.ts src/image_search_mcp/web/src/pages/DashboardPage.tsx src/image_search_mcp/web/src/test/admin-navigation.test.tsx
+git add src/image_vector_search/frontend/src/api/images.ts src/image_vector_search/frontend/src/api/types.ts src/image_vector_search/frontend/src/pages/DashboardPage.tsx src/image_vector_search/frontend/src/test/admin-navigation.test.tsx
 git commit -m "feat: add dashboard inactive purge workflow"
 ```
 
@@ -127,7 +127,7 @@ git commit -m "feat: add dashboard inactive purge workflow"
 - Modify: none expected
 - Test: `tests/unit/test_sqlite_repository.py`
 - Test: `tests/integration/test_web_admin.py`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Run backend verification**
 

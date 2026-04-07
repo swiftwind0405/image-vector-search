@@ -64,7 +64,7 @@
 建议目录结构：
 
 ```text
-src/image_search_mcp/
+src/image_vector_search/
   __init__.py
   app.py
   config.py

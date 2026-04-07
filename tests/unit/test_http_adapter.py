@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from image_search_mcp.adapters.http_tool_adapter import build_tool_router
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.registry import ToolRegistry
+from image_vector_search.adapters.http_tool_adapter import build_tool_router
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.registry import ToolRegistry
 
 
 def make_test_app():

@@ -29,12 +29,12 @@ pytest tests/unit/
 pytest tests/integration/
 
 # Start the server locally (listens on 0.0.0.0:8000, supports LAN access)
-python -m image_search_mcp
+python -m image_vector_search
 ```
 
 ## Architecture
 
-**Source layout**: `src/image_search_mcp/` — single Python package with `src` layout (`pyproject.toml` sets `package-dir = src`).
+**Source layout**: `src/image_vector_search/` — single Python package with `src` layout (`pyproject.toml` sets `package-dir = src`).
 
 **Key architectural decisions**:
 - Content-hash identity: images are identified by SHA-256 of file contents, not file paths. Path changes don't trigger re-embedding.

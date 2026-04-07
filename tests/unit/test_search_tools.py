@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.search_tools import search_images, search_similar
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.search_tools import search_images, search_similar
 
 
 class FakeSearchService:

@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from milvus_lite.server_manager import server_manager_instance
 
-import image_search_mcp.adapters.vector_index.milvus_lite as milvus_lite_module
-from image_search_mcp.adapters.vector_index.base import VectorIndex
-from image_search_mcp.adapters.vector_index.milvus_lite import MilvusLiteIndex
+import image_vector_search.adapters.vector_index.milvus_lite as milvus_lite_module
+from image_vector_search.adapters.vector_index.base import VectorIndex
+from image_vector_search.adapters.vector_index.milvus_lite import MilvusLiteIndex
 
 
 def test_vector_index_contract_includes_required_methods():

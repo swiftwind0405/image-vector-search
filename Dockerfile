@@ -1,9 +1,9 @@
 # Stage 1: Build React frontend
 FROM node:20-alpine AS frontend
-WORKDIR /app/web
-COPY src/image_search_mcp/web/package.json src/image_search_mcp/web/package-lock.json ./
+WORKDIR /app/frontend
+COPY src/image_vector_search/frontend/package.json src/image_vector_search/frontend/package-lock.json ./
 RUN npm ci
-COPY src/image_search_mcp/web/ ./
+COPY src/image_vector_search/frontend/ ./
 RUN npm run build
 
 # Stage 2: Python application
@@ -18,10 +18,10 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 
 # Copy built frontend into the Python package
-COPY --from=frontend /app/web/dist ./src/image_search_mcp/web/dist
+COPY --from=frontend /app/frontend/dist ./src/image_vector_search/frontend/dist
 
 RUN pip install .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "image_search_mcp.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "image_vector_search.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

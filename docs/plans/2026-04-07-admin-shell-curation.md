@@ -13,8 +13,8 @@
 ### Task 1: 为全局壳层重设计补测试约束
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -35,7 +35,7 @@ Expected: FAIL，因为当前壳层还没有新的上下文结构与标题组织
 
 涉及文件：
 
-- `src/image_search_mcp/web/src/components/Layout.tsx`
+- `src/image_vector_search/frontend/src/components/Layout.tsx`
 
 **Step 4: Run test to verify it passes**
 
@@ -45,16 +45,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/test/admin-navigation.test.tsx src/image_search_mcp/web/src/components/Layout.tsx
+git add src/image_vector_search/frontend/src/test/admin-navigation.test.tsx src/image_vector_search/frontend/src/components/Layout.tsx
 git commit -m "test: lock admin shell navigation structure"
 ```
 
 ### Task 2: 重建全局主题令牌与基础背景层次
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/index.css`
-- Modify: `src/image_search_mcp/web/tailwind.config.ts`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/index.css`
+- Modify: `src/image_vector_search/frontend/tailwind.config.ts`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -69,8 +69,8 @@ Expected: FAIL，因为新的主题令牌和壳层 class 还不存在。
 
 修改：
 
-- `src/image_search_mcp/web/src/index.css`
-- `src/image_search_mcp/web/tailwind.config.ts`
+- `src/image_vector_search/frontend/src/index.css`
+- `src/image_vector_search/frontend/tailwind.config.ts`
 
 实现：
 
@@ -86,16 +86,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/index.css src/image_search_mcp/web/tailwind.config.ts src/image_search_mcp/web/src/test/admin-navigation.test.tsx
+git add src/image_vector_search/frontend/src/index.css src/image_vector_search/frontend/tailwind.config.ts src/image_vector_search/frontend/src/test/admin-navigation.test.tsx
 git commit -m "feat: add curated dark theme tokens"
 ```
 
 ### Task 3: 重做共享壳层布局与导航视觉
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/components/Layout.tsx`
-- Possibly Modify: `src/image_search_mcp/web/src/lib/utils.ts`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/Layout.tsx`
+- Possibly Modify: `src/image_vector_search/frontend/src/lib/utils.ts`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -112,7 +112,7 @@ Expected: FAIL，因为当前 `Layout` 仍是简单的侧栏加 `Outlet`。
 
 **Step 3: Write minimal implementation**
 
-修改 `src/image_search_mcp/web/src/components/Layout.tsx`：
+修改 `src/image_vector_search/frontend/src/components/Layout.tsx`：
 
 - 重排侧边栏为策展式目录导航
 - 增加顶部上下文栏框架
@@ -127,16 +127,16 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/components/Layout.tsx src/image_search_mcp/web/src/test/admin-navigation.test.tsx src/image_search_mcp/web/src/lib/utils.ts
+git add src/image_vector_search/frontend/src/components/Layout.tsx src/image_vector_search/frontend/src/test/admin-navigation.test.tsx src/image_vector_search/frontend/src/lib/utils.ts
 git commit -m "feat: redesign admin shell layout"
 ```
 
 ### Task 4: 重做 Dashboard 为图库总览台
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/DashboardPage.tsx`
-- Create or Modify: `src/image_search_mcp/web/src/components/StatusHero.tsx`
-- Test: `src/image_search_mcp/web/src/test/admin-navigation.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/DashboardPage.tsx`
+- Create or Modify: `src/image_vector_search/frontend/src/components/StatusHero.tsx`
+- Test: `src/image_vector_search/frontend/src/test/admin-navigation.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -154,7 +154,7 @@ Expected: FAIL，因为当前页面仍是标准卡片结构。
 
 **Step 3: Write minimal implementation**
 
-修改 `src/image_search_mcp/web/src/pages/DashboardPage.tsx`，必要时新增展示组件：
+修改 `src/image_vector_search/frontend/src/pages/DashboardPage.tsx`，必要时新增展示组件：
 
 - 将覆盖率与总量做成主视觉统计区
 - 将近期任务重排为更轻的时间流或状态区
@@ -168,17 +168,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/DashboardPage.tsx src/image_search_mcp/web/src/components/StatusHero.tsx src/image_search_mcp/web/src/test/admin-navigation.test.tsx
+git add src/image_vector_search/frontend/src/pages/DashboardPage.tsx src/image_vector_search/frontend/src/components/StatusHero.tsx src/image_vector_search/frontend/src/test/admin-navigation.test.tsx
 git commit -m "feat: redesign dashboard overview"
 ```
 
 ### Task 5: 重做 Search 为策展式检索舞台
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/SearchPage.tsx`
-- Modify: `src/image_search_mcp/web/src/components/SearchResultCard.tsx`
-- Modify: `src/image_search_mcp/web/src/components/ImageModal.tsx`
-- Test: `src/image_search_mcp/web/src/test/filter.test.ts`
+- Modify: `src/image_vector_search/frontend/src/pages/SearchPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/SearchResultCard.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/ImageModal.tsx`
+- Test: `src/image_vector_search/frontend/src/test/filter.test.ts`
 
 **Step 1: Write the failing test**
 
@@ -198,9 +198,9 @@ Expected: FAIL，因为页面结构将从双卡片改成统一检索舞台，原
 
 修改：
 
-- `src/image_search_mcp/web/src/pages/SearchPage.tsx`
-- `src/image_search_mcp/web/src/components/SearchResultCard.tsx`
-- `src/image_search_mcp/web/src/components/ImageModal.tsx`
+- `src/image_vector_search/frontend/src/pages/SearchPage.tsx`
+- `src/image_vector_search/frontend/src/components/SearchResultCard.tsx`
+- `src/image_vector_search/frontend/src/components/ImageModal.tsx`
 
 实现：
 
@@ -216,18 +216,18 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/SearchPage.tsx src/image_search_mcp/web/src/components/SearchResultCard.tsx src/image_search_mcp/web/src/components/ImageModal.tsx src/image_search_mcp/web/src/test/filter.test.ts
+git add src/image_vector_search/frontend/src/pages/SearchPage.tsx src/image_vector_search/frontend/src/components/SearchResultCard.tsx src/image_vector_search/frontend/src/components/ImageModal.tsx src/image_vector_search/frontend/src/test/filter.test.ts
 git commit -m "feat: redesign search workspace"
 ```
 
 ### Task 6: 统一 Images 浏览器的策展布局
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/components/ImageBrowser.tsx`
-- Modify: `src/image_search_mcp/web/src/components/GalleryGrid.tsx`
-- Modify: `src/image_search_mcp/web/src/components/GalleryCard.tsx`
-- Modify: `src/image_search_mcp/web/src/components/FilterBar.tsx`
-- Test: `src/image_search_mcp/web/src/test/FilterBar.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/ImageBrowser.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/GalleryGrid.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/GalleryCard.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/FilterBar.tsx`
+- Test: `src/image_vector_search/frontend/src/test/FilterBar.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -247,10 +247,10 @@ Expected: FAIL，因为图片浏览器布局和交互壳层将发生变化。
 
 修改：
 
-- `src/image_search_mcp/web/src/components/ImageBrowser.tsx`
-- `src/image_search_mcp/web/src/components/GalleryGrid.tsx`
-- `src/image_search_mcp/web/src/components/GalleryCard.tsx`
-- `src/image_search_mcp/web/src/components/FilterBar.tsx`
+- `src/image_vector_search/frontend/src/components/ImageBrowser.tsx`
+- `src/image_vector_search/frontend/src/components/GalleryGrid.tsx`
+- `src/image_vector_search/frontend/src/components/GalleryCard.tsx`
+- `src/image_vector_search/frontend/src/components/FilterBar.tsx`
 
 实现：
 
@@ -266,17 +266,17 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/components/ImageBrowser.tsx src/image_search_mcp/web/src/components/GalleryGrid.tsx src/image_search_mcp/web/src/components/GalleryCard.tsx src/image_search_mcp/web/src/components/FilterBar.tsx src/image_search_mcp/web/src/test/FilterBar.test.tsx
+git add src/image_vector_search/frontend/src/components/ImageBrowser.tsx src/image_vector_search/frontend/src/components/GalleryGrid.tsx src/image_vector_search/frontend/src/components/GalleryCard.tsx src/image_vector_search/frontend/src/components/FilterBar.tsx src/image_vector_search/frontend/src/test/FilterBar.test.tsx
 git commit -m "feat: redesign image browsing surfaces"
 ```
 
 ### Task 7: 重排 Tags 与 Categories 页面结构
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/TagsPage.tsx`
-- Modify: `src/image_search_mcp/web/src/pages/CategoriesPage.tsx`
-- Modify: `src/image_search_mcp/web/src/components/CategoryTree.tsx`
-- Test: `src/image_search_mcp/web/src/test/categories.test.ts`
+- Modify: `src/image_vector_search/frontend/src/pages/TagsPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`
+- Modify: `src/image_vector_search/frontend/src/components/CategoryTree.tsx`
+- Test: `src/image_vector_search/frontend/src/test/categories.test.ts`
 
 **Step 1: Write the failing test**
 
@@ -296,9 +296,9 @@ Expected: FAIL，因为页面将从卡片式管理页改为更轻的编排布局
 
 修改：
 
-- `src/image_search_mcp/web/src/pages/TagsPage.tsx`
-- `src/image_search_mcp/web/src/pages/CategoriesPage.tsx`
-- `src/image_search_mcp/web/src/components/CategoryTree.tsx`
+- `src/image_vector_search/frontend/src/pages/TagsPage.tsx`
+- `src/image_vector_search/frontend/src/pages/CategoriesPage.tsx`
+- `src/image_vector_search/frontend/src/components/CategoryTree.tsx`
 
 实现：
 
@@ -314,15 +314,15 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/TagsPage.tsx src/image_search_mcp/web/src/pages/CategoriesPage.tsx src/image_search_mcp/web/src/components/CategoryTree.tsx src/image_search_mcp/web/src/test/categories.test.ts
+git add src/image_vector_search/frontend/src/pages/TagsPage.tsx src/image_vector_search/frontend/src/pages/CategoriesPage.tsx src/image_vector_search/frontend/src/components/CategoryTree.tsx src/image_vector_search/frontend/src/test/categories.test.ts
 git commit -m "feat: redesign taxonomy management pages"
 ```
 
 ### Task 8: 重做登录页首屏体验
 
 **Files:**
-- Modify: `src/image_search_mcp/web/src/pages/LoginPage.tsx`
-- Test: `src/image_search_mcp/web/src/test/auth-flow.test.tsx`
+- Modify: `src/image_vector_search/frontend/src/pages/LoginPage.tsx`
+- Test: `src/image_vector_search/frontend/src/test/auth-flow.test.tsx`
 
 **Step 1: Write the failing test**
 
@@ -340,7 +340,7 @@ Expected: FAIL，因为登录页结构将从单卡片变成完整首屏。
 
 **Step 3: Write minimal implementation**
 
-修改 `src/image_search_mcp/web/src/pages/LoginPage.tsx`：
+修改 `src/image_vector_search/frontend/src/pages/LoginPage.tsx`：
 
 - 重做为完整首屏布局
 - 建立左侧氛围区与右侧表单区
@@ -354,7 +354,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add src/image_search_mcp/web/src/pages/LoginPage.tsx src/image_search_mcp/web/src/test/auth-flow.test.tsx
+git add src/image_vector_search/frontend/src/pages/LoginPage.tsx src/image_vector_search/frontend/src/test/auth-flow.test.tsx
 git commit -m "feat: redesign login entry page"
 ```
 

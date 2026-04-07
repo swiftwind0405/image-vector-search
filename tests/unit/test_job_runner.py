@@ -6,11 +6,11 @@ from threading import Event, Thread
 
 import pytest
 
-from image_search_mcp.config import Settings
-from image_search_mcp.domain.models import ImageRecord, IndexingReport
-from image_search_mcp.repositories.sqlite import MetadataRepository
-from image_search_mcp.services.jobs import BackgroundJobWorker, JobRunner
-from image_search_mcp.services.status import StatusService
+from image_vector_search.config import Settings
+from image_vector_search.domain.models import ImageRecord, IndexingReport
+from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.jobs import BackgroundJobWorker, JobRunner
+from image_vector_search.services.status import StatusService
 
 
 class FakeIndexService:

@@ -1,8 +1,8 @@
 import pytest
 from typing import Literal
 
-from image_search_mcp.tools.context import ToolContext
-from image_search_mcp.tools.registry import ToolDef, ToolRegistry
+from image_vector_search.tools.context import ToolContext
+from image_vector_search.tools.registry import ToolDef, ToolRegistry
 
 
 def test_register_tool_via_decorator():

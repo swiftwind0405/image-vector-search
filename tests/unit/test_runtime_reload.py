@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from image_search_mcp.config import Settings
-from image_search_mcp import runtime as runtime_module
-from image_search_mcp.runtime import build_runtime_services
+from image_vector_search.config import Settings
+from image_vector_search import runtime as runtime_module
+from image_vector_search.runtime import build_runtime_services
 
 
 class _FakeEmbeddingClient:
