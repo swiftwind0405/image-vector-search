@@ -57,18 +57,18 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
     <DialogPrimitive.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Backdrop
-          className="fixed inset-0 z-50 bg-black/90 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+          className="fixed inset-0 z-50 bg-[rgba(7,8,12,0.94)] backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         />
         <DialogPrimitive.Popup
           className="fixed inset-0 z-50 flex outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         >
           {/* Top bar */}
-          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 h-14 bg-gradient-to-b from-black/60 to-transparent">
+          <div className="absolute left-0 right-0 top-0 z-10 flex h-16 items-center justify-between px-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex items-center gap-3 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/10 shrink-0"
+                className="shrink-0 text-white hover:bg-white/10"
                 onClick={onClose}
               >
                 <X className="h-5 w-5" />
@@ -123,19 +123,18 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
 
           {/* Main area: image + optional info panel */}
           {/* Desktop: row (image left, info right) / Mobile: column (image top, info bottom) */}
-          <div className="flex flex-col md:flex-row w-full h-full pt-14 overflow-hidden">
-            {/* Image area */}
-            <div className="relative flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
+          <div className="flex h-full w-full flex-col overflow-hidden pt-16 md:flex-row">
+            <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
               <img
                 src={`/api/images/${image.content_hash}/file`}
                 alt={filename}
-                className="w-full h-full object-contain p-4"
+                className="h-full w-full object-contain p-5"
               />
 
               {/* Prev / Next arrows */}
               {hasPrev && (
                 <button
-                  className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors"
+                  className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition-colors hover:bg-black/70"
                   onClick={() => onNavigate(images[currentIndex - 1].content_hash)}
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -143,7 +142,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               )}
               {hasNext && (
                 <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors"
+                  className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition-colors hover:bg-black/70"
                   onClick={() => onNavigate(images[currentIndex + 1].content_hash)}
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -151,10 +150,9 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               )}
             </div>
 
-            {/* Info panel: desktop = side panel (right), mobile = bottom panel */}
             <div
               className={cn(
-                "bg-background overflow-y-auto transition-all duration-200",
+                "overflow-y-auto border-white/10 bg-card/92 transition-all duration-200 backdrop-blur",
                 "md:h-full md:border-l",
                 "max-md:border-t max-md:w-full",
                 showInfo

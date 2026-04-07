@@ -16,7 +16,7 @@ class SearchService:
         self,
         settings: Settings,
         repository,
-        embedding_client: EmbeddingClient,
+        embedding_client: EmbeddingClient | None,
         vector_index: VectorIndex,
     ) -> None:
         self.settings = settings
@@ -51,7 +51,10 @@ class SearchService:
             logger.debug("Text search: empty content_hash_filter, returning no results")
             return []
 
-        vector = (await self.embedding_client.embed_texts([query]))[0]
+        client = self.embedding_client
+        if client is None:
+            raise ValueError("Embedding not configured")
+        vector = (await client.embed_texts([query]))[0]
         raw_results = self.vector_index.search(
             vector,
             limit=self._candidate_limit(top_k),

@@ -244,7 +244,6 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Categories</h1>
         <div className="flex items-center gap-2">
           {selectMode && selectedIds.size > 0 && (
             <>
@@ -279,10 +278,22 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* Category Tree */}
-      <Card>
+      <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+      <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+        <CardHeader>
+          <CardTitle className="text-base text-white">Structure Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4 text-sm leading-6 text-muted-foreground">
+            <p>Categories define the navigable hierarchy of the archive. Keep branches calm, shallow when possible, and descriptive enough to guide visual review.</p>
+            <p>Open any category to inspect its assigned image set, including descendants where relevant.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Category Hierarchy</CardTitle>
+          <CardTitle className="text-base text-white">Category Hierarchy</CardTitle>
           {allIds.length > 0 && (
             selectMode ? (
               <button
@@ -320,6 +331,7 @@ export default function CategoriesPage() {
           )}
         </CardContent>
       </Card>
+      </section>
 
       {/* Create Dialog */}
       <Dialog

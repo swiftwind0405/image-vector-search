@@ -73,7 +73,8 @@ describe("auth flow", () => {
 
     const user = userEvent.setup();
 
-    expect(await screen.findByText("Image Search Admin")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Image Search Archive", level: 2 })).toBeInTheDocument();
+    expect(screen.getAllByText("Curate, search, and organize your indexed image library.")[0]).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Username"), "admin");
     await user.type(screen.getByLabelText("Password"), "secret");
@@ -82,6 +83,6 @@ describe("auth flow", () => {
     await waitFor(() => {
       expect(screen.getByText("Protected Layout")).toBeInTheDocument();
     });
-    expect(screen.queryByText("Image Search Admin")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Image Search Archive", level: 2 })).not.toBeInTheDocument();
   });
 });

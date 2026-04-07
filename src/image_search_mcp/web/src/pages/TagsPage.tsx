@@ -127,32 +127,32 @@ export default function TagsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Tags</h1>
-
-      {/* Create Tag */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Create Tag</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreate} className="flex gap-2">
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+          <CardHeader>
+            <CardTitle className="text-base text-white">Create Tag</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm leading-6 text-muted-foreground">
+              Add concise descriptive terms that help semantic search, filtering, and editorial review converge on the same image set.
+            </p>
+            <form onSubmit={handleCreate} className="flex gap-2">
             <Input
               placeholder="Tag name..."
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="max-w-sm"
+              className="max-w-sm rounded-2xl border-white/10 bg-white/[0.03]"
             />
             <Button type="submit" disabled={createTag.isPending || !newName.trim()}>
               Create
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
 
-      {/* Tag List */}
-      <Card>
+        <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">All Tags</CardTitle>
+          <CardTitle className="text-base text-white">All Tags</CardTitle>
           {tags && tags.length > 0 && (
             <div className="flex items-center gap-2">
               {selectMode ? (
@@ -210,11 +210,11 @@ export default function TagsPage() {
           ) : !tags || tags.length === 0 ? (
             <p className="text-sm text-muted-foreground">No tags yet</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className={`group flex items-center gap-1.5 rounded-full border bg-muted/40 py-1 pr-1 transition-colors hover:bg-muted ${selectMode ? "pl-2" : "pl-3"}`}
+                  className={`group flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-1.5 pr-1.5 transition-colors hover:bg-white/[0.07] ${selectMode ? "pl-2.5" : "pl-4"}`}
                 >
                   {selectMode && (
                     <Checkbox
@@ -224,12 +224,12 @@ export default function TagsPage() {
                     />
                   )}
                   <Link
-                    className="text-sm font-medium hover:underline"
+                    className="text-sm font-medium text-white hover:underline"
                     to={`/tags/${tag.id}/images`}
                   >
                     {tag.name}
                   </Link>
-                  <Badge variant="secondary" className="rounded-full px-1.5 text-xs font-normal">
+                  <Badge variant="secondary" className="rounded-full border border-white/8 bg-white/[0.05] px-2 text-xs font-normal text-muted-foreground">
                     {tag.image_count ?? 0}
                   </Badge>
                   <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
@@ -259,6 +259,7 @@ export default function TagsPage() {
           )}
         </CardContent>
       </Card>
+      </section>
 
       {/* Edit Dialog */}
       <Dialog

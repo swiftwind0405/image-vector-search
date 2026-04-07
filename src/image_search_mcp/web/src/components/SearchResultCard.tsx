@@ -32,11 +32,12 @@ export default function SearchResultCard({ result, onClick }: Props) {
 
   return (
     <div
-      className="group relative flex gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50 cursor-pointer"
+      className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-white/10 bg-card/75 p-3 shadow-curator transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-card"
       onClick={onClick}
     >
-      {/* Thumbnail */}
-      <div className="relative h-24 w-24 shrink-0 rounded-md overflow-hidden bg-muted">
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-primary/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="relative flex gap-4">
+      <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[22px] border border-white/8 bg-muted">
         {imgError ? (
           <div className="flex h-full w-full items-center justify-center">
             <ImageOff className="h-6 w-6 text-muted-foreground/50" />
@@ -45,44 +46,42 @@ export default function SearchResultCard({ result, onClick }: Props) {
           <img
             src={`/api/images/${result.content_hash}/file`}
             alt={filename}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={() => setImgError(true)}
             loading="lazy"
           />
         )}
       </div>
 
-      {/* Details */}
-      <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+      <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium truncate" title={result.path}>
+            <p className="truncate text-base font-medium text-white" title={result.path}>
               {filename}
             </p>
             <ScoreBadge score={result.score} />
           </div>
           {dir && (
-            <p className="text-xs text-muted-foreground truncate" title={dir}>
+            <p className="truncate text-xs text-muted-foreground" title={dir}>
               {dir}
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/[0.03] px-2 py-1">
               <Ruler className="h-3 w-3" />
               {result.width} × {result.height}
             </span>
-            <span>{result.mime_type}</span>
+            <span className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1">{result.mime_type}</span>
           </div>
         </div>
 
-        {/* Tags & Categories */}
         {(result.tags.length > 0 || result.categories.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+          <div className="mt-4 flex flex-wrap items-center gap-1.5">
             {result.tags.length > 0 && (
               <>
                 <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
                 {result.tags.map((t) => (
-                  <Badge key={t.id} variant="secondary" className="text-[10px] h-[18px] px-1.5">
+                  <Badge key={t.id} variant="secondary" className="h-6 rounded-full border border-white/8 bg-white/[0.04] px-2 text-[10px] font-medium text-foreground">
                     {t.name}
                   </Badge>
                 ))}
@@ -92,7 +91,7 @@ export default function SearchResultCard({ result, onClick }: Props) {
               <>
                 <FolderTree className="h-3 w-3 text-muted-foreground shrink-0 ml-1" />
                 {result.categories.map((c) => (
-                  <Badge key={c.id} variant="outline" className="text-[10px] h-[18px] px-1.5">
+                  <Badge key={c.id} variant="outline" className="h-6 rounded-full border-white/10 bg-transparent px-2 text-[10px] font-medium text-muted-foreground">
                     {c.name}
                   </Badge>
                 ))}
@@ -100,6 +99,7 @@ export default function SearchResultCard({ result, onClick }: Props) {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

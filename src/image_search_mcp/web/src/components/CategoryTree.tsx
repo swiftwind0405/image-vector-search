@@ -61,6 +61,7 @@ function TreeNode({ node, onEdit, onDelete, onAddChild, selectedIds, onToggleSel
         <Link
           to={`/categories/${node.id}/images`}
           className="flex-1 text-sm hover:underline"
+          aria-label={`${node.name} ${node.image_count ?? 0} images`}
         >
           {node.name}
           <span className="ml-1.5 text-xs text-muted-foreground">

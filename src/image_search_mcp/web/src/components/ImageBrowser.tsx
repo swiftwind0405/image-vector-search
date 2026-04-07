@@ -94,9 +94,10 @@ function getStoredViewMode(): "list" | "gallery" {
 }
 
 export default function ImageBrowser({
-title,
+  title,
   subtitle,
   breadcrumb,
+  hideTitle,
   queryScope,
   emptyMessage = "No images indexed yet",
 }: ImageBrowserProps) {
@@ -326,16 +327,17 @@ title,
     <div className="space-y-6">
       <div className="space-y-1">
         {breadcrumb}
-        {title && <h1 className="text-2xl font-semibold">{title}</h1>}
+        {!hideTitle && title && <h1 className="text-2xl font-semibold text-white">{title}</h1>}
         {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="rounded-[32px] border border-white/10 bg-card/72 p-4 shadow-curator backdrop-blur">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
         <Select
           value={folder ?? "__all__"}
           onValueChange={(v) => setFolder(v === "__all__" || v == null ? undefined : v)}
         >
-          <SelectTrigger className="w-64">
+          <SelectTrigger className="w-full rounded-2xl border-white/10 bg-white/[0.03] xl:w-64">
             <SelectValue placeholder="All folders" />
           </SelectTrigger>
           <SelectContent>
@@ -358,7 +360,7 @@ title,
           <Dialog>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
                   <Settings2 className="h-4 w-4 mr-2" />
                   Folder Actions
                 </Button>
@@ -422,7 +424,7 @@ title,
           </Dialog>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {selectedCount > 0 && (
             <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
           )}
@@ -430,7 +432,7 @@ title,
           <Dialog open={bulkTagDialogOpen} onOpenChange={setBulkTagDialogOpen}>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm" disabled={selectedCount === 0}>
+                <Button variant="outline" size="sm" disabled={selectedCount === 0} className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
                   <Tag className="h-4 w-4 mr-2" />
                   Bulk Tags
                 </Button>
@@ -476,7 +478,7 @@ title,
           <Dialog open={bulkCategoryDialogOpen} onOpenChange={setBulkCategoryDialogOpen}>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm" disabled={selectedCount === 0}>
+                <Button variant="outline" size="sm" disabled={selectedCount === 0} className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
                   <Layers className="h-4 w-4 mr-2" />
                   Bulk Categories
                 </Button>
@@ -519,7 +521,7 @@ title,
             </DialogContent>
           </Dialog>
 
-          <div className="flex items-center border rounded-md overflow-hidden">
+          <div className="flex items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
             <Button
               variant={viewMode === "list" ? "default" : "ghost"}
               size="sm"
@@ -540,6 +542,7 @@ title,
             </Button>
           </div>
         </div>
+        </div>
       </div>
 
       <FilterBar
@@ -557,8 +560,8 @@ title,
       ) : viewMode === "gallery" ? (
         <>
           {filteredImages.length === 0 ? (
-            <Card>
-              <CardContent className="p-4">
+            <Card className="rounded-[28px] border-white/10 bg-card/72 shadow-curator">
+              <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">
                   {!images || images.length === 0 ? emptyMessage : "No images match the active filters."}
                 </p>
@@ -572,7 +575,7 @@ title,
                 selectedHashes={selectedHashes}
                 onSelect={toggleSelect}
               />
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-2">
                 <p className="text-sm text-muted-foreground">
                   {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
                   {images && filteredImages.length !== images.length && ` of ${images.length} total`}
@@ -595,7 +598,7 @@ title,
           )}
         </>
       ) : (
-        <Card>
+        <Card className="rounded-[28px] border-white/10 bg-card/72 shadow-curator">
           <CardContent className="p-0">
             {!images || images.length === 0 ? (
               <p className="text-sm text-muted-foreground p-4">{emptyMessage}</p>
@@ -625,7 +628,7 @@ title,
                     {paginatedImages.map((image) => (
                       <React.Fragment key={image.content_hash}>
                         <TableRow
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-white/[0.03]"
                           onClick={() => toggleExpand(image.content_hash)}
                         >
                           <TableCell onClick={(e) => e.stopPropagation()}>
@@ -686,7 +689,7 @@ title,
                         </TableRow>
                         {expandedHash === image.content_hash && (
                           <TableRow>
-                            <TableCell colSpan={7} className="bg-muted/30 p-0">
+                            <TableCell colSpan={7} className="bg-white/[0.02] p-0">
                               <ImageTagEditor contentHash={image.content_hash} />
                             </TableCell>
                           </TableRow>

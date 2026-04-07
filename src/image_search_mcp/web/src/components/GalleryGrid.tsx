@@ -20,7 +20,7 @@ export default function GalleryGrid({ images, onOpen, selectedHashes, onSelect }
   }
 
   return (
-    <div className="grid grid-cols-2 min-[560px]:grid-cols-3 min-[768px]:grid-cols-4 gap-1">
+    <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
       {images.map((image) => (
         <GalleryCard
           key={image.content_hash}

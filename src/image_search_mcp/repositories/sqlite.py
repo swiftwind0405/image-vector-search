@@ -13,6 +13,10 @@ from image_search_mcp.domain.models import (
     Tag,
 )
 
+EMBEDDING_PROVIDER_STATE_KEY = "config.embedding_provider"
+JINA_API_KEY_STATE_KEY = "config.jina_api_key"
+GOOGLE_API_KEY_STATE_KEY = "config.google_api_key"
+
 
 def choose_canonical_path(existing: str | None, active_paths: list[str]) -> str | None:
     if existing and existing in active_paths:
@@ -762,6 +766,27 @@ class MetadataRepository:
                 """,
                 (key, value),
             )
+
+    def get_embedding_config(self) -> dict[str, str | None]:
+        return {
+            "provider": self.get_system_state(EMBEDDING_PROVIDER_STATE_KEY),
+            "jina_api_key": self.get_system_state(JINA_API_KEY_STATE_KEY),
+            "google_api_key": self.get_system_state(GOOGLE_API_KEY_STATE_KEY),
+        }
+
+    def set_embedding_config(
+        self,
+        *,
+        provider: str | None = None,
+        jina_api_key: str | None = None,
+        google_api_key: str | None = None,
+    ) -> None:
+        if provider is not None:
+            self.set_system_state(EMBEDDING_PROVIDER_STATE_KEY, provider)
+        if jina_api_key is not None:
+            self.set_system_state(JINA_API_KEY_STATE_KEY, jina_api_key)
+        if google_api_key is not None:
+            self.set_system_state(GOOGLE_API_KEY_STATE_KEY, google_api_key)
 
     def get_system_state(self, key: str) -> str | None:
         with self.connect() as connection:

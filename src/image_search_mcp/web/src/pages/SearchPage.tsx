@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/api/client";
 import type { SearchResult, ImageRecordWithLabels } from "@/api/types";
 import { toast } from "sonner";
-import { Search, ScanSearch } from "lucide-react";
+import { ArrowRight, Compass, Image as ImageIcon } from "lucide-react";
 import SearchResultCard from "@/components/SearchResultCard";
 import ImageModal from "@/components/ImageModal";
+import { cn } from "@/lib/utils";
 
 function searchResultToImage(r: SearchResult): ImageRecordWithLabels {
   return {
@@ -88,61 +88,73 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Search</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Text Search */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              Text Search
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleTextSearch} className="flex gap-2">
-              <Input
-                placeholder="Describe an image..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                disabled={loading}
-              />
-              <Button type="submit" disabled={loading || !query.trim()}>
-                Search
-              </Button>
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+        <div className="rounded-[32px] border border-white/10 bg-card/78 p-5 shadow-curator backdrop-blur sm:p-6">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <form onSubmit={handleTextSearch} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
+              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <Compass className="h-4 w-4 text-primary" />
+                Text Search
+              </div>
+              <p className="mb-4 text-sm leading-6 text-muted-foreground">
+                Describe what should appear in the frame and let semantic search retrieve the closest indexed matches.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Describe an image..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  disabled={loading}
+                  className="h-11 rounded-2xl border-white/10 bg-white/[0.03]"
+                />
+                <Button type="submit" disabled={loading || !query.trim()} className="h-11 rounded-2xl px-4">
+                  Search
+                </Button>
+              </div>
             </form>
-          </CardContent>
-        </Card>
 
-        {/* Similar Image Search */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ScanSearch className="h-4 w-4" />
-              Similar Image
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSimilarSearch} className="flex gap-2">
-              <Input
-                placeholder="/path/to/image.jpg"
-                value={similarPath}
-                onChange={(e) => setSimilarPath(e.target.value)}
-                disabled={loading}
-              />
-              <Button
-                type="submit"
-                variant="secondary"
-                disabled={loading || !similarPath.trim()}
-              >
-                Similar
-              </Button>
+            <form onSubmit={handleSimilarSearch} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
+              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <ImageIcon className="h-4 w-4 text-primary" />
+                Similar Image
+              </div>
+              <p className="mb-4 text-sm leading-6 text-muted-foreground">
+                Point to a local file path to retrieve visually adjacent frames from the archive.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="/path/to/image.jpg"
+                  value={similarPath}
+                  onChange={(e) => setSimilarPath(e.target.value)}
+                  disabled={loading}
+                  className="h-11 rounded-2xl border-white/10 bg-white/[0.03]"
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={loading || !similarPath.trim()}
+                  className="h-11 rounded-2xl border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.1]"
+                >
+                  Similar
+                </Button>
+              </div>
             </form>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
 
-      {/* Results */}
+        <aside className="rounded-[32px] border border-white/10 bg-card/72 p-5 shadow-curator backdrop-blur">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-primary/90">Search Rhythm</p>
+          <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
+            <p>Use text mode when the target is semantic or descriptive.</p>
+            <p>Use similar mode when you already have a frame and want visual neighbors.</p>
+            <p className="flex items-center gap-2 text-white">
+              <ArrowRight className="h-4 w-4 text-primary" />
+              Results open into the same review lightbox used across the archive.
+            </p>
+          </div>
+        </aside>
+      </section>
+
       {loading && (
         <p className="text-sm text-muted-foreground animate-pulse">
           Searching…
@@ -151,15 +163,23 @@ export default function SearchPage() {
 
       {!loading && results !== null && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-card/65 px-4 py-3 shadow-curator backdrop-blur">
             <h2 className="text-sm font-medium text-muted-foreground">
               {results.length === 0
                 ? "No results found"
                 : `${results.length} result${results.length === 1 ? "" : "s"} — ${searchType === "text" ? `"${query}"` : similarPath}`}
             </h2>
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
+                searchType === "text" ? "bg-primary/15 text-primary" : "bg-white/[0.05] text-white",
+              )}
+            >
+              {searchType === "text" ? "Text mode" : "Similar mode"}
+            </span>
           </div>
           {results.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
               {results.map((r) => (
                 <SearchResultCard
                   key={r.content_hash}

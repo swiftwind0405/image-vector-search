@@ -22,7 +22,7 @@ class IndexService:
         self,
         settings: Settings,
         repository: MetadataRepository,
-        embedding_client: EmbeddingClient,
+        embedding_client: EmbeddingClient | None,
         vector_index: VectorIndex,
     ) -> None:
         self.settings = settings
@@ -243,7 +243,10 @@ class IndexService:
         )
 
     def _embed_image(self, image_path: Path) -> list[float]:
-        return self._run_embedding_task(self.embedding_client.embed_images([image_path]))[0]
+        client = self.embedding_client
+        if client is None:
+            raise ValueError("Embedding not configured")
+        return self._run_embedding_task(client.embed_images([image_path]))[0]
 
     def _embedding_key(self) -> str:
         return build_embedding_key(

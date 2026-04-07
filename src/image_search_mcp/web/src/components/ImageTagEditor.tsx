@@ -92,9 +92,10 @@ export default function ImageTagEditor({ contentHash }: Props) {
     createCategory.mutate(
       { name },
       {
-        onSuccess: (data: { id: number }) => {
+        onSuccess: (data) => {
+          const createdCategory = data as { id: number };
           addCategory.mutate(
-            { contentHash, categoryId: data.id },
+            { contentHash, categoryId: createdCategory.id },
             { onError: () => toast.error("Failed to add category") },
           );
         },
