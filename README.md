@@ -62,6 +62,20 @@ pip install -e ".[dev]"
 pytest tests -v
 ```
 
+## Test Image Data
+
+Small deterministic image fixtures for automated tests live in
+`tests/fixtures/images/auto/`.
+
+For local manual validation with real images, build a demo dataset without
+committing files:
+
+```bash
+.venv/bin/python scripts/build_demo_image_set.py \
+  --source /path/to/local/images \
+  --output sample-data/demo-set
+```
+
 Run the application:
 
 ### Backend Server
