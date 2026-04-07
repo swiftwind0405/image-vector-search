@@ -163,6 +163,13 @@ class MetadataRepository:
             for img in images
         ]
 
+    def list_inactive_images(self) -> list[ImageRecord]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM images WHERE is_active = 0 ORDER BY canonical_path ASC"
+            ).fetchall()
+        return [_row_to_image(row) for row in rows]
+
     def list_folders(self, images_root: str) -> list[str]:
         root = images_root.rstrip("/") + "/"
         with self.connect() as connection:
@@ -297,6 +304,26 @@ class MetadataRepository:
             active_images=active_images,
             inactive_images=total_images - active_images,
         )
+
+    def purge_images(self, content_hashes: list[str]) -> int:
+        if not content_hashes:
+            return 0
+
+        placeholders = ", ".join("?" for _ in content_hashes)
+        with self.connect() as connection:
+            connection.execute(
+                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders})",
+                content_hashes,
+            )
+            connection.execute(
+                f"DELETE FROM image_paths WHERE content_hash IN ({placeholders})",
+                content_hashes,
+            )
+            result = connection.execute(
+                f"DELETE FROM images WHERE content_hash IN ({placeholders})",
+                content_hashes,
+            )
+            return result.rowcount
 
     def create_job(self, job: JobRecord) -> None:
         with self.connect() as connection:

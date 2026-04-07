@@ -15,6 +15,7 @@ from image_search_mcp.runtime import RuntimeServices, build_runtime_services
 from image_search_mcp.tools import ToolContext, default_registry
 from image_search_mcp.web.bulk_routes import create_bulk_router
 from image_search_mcp.web.routes import create_auth_router, create_web_router
+from image_search_mcp.web.settings_routes import create_settings_router
 from image_search_mcp.web.tag_routes import create_tag_router
 
 
@@ -86,6 +87,14 @@ def create_app(
                 status_service=status_service,
                 job_runner=job_runner,
                 search_service=search_service,
+            )
+        )
+    if runtime_services is not None:
+        app.include_router(
+            create_settings_router(
+                runtime_services=runtime_services,
+                repository=runtime_services.repository,
+                settings=app_settings,
             )
         )
 

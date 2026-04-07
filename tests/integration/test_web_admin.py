@@ -22,10 +22,10 @@ class FakeStatusService:
         ]
         self.snapshot = IndexStatus(
             images_on_disk=5,
-            total_images=3,
+            total_images=4,
             active_images=2,
-            inactive_images=1,
-            vector_entries=3,
+            inactive_images=2,
+            vector_entries=4,
             embedding_provider="fake",
             embedding_model="fake-clip",
             embedding_version="2026-03",
@@ -33,6 +33,41 @@ class FakeStatusService:
             last_full_rebuild_at=None,
             last_error_summary=None,
         )
+        self.inactive_images = [
+            ImageRecord(
+                content_hash="inactive-1",
+                canonical_path="/data/images/old-1.jpg",
+                file_size=120,
+                mtime=1000.0,
+                mime_type="image/jpeg",
+                width=12,
+                height=8,
+                is_active=False,
+                last_seen_at=now,
+                embedding_provider="fake",
+                embedding_model="fake-clip",
+                embedding_version="2026-03",
+                created_at=now,
+                updated_at=now,
+            ),
+            ImageRecord(
+                content_hash="inactive-2",
+                canonical_path="/data/images/old-2.jpg",
+                file_size=140,
+                mtime=1001.0,
+                mime_type="image/jpeg",
+                width=16,
+                height=9,
+                is_active=False,
+                last_seen_at=now,
+                embedding_provider="fake",
+                embedding_model="fake-clip",
+                embedding_version="2026-03",
+                created_at=now,
+                updated_at=now,
+            ),
+        ]
+        self.purged_hashes: list[str] = []
 
     async def get_index_status(self) -> IndexStatus:
         return self.snapshot
@@ -88,6 +123,21 @@ class FakeStatusService:
         if content_hash == "hash-red":
             return self._make_image_record()
         return None
+
+    def list_inactive_images(self) -> list[ImageRecord]:
+        return list(self.inactive_images)
+
+    def purge_inactive_images(self, content_hashes: list[str]) -> int:
+        self.purged_hashes = list(content_hashes)
+        before = len(self.inactive_images)
+        self.inactive_images = [
+            image for image in self.inactive_images if image.content_hash not in set(content_hashes)
+        ]
+        deleted = before - len(self.inactive_images)
+        self.snapshot.inactive_images -= deleted
+        self.snapshot.total_images -= deleted
+        self.snapshot.vector_entries -= deleted
+        return deleted
 
 
 class FakeJobRunner:
@@ -160,7 +210,7 @@ def test_status_api_returns_snapshot():
     assert response.status_code == 200
     body = response.json()
     assert body["active_images"] == 2
-    assert body["vector_entries"] == 3
+    assert body["vector_entries"] == 4
     assert body["embedding_model"] == "fake-clip"
 
 
@@ -190,6 +240,32 @@ def test_list_images_api():
     response = client.get("/api/images")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+def test_list_inactive_images_api():
+    client = create_test_client()
+
+    response = client.get("/api/images/inactive")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [row["content_hash"] for row in body] == ["inactive-1", "inactive-2"]
+    assert all(row["is_active"] is False for row in body)
+
+
+def test_purge_inactive_images_api():
+    client = create_test_client()
+
+    response = client.post(
+        "/api/images/inactive/purge",
+        json={"content_hashes": ["inactive-1"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "affected": 1}
+    status = client.get("/api/status")
+    assert status.status_code == 200
+    assert status.json()["inactive_images"] == 1
 
 
 def test_list_images_returns_tags_and_categories():

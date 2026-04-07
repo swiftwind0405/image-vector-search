@@ -64,6 +64,36 @@ class StatusService:
     def get_image(self, content_hash: str) -> ImageRecord | None:
         return self.repository.get_image(content_hash)
 
+    def list_inactive_images(self) -> list[ImageRecord]:
+        return self.repository.list_inactive_images()
+
+    def purge_inactive_images(self, content_hashes: list[str]) -> int:
+        if not content_hashes:
+            return 0
+
+        inactive_images = {
+            image.content_hash: image for image in self.repository.list_inactive_images()
+        }
+        invalid_hashes = [content_hash for content_hash in content_hashes if content_hash not in inactive_images]
+        if invalid_hashes:
+            joined = ", ".join(sorted(invalid_hashes))
+            raise ValueError(f"Only inactive images can be purged: {joined}")
+
+        hashes_by_embedding_key: dict[str, list[str]] = {}
+        for content_hash in content_hashes:
+            image = inactive_images[content_hash]
+            embedding_key = build_embedding_key(
+                image.embedding_provider,
+                image.embedding_model,
+                image.embedding_version,
+            )
+            hashes_by_embedding_key.setdefault(embedding_key, []).append(content_hash)
+
+        for embedding_key, hashes in hashes_by_embedding_key.items():
+            self.vector_index.delete_embeddings(hashes, embedding_key)
+
+        return self.repository.purge_images(content_hashes)
+
     def list_recent_jobs(self, limit: int = 20):
         return self.repository.list_recent_jobs(limit=limit)
 

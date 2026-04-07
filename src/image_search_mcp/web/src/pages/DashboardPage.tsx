@@ -1,10 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { useStatus } from "@/api/status";
 import { useJobs, useQueueJob } from "@/api/jobs";
+import { useInactiveImages, usePurgeInactiveImages } from "@/api/images";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Activity, Database, Images, TimerReset, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 function StatPanel({
   label,
@@ -37,8 +41,19 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { data: status, isFetching: statusFetching } = useStatus();
   const { data: jobs, isFetching: jobsFetching } = useJobs();
+  const { data: inactiveImages, isLoading: inactiveImagesLoading } = useInactiveImages();
   const queueJob = useQueueJob();
+  const purgeInactiveImages = usePurgeInactiveImages();
   const isRefreshing = statusFetching || jobsFetching;
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+  const [selectedInactiveHashes, setSelectedInactiveHashes] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!purgeDialogOpen || !inactiveImages) {
+      return;
+    }
+    setSelectedInactiveHashes(new Set(inactiveImages.map((image) => image.content_hash)));
+  }, [purgeDialogOpen, inactiveImages]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["status"] });
@@ -56,6 +71,48 @@ export default function DashboardPage() {
     status && status.images_on_disk > 0
       ? Math.round((status.active_images / status.images_on_disk) * 100)
       : 0;
+  const selectedInactiveCount = selectedInactiveHashes.size;
+  const allInactiveSelected = !!inactiveImages?.length && selectedInactiveCount === inactiveImages.length;
+  const purgeButtonLabel = selectedInactiveCount === 1 ? "Purge 1 Image" : `Purge ${selectedInactiveCount} Images`;
+  const sortedSelectedHashes = useMemo(
+    () => Array.from(selectedInactiveHashes).sort(),
+    [selectedInactiveHashes],
+  );
+
+  const toggleInactiveHash = (contentHash: string, checked: boolean) => {
+    setSelectedInactiveHashes((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(contentHash);
+      } else {
+        next.delete(contentHash);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAllInactive = (checked: boolean) => {
+    if (!inactiveImages) {
+      return;
+    }
+    setSelectedInactiveHashes(
+      checked ? new Set(inactiveImages.map((image) => image.content_hash)) : new Set(),
+    );
+  };
+
+  const handlePurgeInactive = () => {
+    purgeInactiveImages.mutate(
+      { content_hashes: sortedSelectedHashes },
+      {
+        onSuccess: ({ affected }) => {
+          toast.success(`Purged ${affected} inactive image${affected === 1 ? "" : "s"}`);
+          queryClient.invalidateQueries({ queryKey: ["jobs"] });
+          setPurgeDialogOpen(false);
+        },
+        onError: () => toast.error("Failed to purge inactive images"),
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -141,6 +198,14 @@ export default function DashboardPage() {
               >
                 Full Rebuild
               </Button>
+              <Button
+                variant="outline"
+                className="h-12 w-full justify-start rounded-2xl border-white/10 bg-white/[0.02] text-white hover:bg-white/[0.06]"
+                onClick={() => setPurgeDialogOpen(true)}
+                disabled={!status?.inactive_images || purgeInactiveImages.isPending}
+              >
+                Purge Inactive
+              </Button>
             </div>
           </div>
 
@@ -181,6 +246,76 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
+        <DialogContent className="max-w-xl overflow-x-hidden border-white/10 bg-card text-white">
+          <DialogHeader>
+            <DialogTitle>Purge Inactive</DialogTitle>
+            <DialogDescription>
+              Remove selected inactive image metadata and vector entries. Source image files on disk are not deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          {inactiveImagesLoading ? (
+            <p className="text-sm text-muted-foreground">Loading inactive images…</p>
+          ) : !inactiveImages?.length ? (
+            <p className="text-sm text-muted-foreground">No inactive images available for purge.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <label className="flex items-center gap-3 text-sm font-medium text-white">
+                  <Checkbox
+                    aria-label="Select all inactive images"
+                    checked={allInactiveSelected}
+                    onCheckedChange={(checked) => handleToggleAllInactive(checked === true)}
+                  />
+                  Select all
+                </label>
+                <span className="text-xs text-muted-foreground">{selectedInactiveCount} selected</span>
+              </div>
+
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {inactiveImages.map((image) => {
+                  const checked = selectedInactiveHashes.has(image.content_hash);
+                  return (
+                    <label
+                      key={image.content_hash}
+                      className="flex w-full min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm"
+                    >
+                      <Checkbox
+                        aria-label={image.canonical_path}
+                        checked={checked}
+                        onCheckedChange={(nextChecked) => toggleInactiveHash(image.content_hash, nextChecked === true)}
+                      />
+                      <span className="min-w-0 flex-1 overflow-hidden">
+                        <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium text-white">
+                          {image.canonical_path}
+                        </span>
+                        <span className="block break-all text-xs text-muted-foreground">{image.content_hash}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPurgeDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePurgeInactive}
+              disabled={!selectedInactiveCount || purgeInactiveImages.isPending || !inactiveImages?.length}
+            >
+              {purgeButtonLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

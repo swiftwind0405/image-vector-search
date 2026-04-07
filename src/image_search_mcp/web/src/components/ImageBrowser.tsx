@@ -334,14 +334,14 @@ export default function ImageBrowser({
       <div className="rounded-[32px] border border-white/10 bg-card/72 p-4 shadow-curator backdrop-blur">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
         <Select
-          value={folder ?? "__all__"}
-          onValueChange={(v) => setFolder(v === "__all__" || v == null ? undefined : v)}
+          value={folder ?? "All folders"}
+          onValueChange={(v) => setFolder(v === "All folders" || v == null ? undefined : v)}
         >
           <SelectTrigger className="w-full rounded-2xl border-white/10 bg-white/[0.03] xl:w-64">
             <SelectValue placeholder="All folders" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All folders</SelectItem>
+            <SelectItem value="All folders">All folders</SelectItem>
             {(folders ?? []).map((f) => (
               <SelectItem key={f} value={f}>
                 {f}

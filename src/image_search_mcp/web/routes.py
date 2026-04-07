@@ -22,6 +22,10 @@ class DebugSimilarSearchRequest(BaseModel):
     folder: str | None = None
 
 
+class PurgeInactiveImagesRequest(BaseModel):
+    content_hashes: list[str] = Field(default_factory=list)
+
+
 def create_web_router(*, status_service, job_runner, search_service) -> APIRouter:
     router = APIRouter()
 
@@ -60,6 +64,18 @@ def create_web_router(*, status_service, job_runner, search_service) -> APIRoute
                 )
             )
         )
+
+    @router.get("/api/images/inactive")
+    async def list_inactive_images():
+        return JSONResponse(content=jsonable_encoder(status_service.list_inactive_images()))
+
+    @router.post("/api/images/inactive/purge")
+    async def purge_inactive_images(payload: PurgeInactiveImagesRequest):
+        try:
+            affected = status_service.purge_inactive_images(payload.content_hashes)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return JSONResponse(content={"ok": True, "affected": affected})
 
     @router.get("/api/jobs")
     async def list_jobs():

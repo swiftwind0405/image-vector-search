@@ -35,6 +35,10 @@ export interface ImageRecord {
   updated_at: string;
 }
 
+export interface PurgeInactiveImagesRequest {
+  content_hashes: string[];
+}
+
 export interface ImageRecordWithLabels extends ImageRecord {
   tags: Tag[];
   categories: Category[];
@@ -79,4 +83,17 @@ export interface SearchResult {
 export interface BulkResponse {
   ok: boolean;
   affected: number;
+}
+
+export interface EmbeddingSettings {
+  provider: string;
+  jina_api_key_configured: boolean;
+  google_api_key_configured: boolean;
+  using_environment_fallback: boolean;
+}
+
+export interface UpdateEmbeddingSettingsRequest {
+  provider: string;
+  jina_api_key: string | null;
+  google_api_key: string | null;
 }

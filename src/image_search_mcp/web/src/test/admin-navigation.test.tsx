@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import Layout from "../components/Layout";
@@ -39,6 +40,54 @@ vi.mock("../api/jobs", () => ({
     isFetching: false,
   }),
   useQueueJob: () => ({ isPending: false, mutate: vi.fn() }),
+}));
+
+const inactiveImages = [
+  {
+    content_hash: "inactive-1",
+    canonical_path: "/data/images/old-1.jpg",
+    file_size: 120,
+    mtime: 1000,
+    mime_type: "image/jpeg",
+    width: 12,
+    height: 8,
+    is_active: false,
+    last_seen_at: "2026-04-07T00:00:00Z",
+    embedding_provider: "jina",
+    embedding_model: "jina-clip-v2",
+    embedding_version: "2026-04",
+    created_at: "2026-04-07T00:00:00Z",
+    updated_at: "2026-04-07T00:00:00Z",
+  },
+  {
+    content_hash: "inactive-2",
+    canonical_path: "/data/images/old-2.jpg",
+    file_size: 140,
+    mtime: 1001,
+    mime_type: "image/jpeg",
+    width: 16,
+    height: 9,
+    is_active: false,
+    last_seen_at: "2026-04-07T00:00:00Z",
+    embedding_provider: "jina",
+    embedding_model: "jina-clip-v2",
+    embedding_version: "2026-04",
+    created_at: "2026-04-07T00:00:00Z",
+    updated_at: "2026-04-07T00:00:00Z",
+  },
+];
+
+const purgeInactiveMutate = vi.fn();
+
+vi.mock("../api/images", () => ({
+  useInactiveImages: () => ({
+    data: inactiveImages,
+    isLoading: false,
+  }),
+  usePurgeInactiveImages: () => ({
+    isPending: false,
+    mutate: purgeInactiveMutate,
+  }),
 }));
 
 vi.mock("@tanstack/react-query", async () => {
@@ -113,6 +162,25 @@ describe("admin shell redesign constraints", () => {
     expect(screen.getByText("Full Rebuild")).toBeInTheDocument();
     expect(screen.getByText("Recent Activity")).toBeInTheDocument();
     expect(screen.getByText("jina")).toBeInTheDocument();
+  });
+
+  it("defaults inactive purge dialog to all selected and submits chosen hashes", async () => {
+    const user = userEvent.setup();
+    render(<DashboardPage />);
+
+    await user.click(screen.getByRole("button", { name: "Purge Inactive" }));
+    expect(screen.getByRole("heading", { name: "Purge Inactive", level: 2 })).toBeInTheDocument();
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+    await user.click(screen.getByText("/data/images/old-2.jpg"));
+    await user.click(screen.getByRole("button", { name: "Purge 1 Image" }));
+
+    await waitFor(() => {
+      expect(purgeInactiveMutate).toHaveBeenCalledWith(
+        { content_hashes: ["inactive-1"] },
+        expect.any(Object),
+      );
+    });
   });
 
   it("renders a tag image detail link from the tags page", () => {

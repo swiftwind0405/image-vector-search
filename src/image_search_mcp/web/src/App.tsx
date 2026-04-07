@@ -8,6 +8,7 @@ import TagImagesPage from "./pages/TagImagesPage";
 import CategoryImagesPage from "./pages/CategoryImagesPage";
 import SearchPage from "./pages/SearchPage";
 import LoginPage from "./pages/LoginPage";
+import SettingsPage from "./pages/SettingsPage";
 import { useAuthMe } from "./api/auth";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="categories/:categoryId/images" element={<CategoryImagesPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

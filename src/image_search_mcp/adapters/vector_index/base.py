@@ -28,3 +28,6 @@ class VectorIndex(ABC):
 
     @abstractmethod
     def count(self, embedding_key: str) -> int: ...
+
+    @abstractmethod
+    def delete_embeddings(self, content_hashes: list[str], embedding_key: str) -> int: ...

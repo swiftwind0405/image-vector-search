@@ -243,6 +243,25 @@ class MilvusLiteIndex(VectorIndex):
 
         return self._execute(_op)
 
+    def delete_embeddings(self, content_hashes: list[str], embedding_key: str) -> int:
+        if not content_hashes:
+            return 0
+
+        escaped = [self._escape_filter_value(content_hash) for content_hash in content_hashes]
+        in_list = ", ".join(f'"{value}"' for value in escaped)
+        filter_expr = (
+            f"{self._embedding_filter(embedding_key)} and "
+            f"{self._PK_FIELD} in [{in_list}]"
+        )
+
+        def _op(client: MilvusClient) -> int:
+            if not client.has_collection(self.collection_name):
+                return 0
+            result = client.delete(self.collection_name, filter=filter_expr)
+            return int(result.get("delete_count", 0))
+
+        return self._execute(_op)
+
     def _client(self) -> MilvusClient:
         if self._closed or self.client is None:
             raise RuntimeError("Milvus client is closed")

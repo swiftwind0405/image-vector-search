@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Tag, FolderTree, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight } from "lucide-react";
+import { LayoutDashboard, Tag, FolderTree, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings } from "lucide-react";
 import { useLogout } from "@/api/auth";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/tags", icon: Tag, label: "Tags" },
   { to: "/categories", icon: FolderTree, label: "Categories" },
   { to: "/images", icon: ImagePlus, label: "Images" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const pageMeta = [
@@ -41,6 +42,12 @@ const pageMeta = [
     title: "Category Structure",
     subtitle: "Shape the hierarchy that organizes the archive and inspect each branch visually.",
     eyebrow: "Taxonomy",
+  },
+  {
+    match: (pathname: string) => pathname.startsWith("/settings"),
+    title: "System Settings",
+    subtitle: "Manage embedding provider credentials and switch the active retrieval backend without restarting the app.",
+    eyebrow: "Configuration",
   },
 ];
 

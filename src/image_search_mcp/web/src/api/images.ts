@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
-import type { ImageRecordWithLabels, Tag, Category } from "./types";
+import type { ImageRecord, ImageRecordWithLabels, Tag, Category, BulkResponse, PurgeInactiveImagesRequest } from "./types";
 
 export interface ImagesQueryOptions {
   folder?: string;
@@ -38,6 +38,28 @@ export function useImages(options: ImagesQueryOptions = {}) {
       options.includeDescendants ?? true,
     ],
     queryFn: () => apiFetch<ImageRecordWithLabels[]>(buildImagesPath(options)),
+  });
+}
+
+export function useInactiveImages() {
+  return useQuery({
+    queryKey: ["images", "inactive"],
+    queryFn: () => apiFetch<ImageRecord[]>("/api/images/inactive"),
+  });
+}
+
+export function usePurgeInactiveImages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PurgeInactiveImagesRequest) =>
+      apiFetch<BulkResponse>("/api/images/inactive/purge", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["images", "inactive"] });
+      qc.invalidateQueries({ queryKey: ["status"] });
+    },
   });
 }
 

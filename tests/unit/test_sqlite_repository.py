@@ -215,6 +215,64 @@ def test_read_status_aggregates_returns_image_counts(tmp_path):
     assert status.inactive_images == 1
 
 
+def test_list_inactive_images_returns_only_inactive_records(tmp_path):
+    repository = _build_repository(tmp_path)
+    repository.upsert_image(
+        _build_image(content_hash="active", canonical_path="/data/images/a.jpg")
+    )
+    repository.upsert_image(
+        _build_image(
+            content_hash="inactive-b",
+            canonical_path="/data/images/b.jpg",
+            is_active=False,
+        )
+    )
+    repository.upsert_image(
+        _build_image(
+            content_hash="inactive-a",
+            canonical_path="/data/images/a-inactive.jpg",
+            is_active=False,
+        )
+    )
+
+    inactive = repository.list_inactive_images()
+
+    assert [image.content_hash for image in inactive] == ["inactive-a", "inactive-b"]
+
+
+def test_purge_images_deletes_inactive_records_and_relations(tmp_path):
+    repository = _build_repository(tmp_path)
+    active = _build_image(content_hash="active", canonical_path="/data/images/a.jpg")
+    inactive = _build_image(
+        content_hash="inactive",
+        canonical_path="/data/images/i.jpg",
+        is_active=False,
+    )
+    repository.upsert_image(active)
+    repository.upsert_image(inactive)
+    repository.upsert_image_path(
+        _build_path(content_hash="active", path="/data/images/a.jpg")
+    )
+    repository.upsert_image_path(
+        _build_path(
+            content_hash="inactive",
+            path="/data/images/i.jpg",
+            is_active=False,
+        )
+    )
+    tag = repository.create_tag("stale")
+    repository.add_tag_to_image("inactive", tag.id)
+
+    deleted = repository.purge_images(["inactive"])
+
+    assert deleted == 1
+    assert repository.get_image("inactive") is None
+    assert repository.get_image_path("/data/images/i.jpg") is None
+    assert repository.get_image("active") is not None
+    assert repository.get_image_path("/data/images/a.jpg") is not None
+    assert repository.get_image_tags("inactive") == []
+
+
 def test_create_and_update_job_record(tmp_path):
     repository = _build_repository(tmp_path)
     requested_at = datetime(2026, 1, 1, 9, 0, 0)
