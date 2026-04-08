@@ -1,141 +1,313 @@
-# Image Search MCP 使用文档
+# Image Vector Search 使用说明
 
-这是一个本地图像语义搜索服务，提供两种操作界面：
-- **MCP 工具（供智能体使用）**：`search_images`，`search_similar`
-- **Admin Web 控制台**：用于查看服务状态、触发索引任务以及调试搜索
+本文档说明当前项目的实际使用方式，包括启动、配置、索引流程、工具调用方式，以及 Docker 使用注意事项。
 
-服务将图像元数据存储在 SQLite 中，将向量嵌入（Embeddings）存储在本地 Milvus Lite 数据库中。图像路径始终使用容器内的路径：其中 `/data/images` 挂载为只读，`/data/index` 挂载为读写。
+## 1. 服务能力概览
 
-当前支持两类 embedding provider：
-- `jina`：默认值，兼容现有部署
-- `gemini`：可选，适用于 `gemini-embedding-2-preview` 这类共享文本/图像向量空间模型
+当前服务提供以下能力：
 
-## 环境要求
+- 本地图像目录扫描与索引
+- 文本搜图：`search_images`
+- 以图搜图：`search_similar`
+- 后台管理界面
+- 标签与分类管理
+- 批量打标、批量分类、按目录批处理
+- Embedding provider 在线切换与持久化配置
 
-- Python 3.12+ (推荐使用 [uv](https://docs.astral.sh/uv/) 进行依赖管理)
-- 用于获取 Jina embeddings 的 `JINA_API_KEY`
-- 挂载在 `/data/images` 的图像库目录
-- 挂载在 `/data/index` 的可写索引目录
+当前对外入口：
 
-## 环境变量配置
+- 管理界面：`/`
+- 健康检查：`/healthz`
+- HTTP 工具发现：`GET /api/tools`
+- HTTP 工具调用：`POST /api/tools/{tool_name}`
 
-**必填项：**
-- 当 `IMAGE_SEARCH_EMBEDDING_PROVIDER=jina` 时：`IMAGE_SEARCH_JINA_API_KEY`
-- 当 `IMAGE_SEARCH_EMBEDDING_PROVIDER=gemini` 时：`IMAGE_SEARCH_GOOGLE_API_KEY`
+## 2. 启动前准备
 
-**可选项：**
-- `IMAGE_SEARCH_IMAGES_ROOT` （默认：`/data/images`）
-- `IMAGE_SEARCH_INDEX_ROOT` （默认：`/data/index`）
-- `IMAGE_SEARCH_HOST`
-- `IMAGE_SEARCH_PORT`
-- `IMAGE_SEARCH_DEFAULT_TOP_K`
-- `IMAGE_SEARCH_MAX_TOP_K`
-- `IMAGE_SEARCH_MIN_SCORE`
-- `IMAGE_SEARCH_EMBEDDING_PROVIDER`
-- `IMAGE_SEARCH_EMBEDDING_MODEL`
-- `IMAGE_SEARCH_EMBEDDING_VERSION`
-- `IMAGE_SEARCH_GEMINI_BASE_URL`
-- `IMAGE_SEARCH_EMBEDDING_OUTPUT_DIMENSIONALITY`
-- `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME`
-- `IMAGE_SEARCH_VECTOR_INDEX_DB_FILENAME`
+### 2.1 环境要求
 
-## 本地运行指南
+- Python 3.12+
+- Node.js 20+（仅前端开发或重新构建前端时需要）
+- 可访问的图片目录
+- 可写的索引目录
+- 至少一种 embedding provider 的可用 API key（Jina 或 Gemini）
 
-首先，创建 `.env` 文件和所需的目录：
+### 2.2 初始化 `.env`
 
 ```bash
 cp .env.example .env
-# 在 .env 文件中填入你的实际配置值
-mkdir -p ./data/images ./data/index
+mkdir -p ./example-images ./example-index
 ```
 
-### 使用 uv 运行（推荐）
+常见做法：
+
+- 本地调试：`IMAGE_SEARCH_IMAGES_ROOT=./example-images`
+- 索引数据：`IMAGE_SEARCH_INDEX_ROOT=./example-index`
+
+你也可以把 `IMAGE_SEARCH_IMAGES_ROOT` 指向真实图片目录。
+
+## 3. 配置规则
+
+当前项目的 embedding 配置有两层来源：
+
+1. 环境变量
+2. 管理界面 `/settings` 中保存到 SQLite 的 provider / API key
+
+实际生效规则：
+
+- provider 和 API key 优先使用数据库中保存的值
+- 如果数据库中没有对应值，则回退到环境变量
+- 如果两边都没配置，服务仍可启动，但索引和搜索不会真正工作
+
+这意味着：
+
+- 可以先用 `.env` 启动
+- 之后在后台页面修改 provider / key
+- 修改后会持久化到 `metadata.db`
+
+## 4. 运行方式
+
+### 4.1 使用 `uv`
 
 ```bash
-uv run --env-file .env uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-或者手动导出环境变量运行：
-
-```bash
-export IMAGE_SEARCH_IMAGES_ROOT=./data/images
-export IMAGE_SEARCH_INDEX_ROOT=./data/index
-export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-使用 Gemini:
-
-```bash
-export IMAGE_SEARCH_IMAGES_ROOT=./data/images
-export IMAGE_SEARCH_INDEX_ROOT=./data/index
-export IMAGE_SEARCH_EMBEDDING_PROVIDER=gemini
-export IMAGE_SEARCH_EMBEDDING_MODEL=gemini-embedding-2-preview
-export IMAGE_SEARCH_GOOGLE_API_KEY=your_google_api_key_here
-uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-### 传统方式运行
-
-```bash
+uv venv --python 3.12
 source .venv/bin/activate
-export IMAGE_SEARCH_IMAGES_ROOT=./data/images
-export IMAGE_SEARCH_INDEX_ROOT=./data/index
-export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
+uv pip install -e ".[dev]"
+python -m image_vector_search
 ```
 
-## Docker 运行指南
+### 4.2 使用标准虚拟环境
 
-构建镜像：
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m image_vector_search
+```
+
+默认监听地址：
+
+- `http://localhost:8000`
+
+如果需要局域网访问，可在 `.env` 中设置：
+
+```bash
+IMAGE_SEARCH_HOST=0.0.0.0
+```
+
+## 5. 索引与搜索的典型流程
+
+### 5.1 首次启动
+
+1. 启动服务
+2. 打开管理界面 `/`
+3. 确认 embedding provider 与 key 已配置
+4. 触发一次全量索引或增量索引
+
+### 5.2 常用索引接口
+
+- `POST /api/jobs/incremental`：增量索引
+- `POST /api/jobs/rebuild`：全量重建
+- `GET /api/jobs`：查看任务列表
+- `GET /api/jobs/{job_id}`：查看任务详情
+- `GET /api/status`：查看整体状态
+
+`/api/status` 会返回：
+
+- 磁盘图片数量
+- 已索引图片数量
+- 向量条目数量
+- 当前 embedding provider / model / version
+- 最近一次索引时间
+- 最近一次错误摘要
+
+## 6. HTTP 工具调用
+
+### 6.1 发现可用工具
+
+```bash
+curl http://127.0.0.1:8000/api/tools
+```
+
+当前会返回至少两个工具：
+
+- `search_images`
+- `search_similar`
+
+### 6.2 文本搜图
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/tools/search_images \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "query": "a red car parked on the street",
+    "top_k": 5,
+    "min_score": 0.0
+  }'
+```
+
+可选参数：
+
+- `query`
+- `top_k`
+- `min_score`
+- `folder`
+
+### 6.3 以图搜图
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/tools/search_similar \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "image_path": "/absolute/path/to/image.jpg",
+    "top_k": 5,
+    "min_score": 0.0
+  }'
+```
+
+说明：
+
+- `image_path` 需要是服务端能访问到的真实路径
+- 在 Docker 中通常应该使用容器内路径，例如 `/data/images/foo/bar.jpg`
+
+## 7. 管理界面相关能力
+
+### 7.1 认证
+
+如果设置了以下环境变量，则后台管理需要登录：
+
+- `IMAGE_SEARCH_ADMIN_USERNAME`
+- `IMAGE_SEARCH_ADMIN_PASSWORD`
+
+相关接口：
+
+- `GET /api/auth/me`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+
+如果未配置用户名和密码，则后台默认为免登录模式。
+
+### 7.2 图片与调试接口
+
+- `GET /api/images`
+- `GET /api/images/inactive`
+- `POST /api/images/inactive/purge`
+- `GET /api/images/{content_hash}/file`
+- `GET /api/images/{content_hash}/thumbnail`
+- `POST /api/debug/search/text`
+- `POST /api/debug/search/similar`
+
+### 7.3 标签与分类
+
+标签接口：
+
+- `POST /api/tags`
+- `GET /api/tags`
+- `PUT /api/tags/{tag_id}`
+- `DELETE /api/tags/{tag_id}`
+- `POST /api/tags/batch-delete`
+
+分类接口：
+
+- `POST /api/categories`
+- `GET /api/categories`
+- `GET /api/categories/{category_id}/children`
+- `PUT /api/categories/{category_id}`
+- `DELETE /api/categories/{category_id}`
+- `POST /api/categories/batch-delete`
+
+图片与标签/分类关联：
+
+- `POST /api/images/{content_hash}/tags`
+- `DELETE /api/images/{content_hash}/tags/{tag_id}`
+- `GET /api/images/{content_hash}/tags`
+- `POST /api/images/{content_hash}/categories`
+- `DELETE /api/images/{content_hash}/categories/{category_id}`
+- `GET /api/images/{content_hash}/categories`
+
+### 7.4 批量操作
+
+- `GET /api/folders`
+- `POST /api/bulk/tags/add`
+- `POST /api/bulk/tags/remove`
+- `POST /api/bulk/categories/add`
+- `POST /api/bulk/categories/remove`
+- `POST /api/bulk/folder/tags/add`
+- `POST /api/bulk/folder/tags/remove`
+- `POST /api/bulk/folder/categories/add`
+- `POST /api/bulk/folder/categories/remove`
+
+本地文件联动：
+
+- `POST /api/files/open`
+- `POST /api/files/reveal`
+
+这些接口会校验路径必须位于 `IMAGE_SEARCH_IMAGES_ROOT` 下。
+
+## 8. Embedding Provider 说明
+
+当前支持：
+
+- `jina`
+- `gemini`
+
+相关环境变量：
+
+- `IMAGE_SEARCH_EMBEDDING_PROVIDER`
+- `IMAGE_SEARCH_EMBEDDING_MODEL`
+- `IMAGE_SEARCH_EMBEDDING_VERSION`
+- `IMAGE_SEARCH_JINA_API_KEY`
+- `IMAGE_SEARCH_GOOGLE_API_KEY`
+- `IMAGE_SEARCH_GEMINI_BASE_URL`
+- `IMAGE_SEARCH_EMBEDDING_OUTPUT_DIMENSIONALITY`
+- `IMAGE_SEARCH_EMBEDDING_BATCH_SIZE`
+- `IMAGE_SEARCH_JINA_RPM`
+- `IMAGE_SEARCH_JINA_MAX_CONCURRENCY`
+
+切换 provider / model / version 时要注意：
+
+- 它们共同定义同一个 embedding space
+- 不同维度的向量不能混写进同一个 collection
+- 最稳妥做法是清空旧索引目录，或切换新的 `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME`
+
+## 9. Docker 使用说明
+
+### 9.1 构建镜像
 
 ```bash
 docker build -t image-vector-search:test .
 ```
 
-使用 Docker Compose 启动：
+### 9.2 使用 Compose 启动
 
 ```bash
-export IMAGE_SEARCH_JINA_API_KEY=your-key
 docker compose up --build
 ```
 
-Compose 示例暴露了以下端口：
-- Admin Web 控制台：`http://localhost:8000/`
-- MCP 传输挂载点：`http://localhost:8000/mcp`
+当前 Compose 默认约定：
 
-## API 与功能接口
+- 图片目录挂载到 `/data/images`
+- 索引目录挂载到 `/data/index`
+- provider 默认为 `jina`
+- 如果没有提供任一 provider 的 key，容器仍会启动，但需要后续在后台页面补充配置
 
-### Admin HTTP 路由
+### 9.3 当前 Docker 检查结论
 
-- `GET /`：Web 控制台首页
-- `GET /api/status`：获取服务状态
-- `POST /api/jobs/incremental`：触发增量构建索引任务
-- `POST /api/jobs/rebuild`：触发全量重建索引任务
-- `GET /api/jobs`：获取任务列表
-- `GET /api/jobs/{job_id}`：获取指定任务详情
-- `POST /api/debug/search/text`：调试文本搜索功能
-- `POST /api/debug/search/similar`：调试相似图像搜索功能
+本次检查中，项目层面的两个构建阶段都已单独验证：
 
-### MCP 工具 (Tools)
+- 前端 `npm run build` 成功
+- Python 包安装流程没有发现仓库结构性错误，但受当前本地禁网环境影响，无法完整模拟 Docker 内部的依赖下载
 
-- `search_images`：根据文本搜索图像
-- `search_similar`：搜索相似的图像
+发现并已修正的实际问题：
 
-## 数据持久化
+- Docker 构建上下文未充分忽略前端 `node_modules`、本地构建产物和虚拟环境缓存，导致上下文体积过大
 
-服务将在以下路径保存数据：
-- SQLite 元数据：`/data/index/metadata.db`
-- Milvus Lite 向量数据：`/data/index/milvus.db`
+如果你在本机执行 `docker build` 仍失败，请先确认 Docker daemon 已启动。
 
-建议定期备份 `/data/index` 目录，以保存历史任务记录、元数据以及向量索引。
+## 10. 持久化目录
 
-## Embedding 迁移说明
+`IMAGE_SEARCH_INDEX_ROOT` 下会保存：
 
-`embedding_provider`、`embedding_model`、`embedding_version` 共同定义一个独立的 embedding space。文本搜索、图搜图、索引写入都必须使用同一个 space。
+- `metadata.db`：元数据、任务记录、已保存的 provider/key 配置
+- `milvus.db`：向量索引
 
-切换 provider/model/version 时请按下面的原则操作：
-- 如果向量维度可能变化，不要复用原有 Milvus collection。
-- 最稳妥的做法是清空 `IMAGE_SEARCH_INDEX_ROOT`，或改用新的 `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME` / 新的索引目录。
-- 不支持把不同维度的向量混写到同一个 collection。
-- `/api/status` 会显示当前生效的 provider / model / version，以及最近一次索引错误，便于确认当前 embedding space。
+如果需要保留系统状态，请整体备份索引目录。

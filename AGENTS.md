@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-Image vector search service with MCP (Model Context Protocol) integration. Indexes local images using Jina embeddings, stores vectors in Milvus Lite, and exposes semantic search via both HTTP API and MCP tools. Agents can search images by text description or find visually similar images.
+Image vector search service. Indexes local images using Jina embeddings, stores vectors in Milvus Lite, and exposes semantic search via HTTP API and HTTP tool endpoints. Agents can search images by text description or find visually similar images.
 
 ## Commands
 
@@ -43,13 +43,12 @@ python -m image_vector_search
 - Fully async (FastAPI + uvicorn). Background indexing uses a single-threaded `BackgroundJobWorker` with an async queue.
 
 **Component map**:
-- `app.py` — FastAPI application factory with lifespan. Mounts MCP server at `/mcp`, serves admin UI.
+- `app.py` — FastAPI application factory with lifespan. Serves admin UI and HTTP APIs.
 - `config.py` — `Settings` via pydantic-settings. Env var prefix: `IMAGE_SEARCH_`. Key vars: `jina_api_key`, `images_root`, `index_root`.
 - `runtime.py` — Bootstraps all services from config.
 - `services/` — `SearchService`, `IndexService`, `JobRunner`, `StatusService`, `BackgroundJobWorker`.
 - `adapters/` — `JinaEmbeddingClient` (HTTP to Jina API), `MilvusLiteIndex` (vector DB). Both have abstract base classes.
 - `repositories/` — `MetadataRepository` (SQLite).
-- `mcp/server.py` — Exposes `search_images` and `search_similar` tools via FastMCP.
 - `scanning/` — File hashing, image metadata extraction (PIL), path normalization.
 - `web/` — Admin console routes, templates, static assets.
 

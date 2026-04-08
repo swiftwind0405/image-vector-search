@@ -1,26 +1,83 @@
-# Image Search MCP
+# Image Vector Search
 
-Local image semantic search service with two operator surfaces:
+Local image semantic search service with a FastAPI backend, browser-based admin console, and HTTP tool endpoints for agent integration.
 
-- MCP tools for agents: `search_images`, `search_similar`
-- Admin web console for status, indexing jobs, and debug search
+## What It Does
 
-The service stores image metadata in SQLite and embeddings in a local Milvus Lite database. Image paths are always container paths, with `/data/images` mounted read-only and `/data/index` mounted read-write.
+- Indexes local images under a configured root directory
+- Generates multimodal embeddings with either Jina or Gemini
+- Stores image metadata in SQLite and vectors in Milvus Lite
+- Supports text-to-image search and image-to-image similarity search
+- Provides admin workflows for indexing, status inspection, tagging, categories, and bulk labeling
 
-## Requirements
+## Operator Surfaces
 
-- Python 3.12+ (or use [uv](https://docs.astral.sh/uv/) for automatic management)
-- A `JINA_API_KEY` with access to Jina embeddings
-- A mounted image library at `/data/images`
-- A writable index directory at `/data/index`
+- Admin UI: `/`
+- Health check: `/healthz`
+- HTTP tool discovery: `GET /api/tools`
+- HTTP tool invocation: `POST /api/tools/{tool_name}`
+- Admin/search APIs: `/api/*`
 
-## Environment Variables
+## Quick Start
 
-Required:
+### 1. Prepare the environment
 
-- `IMAGE_SEARCH_JINA_API_KEY`
+```bash
+cp .env.example .env
+mkdir -p ./example-images ./example-index
+```
 
-Optional:
+Put sample images into `./example-images` or point `IMAGE_SEARCH_IMAGES_ROOT` to your own directory.
+
+### 2. Install dependencies
+
+Using `uv`:
+
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install -e ".[dev]"
+```
+
+Using standard `venv`:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+### 3. Start the service
+
+```bash
+python -m image_vector_search
+```
+
+The app binds to `0.0.0.0:8000` by default and is typically reachable at `http://localhost:8000`.
+
+## Configuration Model
+
+Configuration is split across two layers:
+
+- Environment variables: filesystem paths, server settings, embedding defaults, auth, vector index settings
+- Admin settings page: persisted embedding provider and API keys stored in SQLite
+
+Embedding resolution order:
+
+1. Provider/API key saved through `/settings`
+2. Environment variable fallback
+3. If neither is configured, the app still starts but embedding-backed search/indexing remains unavailable
+
+This means `.env` can be used for bootstrap or headless deployment, while the admin UI can later persist provider/key changes without editing environment files.
+
+## Key Environment Variables
+
+Required for actual embedding requests:
+
+- `IMAGE_SEARCH_JINA_API_KEY` when provider is `jina`
+- `IMAGE_SEARCH_GOOGLE_API_KEY` when provider is `gemini`
+
+Common settings:
 
 - `IMAGE_SEARCH_IMAGES_ROOT`
 - `IMAGE_SEARCH_INDEX_ROOT`
@@ -32,94 +89,34 @@ Optional:
 - `IMAGE_SEARCH_EMBEDDING_PROVIDER`
 - `IMAGE_SEARCH_EMBEDDING_MODEL`
 - `IMAGE_SEARCH_EMBEDDING_VERSION`
+- `IMAGE_SEARCH_GEMINI_BASE_URL`
+- `IMAGE_SEARCH_EMBEDDING_OUTPUT_DIMENSIONALITY`
+- `IMAGE_SEARCH_EMBEDDING_BATCH_SIZE`
+- `IMAGE_SEARCH_JINA_RPM`
+- `IMAGE_SEARCH_JINA_MAX_CONCURRENCY`
 - `IMAGE_SEARCH_VECTOR_INDEX_COLLECTION_NAME`
 - `IMAGE_SEARCH_VECTOR_INDEX_DB_FILENAME`
+- `IMAGE_SEARCH_ADMIN_USERNAME`
+- `IMAGE_SEARCH_ADMIN_PASSWORD`
+- `IMAGE_SEARCH_ADMIN_SESSION_SECRET`
 
-Default mount paths:
-
-- images: `/data/images`
-- index: `/data/index`
+See [.env.example](.env.example) for a full template.
 
 ## Local Development
 
-Create a virtualenv, install dependencies, then run the test suite:
-
-### Using uv (recommended)
+Run tests:
 
 ```bash
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-pytest tests -v
+pytest
 ```
 
-### Traditional method
+Run only unit tests:
 
 ```bash
-python3.12 -m venv .venv
-. .venv/bin/activate
-pip install -e ".[dev]"
-pytest tests -v
+pytest tests/unit/
 ```
 
-## Test Image Data
-
-Small deterministic image fixtures for automated tests live in
-`tests/fixtures/images/auto/`.
-
-For local manual validation with real images, build a demo dataset without
-committing files:
-
-```bash
-.venv/bin/python scripts/build_demo_image_set.py \
-  --source /path/to/local/images \
-  --output sample-data/demo-set
-```
-
-Run the application:
-
-### Backend Server
-
-#### Using uv (recommended)
-
-First, create a `.env` file and directories:
-
-```bash
-cp .env.example .env
-# Edit .env with your actual values
-mkdir -p ./data/images ./data/index
-```
-
-Then run with environment file:
-
-```bash
-uv run --env-file .env uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-Or export variables manually:
-
-```bash
-export IMAGE_SEARCH_IMAGES_ROOT=./data/images
-export IMAGE_SEARCH_INDEX_ROOT=./data/index
-export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uv run uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-#### Traditional method
-
-```bash
-source .venv/bin/activate
-export IMAGE_SEARCH_IMAGES_ROOT=./data/images
-export IMAGE_SEARCH_INDEX_ROOT=./data/index
-export IMAGE_SEARCH_JINA_API_KEY=your_api_key_here
-uvicorn image_vector_search.app:create_app --factory --host 0.0.0.0 --port 8000
-```
-
-Server runs at `http://localhost:8000/` (serves static React frontend) and `/mcp` for MCP protocol.
-
-### Frontend Development (React)
-
-For development with hot reload:
+Run the frontend in dev mode:
 
 ```bash
 cd src/image_vector_search/frontend
@@ -127,60 +124,51 @@ npm install
 npm run dev
 ```
 
-Vite dev server runs at `http://localhost:5173/` and proxies `/api/*` to `http://localhost:8000`.
+The Vite dev server runs on `http://localhost:5173` and proxies `/api` to the backend.
 
-To build for production:
+## Search and Indexing Workflow
 
-```bash
-cd src/image_vector_search/frontend
-npm run build
-```
+Typical flow:
 
-Build output goes to `dist/` (served by FastAPI in production).
+1. Start the app
+2. Configure embedding provider/key through `.env` or `/settings`
+3. Trigger `POST /api/jobs/incremental` or `POST /api/jobs/rebuild`
+4. Inspect `GET /api/status`
+5. Search through the admin UI or `/api/tools/search_images`
 
 ## Docker
 
-Build:
+Build the image:
 
 ```bash
 docker build -t image-vector-search:test .
 ```
 
-Run with Docker Compose:
+Run with Compose:
 
 ```bash
-export IMAGE_SEARCH_JINA_API_KEY=your-key
 docker compose up --build
 ```
 
-The compose example exposes:
+If you want search to work immediately after container startup, provide a provider key through `.env` or exported shell variables before launch. If no key is present, the app still starts and can be configured later through the admin settings page.
 
-- admin console: `http://localhost:8000/`
-- MCP transport mount: `http://localhost:8000/mcp`
+Default container paths:
 
-## Operator Surface
+- images root: `/data/images`
+- index root: `/data/index`
 
-Admin HTTP routes:
-
-- `GET /`
-- `GET /api/status`
-- `POST /api/jobs/incremental`
-- `POST /api/jobs/rebuild`
-- `GET /api/jobs`
-- `GET /api/jobs/{job_id}`
-- `POST /api/debug/search/text`
-- `POST /api/debug/search/similar`
-
-MCP tools:
-
-- `search_images`
-- `search_similar`
+The repository now ignores large local frontend and Python caches during Docker builds, which keeps the build context smaller and avoids sending local `node_modules`, `.venv`, and other transient artifacts into the image build.
 
 ## Persistence
 
-The service keeps:
+Files stored under `IMAGE_SEARCH_INDEX_ROOT`:
 
-- SQLite metadata at `/data/index/metadata.db`
-- Milvus Lite vectors at `/data/index/milvus.db`
+- `metadata.db`: SQLite metadata, jobs, saved embedding settings
+- `milvus.db`: Milvus Lite vector data
 
-Back up `/data/index` to preserve job history, metadata, and vectors.
+Back up the entire index directory if you want to preserve search state.
+
+## Related Docs
+
+- Usage guide: [docs/usage.md](docs/usage.md)
+- API guide: [docs/api.md](docs/api.md)

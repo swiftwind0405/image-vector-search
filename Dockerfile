@@ -10,7 +10,9 @@ RUN npm run build
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DEFAULT_TIMEOUT=100 \
+    PIP_RETRIES=10
 
 WORKDIR /app
 
@@ -20,7 +22,8 @@ COPY src ./src
 # Copy built frontend into the Python package
 COPY --from=frontend /app/frontend/dist ./src/image_vector_search/frontend/dist
 
-RUN pip install .
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install --no-build-isolation --prefer-binary .
 
 EXPOSE 8000
 

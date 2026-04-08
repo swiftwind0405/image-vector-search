@@ -30,7 +30,7 @@
 ```bash
 # 进入项目目录
 cd /Users/stanley/Workspace/main/image-vector-search
-# 启动 MCP 服务实例
+# 启动服务实例
 python -m image_vector_search
 ```
 
