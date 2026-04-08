@@ -136,6 +136,22 @@ def test_create_app_bootstraps_runtime_services(monkeypatch, tmp_path):
     assert runtime_services.closed == 1
 
 
+def test_create_app_skips_settings_router_when_runtime_has_no_repository(monkeypatch, tmp_path):
+    runtime_services = FakeRuntimeServices()
+    monkeypatch.setattr(
+        app_module,
+        "build_runtime_services",
+        lambda settings: runtime_services,
+    )
+
+    app = app_module.create_app(
+        settings=Settings(images_root=tmp_path / "images", index_root=tmp_path / "index")
+    )
+
+    route_paths = {route.path for route in app.routes}
+    assert "/api/settings/embedding" not in route_paths
+
+
 def test_build_embedding_client_defaults_to_jina():
     client = _build_embedding_client(Settings(jina_api_key="secret"))
     try:

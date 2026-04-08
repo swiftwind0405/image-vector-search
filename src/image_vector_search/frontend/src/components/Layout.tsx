@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Tag, FolderTree, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings } from "lucide-react";
 import { useLogout } from "@/api/auth";
 import { cn } from "@/lib/utils";
+import logoMark from "../../logo.svg";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -74,8 +75,13 @@ export default function Layout() {
             <Sparkles className="h-3.5 w-3.5" />
             Curated Admin
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight text-white">Image Search</h1>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-inset">
+                <img src={logoMark} alt="Image Search logo" className="h-full w-full object-contain" />
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight text-white">Image Search</h1>
+            </div>
             <p className="max-w-xs text-sm leading-6 text-muted-foreground">
               A quiet workspace for indexing, searching, and organizing a living image archive.
             </p>

@@ -9,6 +9,16 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 function StatPanel({
   label,
@@ -38,6 +48,8 @@ function StatPanel({
 }
 
 export default function DashboardPage() {
+  type QueueableJobType = "incremental" | "rebuild";
+
   const queryClient = useQueryClient();
   const { data: status, isFetching: statusFetching } = useStatus();
   const { data: jobs, isFetching: jobsFetching } = useJobs();
@@ -46,6 +58,7 @@ export default function DashboardPage() {
   const purgeInactiveImages = usePurgeInactiveImages();
   const isRefreshing = statusFetching || jobsFetching;
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+  const [pendingJobType, setPendingJobType] = useState<QueueableJobType | null>(null);
   const [selectedInactiveHashes, setSelectedInactiveHashes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -60,12 +73,27 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
   };
 
-  const handleQueueJob = (type: "incremental" | "rebuild") => {
+  const handleQueueJob = (type: QueueableJobType) => {
     queueJob.mutate(type, {
       onSuccess: () => toast.success(`${type} job queued`),
       onError: () => toast.error("Failed to queue job"),
     });
   };
+
+  const pendingJobConfig = pendingJobType
+    ? {
+        incremental: {
+          title: "Confirm Incremental Update",
+          description:
+            "Queue an incremental indexing job to scan for newly added, changed, or missing images without rebuilding the full collection.",
+        },
+        rebuild: {
+          title: "Confirm Full Rebuild",
+          description:
+            "Queue a full rebuild job to recompute the entire index. Use this when the embedding stack changes or the collection needs a complete refresh.",
+        },
+      }[pendingJobType]
+    : null;
 
   const progress =
     status && status.images_on_disk > 0
@@ -185,7 +213,7 @@ export default function DashboardPage() {
             <div className="mt-5 space-y-3">
               <Button
                 className="h-12 w-full justify-start rounded-2xl text-sm"
-                onClick={() => handleQueueJob("incremental")}
+                onClick={() => setPendingJobType("incremental")}
                 disabled={queueJob.isPending}
               >
                 Incremental Update
@@ -193,7 +221,7 @@ export default function DashboardPage() {
               <Button
                 variant="outline"
                 className="h-12 w-full justify-start rounded-2xl border-white/10 bg-white/[0.02] text-white hover:bg-white/[0.06]"
-                onClick={() => handleQueueJob("rebuild")}
+                onClick={() => setPendingJobType("rebuild")}
                 disabled={queueJob.isPending}
               >
                 Full Rebuild
@@ -247,8 +275,31 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      <AlertDialog open={pendingJobType !== null} onOpenChange={(open) => !open && setPendingJobType(null)}>
+        <AlertDialogContent className="border-white/10 bg-card text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingJobConfig?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{pendingJobConfig?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingJobType) {
+                  return;
+                }
+                handleQueueJob(pendingJobType);
+                setPendingJobType(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
-        <DialogContent className="max-w-xl overflow-x-hidden border-white/10 bg-card text-white">
+        <DialogContent className="flex max-h-[85vh] max-w-xl flex-col overflow-hidden border-white/10 bg-card text-white">
           <DialogHeader>
             <DialogTitle>Purge Inactive</DialogTitle>
             <DialogDescription>
@@ -261,7 +312,7 @@ export default function DashboardPage() {
           ) : !inactiveImages?.length ? (
             <p className="text-sm text-muted-foreground">No inactive images available for purge.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
               <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                 <label className="flex items-center gap-3 text-sm font-medium text-white">
                   <Checkbox
@@ -274,7 +325,7 @@ export default function DashboardPage() {
                 <span className="text-xs text-muted-foreground">{selectedInactiveCount} selected</span>
               </div>
 
-              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+              <div className="space-y-2">
                 {inactiveImages.map((image) => {
                   const checked = selectedInactiveHashes.has(image.content_hash);
                   return (

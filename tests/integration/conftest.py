@@ -114,6 +114,15 @@ class InMemoryVectorIndex:
     def count(self, embedding_key: str) -> int:
         return sum(1 for (_, key) in self.records if key == embedding_key)
 
+    def delete_embeddings(self, content_hashes: list[str], embedding_key: str) -> int:
+        deleted = 0
+        for content_hash in content_hashes:
+            key = (content_hash, embedding_key)
+            if key in self.records:
+                del self.records[key]
+                deleted += 1
+        return deleted
+
 
 @dataclass
 class AppFixtureBundle:

@@ -1,0 +1,20 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="grad-v3" x1="20" y1="20" x2="80" y2="80">
+                                        <stop stop-color="#F97316"/> <!-- Orange 500 -->
+                                        <stop offset="1" stop-color="#E11D48"/> <!-- Rose 600 -->
+                                    </linearGradient>
+                                    <linearGradient id="glass-v3" x1="20" y1="20" x2="70" y2="70">
+                                        <stop stop-color="#F97316" stop-opacity="0.15"/>
+                                        <stop offset="1" stop-color="#E11D48" stop-opacity="0.02"/>
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="44" cy="44" r="22" fill="url(#glass-v3)" stroke="url(#grad-v3)" stroke-width="6"/>
+                                <path d="M 60 60 L 78 78" stroke="url(#grad-v3)" stroke-width="8" stroke-linecap="round"/>
+                                <circle cx="34" cy="40" r="3.5" fill="url(#grad-v3)"/>
+                                <circle cx="48" cy="34" r="3.5" fill="url(#grad-v3)"/>
+                                <circle cx="52" cy="50" r="3.5" fill="url(#grad-v3)"/>
+                                <circle cx="38" cy="54" r="3.5" fill="url(#grad-v3)"/>
+                                <path d="M 34 40 L 48 34 L 52 50 L 38 54 Z" stroke="url(#grad-v3)" stroke-width="1.5" stroke-linejoin="round" opacity="0.8"/>
+                                <path d="M 34 40 L 52 50" stroke="url(#grad-v3)" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.6"/>
+                            </svg>

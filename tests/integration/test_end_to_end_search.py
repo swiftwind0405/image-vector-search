@@ -62,6 +62,35 @@ def test_end_to_end_deleted_file_becomes_inactive(app_bundle, image_factory, dra
     assert status["active_images"] == 0
 
 
+def test_end_to_end_purge_inactive_images(app_bundle, image_factory, drain_job_queue):
+    image = image_factory("2024/purge-me.jpg", color="blue")
+
+    app_bundle.client.post("/api/jobs/incremental")
+    drain_job_queue()
+
+    image.unlink()
+    app_bundle.client.post("/api/jobs/incremental")
+    drain_job_queue()
+
+    inactive = app_bundle.client.get("/api/images/inactive")
+    assert inactive.status_code == 200
+    assert [row["content_hash"] for row in inactive.json()] == [
+        inactive.json()[0]["content_hash"]
+    ]
+
+    purge = app_bundle.client.post(
+        "/api/images/inactive/purge",
+        json={"content_hashes": [inactive.json()[0]["content_hash"]]},
+    )
+
+    assert purge.status_code == 200
+    assert purge.json() == {"ok": True, "affected": 1}
+
+    status = app_bundle.client.get("/api/status")
+    assert status.status_code == 200
+    assert status.json()["inactive_images"] == 0
+
+
 def test_end_to_end_api_and_debug_search_return_renamed_canonical_path(
     app_bundle, image_factory, drain_job_queue
 ):
@@ -194,6 +223,15 @@ def test_end_to_end_reindexes_for_active_embedding_key_change(
 
         def count(self, embedding_key: str) -> int:
             return sum(1 for (_, key) in self.records if key == embedding_key)
+
+        def delete_embeddings(self, content_hashes: list[str], embedding_key: str) -> int:
+            deleted = 0
+            for content_hash in content_hashes:
+                key = (content_hash, embedding_key)
+                if key in self.records:
+                    del self.records[key]
+                    deleted += 1
+            return deleted
 
     settings_v1 = Settings(
         images_root=images_root,

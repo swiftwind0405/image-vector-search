@@ -118,9 +118,15 @@ def _metadata_db_path(settings: Settings) -> Path:
 
 
 def _build_embedding_client(settings: Settings) -> EmbeddingClient:
+    provider = settings.embedding_provider
+    if provider == "jina" and not settings.jina_api_key:
+        raise ValueError("jina_api_key is required when embedding_provider='jina'")
+    if provider == "gemini" and not settings.google_api_key:
+        raise ValueError("google_api_key is required when embedding_provider='gemini'")
+
     return _build_embedding_client_from(
-        settings.embedding_provider,
-        settings.jina_api_key if settings.embedding_provider == "jina" else settings.google_api_key,
+        provider,
+        settings.jina_api_key if provider == "jina" else settings.google_api_key,
         settings,
     )
 

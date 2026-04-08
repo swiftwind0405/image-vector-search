@@ -31,13 +31,27 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!open || !image) return;
+      const target = e.target;
+      const isEditableTarget =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT");
+
       if (e.key === "ArrowLeft" && hasPrev) {
+        if (isEditableTarget) return;
+        e.preventDefault();
         onNavigate(images[currentIndex - 1].content_hash);
       } else if (e.key === "ArrowRight" && hasNext) {
+        if (isEditableTarget) return;
+        e.preventDefault();
         onNavigate(images[currentIndex + 1].content_hash);
       } else if (e.key === "Escape") {
         onClose();
-      } else if (e.key === "i") {
+      } else if (e.key.toLowerCase() === "i" && e.shiftKey) {
+        if (isEditableTarget) return;
+        e.preventDefault();
         setShowInfo((v) => !v);
       }
     },
@@ -45,8 +59,8 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
   );
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [handleKeyDown]);
 
   if (!image) return null;
@@ -113,7 +127,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
                 variant="ghost"
                 size="icon"
                 className={cn("text-white hover:bg-white/10", showInfo && "bg-white/15")}
-                title="Toggle info panel (i)"
+                title="Toggle info panel (Shift+I)"
                 onClick={() => setShowInfo((v) => !v)}
               >
                 <Info className="h-4 w-4" />

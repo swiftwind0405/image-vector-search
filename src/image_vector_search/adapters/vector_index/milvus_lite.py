@@ -1,4 +1,5 @@
 import logging
+import random
 from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, TypeVar
@@ -24,6 +25,9 @@ class MilvusLiteIndex(VectorIndex):
     _SERVER_REFCOUNTS: dict[str, int] = {}
     _SERVER_REFCOUNTS_LOCK = Lock()
     _MAX_RECONNECT_ATTEMPTS = 3
+    _TCP_PORT_MIN = 20_000
+    _TCP_PORT_MAX = 60_000
+    _START_PORT_ATTEMPTS = 10
 
     def __init__(self, db_path: Path, collection_name: str) -> None:
         self.db_path = db_path.absolute().resolve()
@@ -31,13 +35,11 @@ class MilvusLiteIndex(VectorIndex):
         self.client = None
         self._closed = False
         self._reconnect_lock = Lock()
-        uri = server_manager_instance.start_and_get_uri(str(self.db_path))
+        uri = self._start_server()
         if uri is None:
             raise RuntimeError(f"Failed to start Milvus Lite for {self.db_path}")
-        # MilvusClient's local .db shortcut does not forward the unix socket address
-        # into the gRPC handler correctly. Reusing the resolved UDS fixes local access.
         try:
-            self.client = MilvusClient(uri=uri, address=uri)
+            self.client = MilvusClient(uri=uri)
         except Exception:
             self._closed = True
             server_manager_instance.release_server(str(self.db_path))
@@ -280,12 +282,28 @@ class MilvusLiteIndex(VectorIndex):
                     pass
                 self.client = None
 
-            uri = server_manager_instance.start_and_get_uri(str(self.db_path))
+            uri = self._start_server()
             if uri is None:
                 raise RuntimeError(f"Failed to restart Milvus Lite for {self.db_path}")
-            self.client = MilvusClient(uri=uri, address=uri)
+            self.client = MilvusClient(uri=uri)
             logger.info("Milvus client reconnected for %s", self.db_path)
             return self.client
+
+    def _start_server(self) -> str | None:
+        for _ in range(self._START_PORT_ATTEMPTS):
+            address = self._allocate_loopback_address()
+            uri = server_manager_instance.start_and_get_uri(str(self.db_path), address)
+            if uri is not None:
+                return f"tcp://{address}"
+        return None
+
+    @staticmethod
+    def _allocate_loopback_address() -> str:
+        port = random.SystemRandom().randint(
+            MilvusLiteIndex._TCP_PORT_MIN,
+            MilvusLiteIndex._TCP_PORT_MAX,
+        )
+        return f"127.0.0.1:{port}"
 
     @staticmethod
     def _is_channel_error(exc: Exception) -> bool:

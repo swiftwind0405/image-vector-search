@@ -34,14 +34,6 @@ vi.mock("../api/status", () => ({
   }),
 }));
 
-vi.mock("../api/jobs", () => ({
-  useJobs: () => ({
-    data: [{ id: 1, job_type: "incremental", status: "queued" }],
-    isFetching: false,
-  }),
-  useQueueJob: () => ({ isPending: false, mutate: vi.fn() }),
-}));
-
 const inactiveImages = [
   {
     content_hash: "inactive-1",
@@ -78,6 +70,7 @@ const inactiveImages = [
 ];
 
 const purgeInactiveMutate = vi.fn();
+const queueJobMutate = vi.fn();
 
 vi.mock("../api/images", () => ({
   useInactiveImages: () => ({
@@ -88,6 +81,14 @@ vi.mock("../api/images", () => ({
     isPending: false,
     mutate: purgeInactiveMutate,
   }),
+}));
+
+vi.mock("../api/jobs", () => ({
+  useJobs: () => ({
+    data: [{ id: 1, job_type: "incremental", status: "queued" }],
+    isFetching: false,
+  }),
+  useQueueJob: () => ({ isPending: false, mutate: queueJobMutate }),
 }));
 
 vi.mock("@tanstack/react-query", async () => {
@@ -145,6 +146,7 @@ describe("admin shell redesign constraints", () => {
     );
 
     expect(screen.getByText("Image Search")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Image Search logo" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute("href", "/search");
     expect(screen.getByRole("link", { name: "Tags" })).toHaveAttribute("href", "/tags");
@@ -162,6 +164,29 @@ describe("admin shell redesign constraints", () => {
     expect(screen.getByText("Full Rebuild")).toBeInTheDocument();
     expect(screen.getByText("Recent Activity")).toBeInTheDocument();
     expect(screen.getByText("jina")).toBeInTheDocument();
+  });
+
+  it("requires confirmation before queueing indexing jobs", async () => {
+    const user = userEvent.setup();
+    render(<DashboardPage />);
+
+    await user.click(screen.getByRole("button", { name: "Incremental Update" }));
+    expect(screen.getByRole("heading", { name: "Confirm Incremental Update", level: 2 })).toBeInTheDocument();
+    expect(queueJobMutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => {
+      expect(queueJobMutate).toHaveBeenCalledWith("incremental", expect.any(Object));
+    });
+
+    queueJobMutate.mockClear();
+
+    await user.click(screen.getByRole("button", { name: "Full Rebuild" }));
+    expect(screen.getByRole("heading", { name: "Confirm Full Rebuild", level: 2 })).toBeInTheDocument();
+    expect(queueJobMutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(queueJobMutate).not.toHaveBeenCalled();
   });
 
   it("defaults inactive purge dialog to all selected and submits chosen hashes", async () => {

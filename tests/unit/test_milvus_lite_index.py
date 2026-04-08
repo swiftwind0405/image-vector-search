@@ -196,7 +196,7 @@ def test_milvus_lite_index_releases_server_if_client_construction_fails(
     monkeypatch.setattr(
         milvus_lite_module.server_manager_instance,
         "start_and_get_uri",
-        lambda path: "unix:/tmp/fake-milvus.sock",
+        lambda path, address=None: f"tcp://{address}" if address else "unix:/tmp/fake-milvus.sock",
     )
     monkeypatch.setattr(
         milvus_lite_module.server_manager_instance,
@@ -209,3 +209,74 @@ def test_milvus_lite_index_releases_server_if_client_construction_fails(
         MilvusLiteIndex(db_path=db_path, collection_name="image_embeddings")
 
     assert released_paths == [str(db_path.resolve())]
+
+
+def test_milvus_lite_index_constructs_client_with_uri_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    db_path = tmp_path / "milvus.db"
+    calls: list[dict] = []
+
+    class RecordingMilvusClient:
+        def __init__(self, *args, **kwargs) -> None:
+            calls.append({"args": args, "kwargs": kwargs})
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "start_and_get_uri",
+        lambda path, address=None: f"tcp://{address}" if address else "unix:/tmp/fake-milvus.sock",
+    )
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "release_server",
+        lambda path: None,
+    )
+    monkeypatch.setattr(milvus_lite_module, "MilvusClient", RecordingMilvusClient)
+
+    index = MilvusLiteIndex(db_path=db_path, collection_name="image_embeddings")
+    index.close()
+
+    assert len(calls) == 1
+    assert calls[0]["args"] == ()
+    assert calls[0]["kwargs"]["uri"].startswith("tcp://127.0.0.1:")
+
+
+def test_milvus_lite_index_starts_milvus_with_loopback_tcp_address(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    db_path = tmp_path / "milvus.db"
+    server_calls: list[dict[str, str]] = []
+    client_calls: list[dict] = []
+
+    class RecordingMilvusClient:
+        def __init__(self, *args, **kwargs) -> None:
+            client_calls.append({"args": args, "kwargs": kwargs})
+
+        def close(self) -> None:
+            return None
+
+    def fake_start_and_get_uri(path: str, address: str | None = None) -> str:
+        server_calls.append({"path": path, "address": address or ""})
+        assert address is not None
+        assert address.startswith("127.0.0.1:")
+        return f"tcp://{address}"
+
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "start_and_get_uri",
+        fake_start_and_get_uri,
+    )
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "release_server",
+        lambda path: None,
+    )
+    monkeypatch.setattr(milvus_lite_module, "MilvusClient", RecordingMilvusClient)
+
+    index = MilvusLiteIndex(db_path=db_path, collection_name="image_embeddings")
+    index.close()
+
+    assert server_calls == [{"path": str(db_path.resolve()), "address": client_calls[0]["kwargs"]["uri"][6:]}]

@@ -41,11 +41,14 @@ import {
   useBulkFolderRemoveCategory,
 } from "@/api/bulk";
 import { useTags } from "@/api/tags";
-import { useCategories } from "@/api/categories";
+import { useCategories, useCreateCategory } from "@/api/categories";
+import { useCreateTag } from "@/api/tags";
 import ImageTagEditor from "@/components/ImageTagEditor";
 import FilterBar from "@/components/FilterBar";
 import GalleryGrid from "@/components/GalleryGrid";
 import ImageModal from "@/components/ImageModal";
+import TagSelect from "@/components/TagSelect";
+import CategorySelect from "@/components/CategorySelect";
 import { getDescendantIds } from "@/utils/categories";
 import {
   ChevronRight,
@@ -58,7 +61,7 @@ import {
   List,
   LayoutGrid,
 } from "lucide-react";
-import type { CategoryNode, ImageRecordWithLabels } from "@/api/types";
+import type { ImageRecordWithLabels } from "@/api/types";
 
 interface ImageBrowserProps {
   title: string;
@@ -71,18 +74,6 @@ interface ImageBrowserProps {
     includeDescendants?: boolean;
   };
   emptyMessage?: string;
-}
-
-function flattenCategories(
-  nodes: CategoryNode[],
-  depth = 0,
-): { id: number; label: string }[] {
-  const result: { id: number; label: string }[] = [];
-  for (const node of nodes) {
-    result.push({ id: node.id, label: "\u00A0\u00A0".repeat(depth) + node.name });
-    result.push(...flattenCategories(node.children, depth + 1));
-  }
-  return result;
 }
 
 function getStoredViewMode(): "list" | "gallery" {
@@ -126,6 +117,8 @@ export default function ImageBrowser({
   const { data: folders } = useFolders();
   const { data: allTags } = useTags();
   const { data: allCategories } = useCategories();
+  const createTag = useCreateTag();
+  const createCategory = useCreateCategory();
 
   const openFile = useOpenFile();
   const revealFile = useRevealFile();
@@ -137,8 +130,6 @@ export default function ImageBrowser({
   const bulkFolderRemoveTag = useBulkFolderRemoveTag();
   const bulkFolderAddCategory = useBulkFolderAddCategory();
   const bulkFolderRemoveCategory = useBulkFolderRemoveCategory();
-
-  const flatCategories = flattenCategories(allCategories ?? []);
 
   useEffect(() => {
     setSelectedHashes(new Set());
@@ -315,6 +306,23 @@ export default function ImageBrowser({
     );
   };
 
+  const handleCreateTagOption = async (name: string) => {
+    const created = await createTag.mutateAsync(name);
+    const createdId = String(created.id);
+    setBulkTagId(createdId);
+    setFolderTagId(createdId);
+    return createdId;
+  };
+
+  const handleCreateCategoryOption = async (name: string) => {
+    const created = await createCategory.mutateAsync({ name });
+    const createdCategory = created as { id: number };
+    const createdId = String(createdCategory.id);
+    setBulkCategoryId(createdId);
+    setFolderCategoryId(createdId);
+    return createdId;
+  };
+
   const totalPages = Math.max(1, Math.ceil(filteredImages.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const paginatedImages = filteredImages.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -374,18 +382,14 @@ export default function ImageBrowser({
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Tags</p>
                   <div className="flex items-center gap-2">
-                    <Select value={folderTagId} onValueChange={(v) => setFolderTagId(v ?? "")}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select tag..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(allTags ?? []).map((tag) => (
-                          <SelectItem key={tag.id} value={String(tag.id)}>
-                            {tag.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <TagSelect
+                      tags={allTags ?? []}
+                      value={folderTagId}
+                      onValueChange={setFolderTagId}
+                      onCreate={handleCreateTagOption}
+                      triggerClassName="flex-1"
+                      creating={createTag.isPending}
+                    />
                     <Button size="sm" onClick={handleFolderAddTag} disabled={!folderTagId}>
                       Add
                     </Button>
@@ -398,18 +402,14 @@ export default function ImageBrowser({
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Categories</p>
                   <div className="flex items-center gap-2">
-                    <Select value={folderCategoryId} onValueChange={(v) => setFolderCategoryId(v ?? "")}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select category..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {flatCategories.map((cat) => (
-                          <SelectItem key={cat.id} value={String(cat.id)}>
-                            {cat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CategorySelect
+                      categories={allCategories ?? []}
+                      value={folderCategoryId}
+                      onValueChange={setFolderCategoryId}
+                      onCreate={handleCreateCategoryOption}
+                      triggerClassName="flex-1"
+                      creating={createCategory.isPending}
+                    />
                     <Button size="sm" onClick={handleFolderAddCategory} disabled={!folderCategoryId}>
                       Add
                     </Button>
@@ -444,18 +444,14 @@ export default function ImageBrowser({
               </DialogHeader>
               <div className="space-y-2 py-2">
                 <div className="flex items-center gap-2">
-                  <Select value={bulkTagId} onValueChange={(v) => setBulkTagId(v ?? "")}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select tag..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(allTags ?? []).map((tag) => (
-                        <SelectItem key={tag.id} value={String(tag.id)}>
-                          {tag.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <TagSelect
+                    tags={allTags ?? []}
+                    value={bulkTagId}
+                    onValueChange={setBulkTagId}
+                    onCreate={handleCreateTagOption}
+                    triggerClassName="flex-1"
+                    creating={createTag.isPending}
+                  />
                   <Button size="sm" onClick={handleBulkAddTag} disabled={!bulkTagId}>
                     Add
                   </Button>
@@ -490,18 +486,14 @@ export default function ImageBrowser({
               </DialogHeader>
               <div className="space-y-2 py-2">
                 <div className="flex items-center gap-2">
-                  <Select value={bulkCategoryId} onValueChange={(v) => setBulkCategoryId(v ?? "")}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select category..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {flatCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategorySelect
+                    categories={allCategories ?? []}
+                    value={bulkCategoryId}
+                    onValueChange={setBulkCategoryId}
+                    onCreate={handleCreateCategoryOption}
+                    triggerClassName="flex-1"
+                    creating={createCategory.isPending}
+                  />
                   <Button size="sm" onClick={handleBulkAddCategory} disabled={!bulkCategoryId}>
                     Add
                   </Button>

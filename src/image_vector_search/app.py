@@ -87,11 +87,12 @@ def create_app(
                 search_service=search_service,
             )
         )
-    if runtime_services is not None:
+    repository = getattr(runtime_services, "repository", None) if runtime_services is not None else None
+    if runtime_services is not None and repository is not None:
         app.include_router(
             create_admin_settings_router(
                 runtime_services=runtime_services,
-                repository=runtime_services.repository,
+                repository=repository,
                 settings=app_settings,
             )
         )
