@@ -9,7 +9,6 @@ from PIL import Image
 
 from image_vector_search.app import create_app
 from image_vector_search.config import Settings
-from image_vector_search.mcp.server import build_mcp_server
 from image_vector_search.repositories.sqlite import MetadataRepository
 from image_vector_search.services.indexing import IndexService
 from image_vector_search.services.jobs import JobRunner
@@ -128,7 +127,6 @@ class AppFixtureBundle:
     job_runner: JobRunner
     app: object
     client: TestClient
-    mcp_server: object
 
 
 @pytest.fixture
@@ -164,7 +162,6 @@ def app_bundle(tmp_path: Path) -> AppFixtureBundle:
         job_runner=job_runner,
     )
     client = TestClient(app)
-    mcp_server = build_mcp_server(search_service)
 
     return AppFixtureBundle(
         settings=settings,
@@ -177,7 +174,6 @@ def app_bundle(tmp_path: Path) -> AppFixtureBundle:
         job_runner=job_runner,
         app=app,
         client=client,
-        mcp_server=mcp_server,
     )
 
 

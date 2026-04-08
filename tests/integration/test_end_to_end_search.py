@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from fastmcp import Client
 from PIL import Image
 
 
@@ -63,8 +62,7 @@ def test_end_to_end_deleted_file_becomes_inactive(app_bundle, image_factory, dra
     assert status["active_images"] == 0
 
 
-@pytest.mark.anyio
-async def test_end_to_end_mcp_and_debug_search_return_renamed_canonical_path(
+def test_end_to_end_api_and_debug_search_return_renamed_canonical_path(
     app_bundle, image_factory, drain_job_queue
 ):
     original = image_factory("2024/orange.jpg", color="orange")
@@ -81,14 +79,13 @@ async def test_end_to_end_mcp_and_debug_search_return_renamed_canonical_path(
         json={"query": "orange sunset", "top_k": 1},
     )
 
-    async with Client(app_bundle.mcp_server) as client:
-        mcp_response = await client.call_tool(
-            "search_images",
-            {"query": "orange sunset", "top_k": 1},
-        )
+    api_response = app_bundle.client.post(
+        "/api/tools/search_images",
+        json={"query": "orange sunset", "top_k": 1},
+    )
 
     assert debug_response.json()["results"][0]["path"] == str(renamed.resolve())
-    assert mcp_response.data["results"][0]["path"] == str(renamed.resolve())
+    assert api_response.json()["results"][0]["path"] == str(renamed.resolve())
     assert len(app_bundle.embedding_client.image_inputs) == 1
 
 

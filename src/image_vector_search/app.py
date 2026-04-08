@@ -8,7 +8,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import FileResponse
 
 from image_vector_search.adapters.http_tool_adapter import build_tool_router
-from image_vector_search.adapters.mcp_adapter import build_mcp_from_registry
 from image_vector_search.config import Settings
 from image_vector_search.services.tagging import TagService
 from image_vector_search.runtime import RuntimeServices, build_runtime_services
@@ -78,8 +77,6 @@ def create_app(
             job_runner=job_runner,
             settings=app_settings,
         )
-        mcp_server = build_mcp_from_registry(default_registry, tool_ctx)
-        app.mount("/mcp", mcp_server.http_app(path="/"))
         app.include_router(build_tool_router(default_registry, tool_ctx))
 
     if search_service is not None and status_service is not None and job_runner is not None:
