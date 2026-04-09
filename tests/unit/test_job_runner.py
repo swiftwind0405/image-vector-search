@@ -84,6 +84,19 @@ def test_job_runner_marks_failed_job_and_updates_last_error_summary(tmp_path: Pa
     assert repository.get_system_state("last_error_summary") == "full rebuild failed"
 
 
+def test_job_runner_clears_last_error_summary_after_clean_success(tmp_path: Path):
+    repository = MetadataRepository(tmp_path / "metadata.db")
+    repository.initialize_schema()
+    repository.set_system_state("last_error_summary", "stale error")
+    index_service = FakeIndexService()
+    job_runner = JobRunner(repository, index_service)
+
+    job_runner.enqueue("full_rebuild")
+    job_runner.run_next()
+
+    assert repository.get_system_state("last_error_summary") is None
+
+
 @pytest.mark.asyncio
 async def test_status_service_reads_status_snapshot_and_recent_jobs(tmp_path: Path):
     repository = MetadataRepository(tmp_path / "metadata.db")

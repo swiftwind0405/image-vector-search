@@ -794,6 +794,10 @@ class MetadataRepository:
                 (key, value),
             )
 
+    def delete_system_state(self, key: str) -> None:
+        with self.connect() as connection:
+            connection.execute("DELETE FROM system_state WHERE key = ?", (key,))
+
     def get_embedding_config(self) -> dict[str, str | None]:
         return {
             "provider": self.get_system_state(EMBEDDING_PROVIDER_STATE_KEY),

@@ -67,6 +67,8 @@ class JobRunner:
                 finished_at=finished_at,
                 summary_json=json.dumps(summary.model_dump()),
             )
+            if getattr(summary, "errors", 0) == 0:
+                self.repository.delete_system_state("last_error_summary")
         finally:
             with self._lock:
                 self._running_job_id = None

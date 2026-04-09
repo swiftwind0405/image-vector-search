@@ -211,6 +211,9 @@ src/image_vector_search/frontend/dist/
 
 .superpowers
 
+example-images/
+example-index/
+
 findings.md
 progress.md
 task_plan.md
