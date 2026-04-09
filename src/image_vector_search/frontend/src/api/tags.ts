@@ -53,3 +53,36 @@ export function useBulkDeleteTags() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tags"] }),
   });
 }
+
+export async function exportTagsMarkdown() {
+  const res = await fetch("/api/tags/export");
+  if (!res.ok) throw new Error("Export failed");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "tags.md";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function useImportTags() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/tags/import", {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+      return res.json() as Promise<{ created: number; skipped: number }>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tags"] }),
+  });
+}
+

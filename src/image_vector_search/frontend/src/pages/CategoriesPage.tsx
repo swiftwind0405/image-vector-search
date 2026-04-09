@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,11 +25,13 @@ import {
   useUpdateCategory,
   useDeleteCategory,
   useBulkDeleteCategories,
+  exportCategoriesMarkdown,
+  useImportCategories,
 } from "@/api/categories";
 import type { CategoryNode } from "@/api/types";
 import CategoryTree from "@/components/CategoryTree";
 import { toast } from "sonner";
-import { Plus, Trash2, ListChecks, X } from "lucide-react";
+import { Plus, Trash2, ListChecks, X, Download, Upload } from "lucide-react";
 
 type MoveAction = "none" | "root" | "reparent";
 
@@ -84,6 +86,9 @@ export default function CategoriesPage() {
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
   const bulkDeleteCategories = useBulkDeleteCategories();
+  const importCategories = useImportCategories();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -238,6 +243,29 @@ export default function CategoriesPage() {
     });
   };
 
+  const handleExport = async () => {
+    try {
+      await exportCategoriesMarkdown();
+      toast.success("Categories exported");
+    } catch {
+      toast.error("Failed to export categories");
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    importCategories.mutate(file, {
+      onSuccess: (data) => {
+        toast.success(`Import complete: ${data.created} created, ${data.skipped} skipped`);
+      },
+      onError: () => {
+        toast.error("Failed to import categories");
+      },
+    });
+    e.target.value = "";
+  };
+
   const childrenCount = deletingNode ? countChildren(deletingNode) : 0;
   const selectedNames = categories ? findNames(categories, selectedIds) : [];
 
@@ -275,6 +303,26 @@ export default function CategoriesPage() {
             <Plus className="h-4 w-4 mr-2" />
             New Category
           </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importCategories.isPending}
+          >
+            <Upload className="h-3.5 w-3.5 mr-1.5" />
+            Import
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md,text/markdown"
+            className="hidden"
+            onChange={handleImportFile}
+          />
         </div>
       </div>
 

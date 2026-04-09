@@ -4,7 +4,7 @@ services:
       context: .
     container_name: image-vector-search
     ports:
-      - "8000:8000"
+      - "9866:8000"
     environment:
       IMAGE_SEARCH_EMBEDDING_PROVIDER: ${IMAGE_SEARCH_EMBEDDING_PROVIDER:-jina}
       IMAGE_SEARCH_JINA_API_KEY: ${IMAGE_SEARCH_JINA_API_KEY:-}

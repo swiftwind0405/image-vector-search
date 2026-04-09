@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
+from starlette.responses import Response
 
 from image_vector_search.services.tagging import TagService
 
@@ -50,6 +51,25 @@ def create_admin_tag_router(*, tag_service: TagService) -> APIRouter:
     def list_tags():
         return [t.model_dump() for t in tag_service.list_tags()]
 
+    @router.get("/api/tags/export")
+    def export_tags():
+        md = tag_service.export_tags_markdown()
+        return Response(
+            content=md,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=tags.md"},
+        )
+
+    @router.post("/api/tags/import")
+    async def import_tags(file: UploadFile = File(...)):
+        raw = await file.read()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
+        result = tag_service.import_tags_markdown(content)
+        return result
+
     @router.put("/api/tags/{tag_id}")
     def rename_tag(tag_id: int, body: RenameTagRequest):
         try:
@@ -83,6 +103,25 @@ def create_admin_tag_router(*, tag_service: TagService) -> APIRouter:
     def get_category_tree():
         tree = tag_service.get_category_tree()
         return [n.model_dump() for n in tree]
+
+    @router.get("/api/categories/export")
+    def export_categories():
+        md = tag_service.export_categories_markdown()
+        return Response(
+            content=md,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=categories.md"},
+        )
+
+    @router.post("/api/categories/import")
+    async def import_categories(file: UploadFile = File(...)):
+        raw = await file.read()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
+        result = tag_service.import_categories_markdown(content)
+        return result
 
     @router.get("/api/categories/{category_id}/children")
     def get_category_children(category_id: int):

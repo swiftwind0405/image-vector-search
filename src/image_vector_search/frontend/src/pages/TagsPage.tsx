@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
-import { useTags, useCreateTag, useRenameTag, useDeleteTag, useBulkDeleteTags } from "@/api/tags";
+import { useTags, useCreateTag, useRenameTag, useDeleteTag, useBulkDeleteTags, exportTagsMarkdown, useImportTags } from "@/api/tags";
 import type { Tag } from "@/api/types";
 import { toast } from "sonner";
-import { Pencil, Trash2, ListChecks, X } from "lucide-react";
+import { Pencil, Trash2, ListChecks, X, Download, Upload } from "lucide-react";
 
 export default function TagsPage() {
   const { data: tags, isLoading } = useTags();
@@ -23,6 +23,9 @@ export default function TagsPage() {
   const renameTag = useRenameTag();
   const deleteTag = useDeleteTag();
   const bulkDeleteTags = useBulkDeleteTags();
+  const importTags = useImportTags();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [newName, setNewName] = useState("");
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
@@ -119,6 +122,30 @@ export default function TagsPage() {
     });
   };
 
+  const handleExport = async () => {
+    try {
+      await exportTagsMarkdown();
+      toast.success("Tags exported");
+    } catch {
+      toast.error("Failed to export tags");
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    importTags.mutate(file, {
+      onSuccess: (data) => {
+        toast.success(`Import complete: ${data.created} created, ${data.skipped} skipped`);
+      },
+      onError: () => {
+        toast.error("Failed to import tags");
+      },
+    });
+    // Reset so the same file can be re-selected
+    e.target.value = "";
+  };
+
   const selectedTagNames = tags
     ? tags.filter((t) => selectedIds.has(t.id)).map((t) => t.name)
     : [];
@@ -147,6 +174,28 @@ export default function TagsPage() {
               Create
             </Button>
             </form>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importTags.isPending}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Import
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,text/markdown"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+            </div>
           </CardContent>
         </Card>
 
