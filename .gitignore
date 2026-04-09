@@ -201,12 +201,13 @@ data/
 # Tmp files
 tmp/
 
-# React frontend
+# frontend
 src/image_vector_search/frontend/node_modules/
 src/image_vector_search/frontend/dist/
 # Unignore frontend src/lib (the `lib/` rule above catches it otherwise)
 !src/image_vector_search/frontend/src/lib/
 *.tsbuildinfo
+.vite/
 
 .superpowers
 
