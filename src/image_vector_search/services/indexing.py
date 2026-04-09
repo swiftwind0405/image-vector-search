@@ -44,7 +44,9 @@ class IndexService:
         seen_paths: list[str] = []
         embedding_key = self._embedding_key()
 
-        for image_path in iter_image_files(self.settings.images_root):
+        excluded_folders = self.repository.get_excluded_folders()
+
+        for image_path in iter_image_files(self.settings.images_root, excluded_folders=excluded_folders):
             report.scanned += 1
             container_path = to_container_path(image_path, self.settings.images_root)
             seen_paths.append(container_path)

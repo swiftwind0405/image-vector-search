@@ -6,6 +6,7 @@ from PIL import Image
 from image_vector_search.scanning.files import (
     iter_image_files,
     is_supported_image,
+    scan_disk_folders,
     to_container_path,
 )
 from image_vector_search.scanning.hashing import sha256_file
@@ -30,6 +31,52 @@ def test_iter_image_files_returns_sorted_supported_images(tmp_path: Path):
     results = list(iter_image_files(images_root))
 
     assert results == [nested / "a.jpg", nested / "b.png"]
+
+
+def test_iter_image_files_skips_excluded_folders(tmp_path: Path):
+    images_root = tmp_path / "images"
+    keep = images_root / "keep"
+    drop = images_root / "drop"
+    nested_drop = images_root / "keep" / "private"
+    keep.mkdir(parents=True)
+    drop.mkdir(parents=True)
+    nested_drop.mkdir(parents=True)
+    (keep / "a.jpg").write_bytes(b"jpg")
+    (drop / "b.jpg").write_bytes(b"jpg")
+    (nested_drop / "c.jpg").write_bytes(b"jpg")
+
+    results = list(
+        iter_image_files(images_root, excluded_folders=["drop", "keep/private"])
+    )
+
+    assert results == [(keep / "a.jpg").resolve()]
+
+
+def test_iter_image_files_excluded_prefix_does_not_match_sibling(tmp_path: Path):
+    # "foo" must not accidentally exclude "foobar".
+    images_root = tmp_path / "images"
+    (images_root / "foo").mkdir(parents=True)
+    (images_root / "foobar").mkdir(parents=True)
+    (images_root / "foo" / "x.jpg").write_bytes(b"jpg")
+    (images_root / "foobar" / "y.jpg").write_bytes(b"jpg")
+
+    results = list(iter_image_files(images_root, excluded_folders=["foo"]))
+
+    assert results == [(images_root / "foobar" / "y.jpg").resolve()]
+
+
+def test_scan_disk_folders_returns_nested_relative_paths(tmp_path: Path):
+    images_root = tmp_path / "images"
+    (images_root / "a" / "b").mkdir(parents=True)
+    (images_root / "c").mkdir(parents=True)
+
+    folders = scan_disk_folders(images_root)
+
+    assert folders == ["a", "a/b", "c"]
+
+
+def test_scan_disk_folders_missing_root_returns_empty(tmp_path: Path):
+    assert scan_disk_folders(tmp_path / "does-not-exist") == []
 
 
 def test_sha256_file_is_stable(tmp_path: Path):

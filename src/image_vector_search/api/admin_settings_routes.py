@@ -1,3 +1,4 @@
+import asyncio
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -22,11 +23,16 @@ class UpdateEmbeddingSettingsRequest(BaseModel):
     google_api_key: str | None = None
 
 
+class UpdateExcludedFoldersRequest(BaseModel):
+    excluded: list[str] = []
+
+
 def create_admin_settings_router(
     *,
     runtime_services,
     repository: MetadataRepository,
     settings: Settings,
+    status_service,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -65,6 +71,19 @@ def create_admin_settings_router(
             ) from exc
 
         return JSONResponse(content=jsonable_encoder(_serialize_embedding_settings(repository, settings)))
+
+    @router.get("/api/settings/folders")
+    async def get_folder_settings():
+        excluded = status_service.get_excluded_folders()
+        folders = await asyncio.to_thread(status_service.list_disk_folders)
+        return JSONResponse(content={"folders": folders, "excluded": excluded})
+
+    @router.put("/api/settings/excluded-folders")
+    async def update_excluded_folders(payload: UpdateExcludedFoldersRequest):
+        status_service.set_excluded_folders(payload.excluded)
+        excluded = status_service.get_excluded_folders()
+        folders = await asyncio.to_thread(status_service.list_disk_folders)
+        return JSONResponse(content={"folders": folders, "excluded": excluded})
 
     return router
 

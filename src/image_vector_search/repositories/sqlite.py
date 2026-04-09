@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -828,6 +829,22 @@ class MetadataRepository:
         if row is None:
             return None
         return str(row["value"])
+
+    def get_excluded_folders(self) -> list[str]:
+        value = self.get_system_state("excluded_folders")
+        if not value:
+            return []
+        try:
+            folders = json.loads(value)
+            if isinstance(folders, list):
+                return [str(f) for f in folders if f]
+        except (ValueError, TypeError):
+            pass
+        return []
+
+    def set_excluded_folders(self, folders: list[str]) -> None:
+        cleaned = sorted(set(f.strip("/") for f in folders if f.strip("/")))
+        self.set_system_state("excluded_folders", json.dumps(cleaned))
 
     def _refresh_image_activity(
         self, connection: sqlite3.Connection, content_hash: str, seen_at: str

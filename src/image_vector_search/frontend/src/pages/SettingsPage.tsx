@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { useEmbeddingSettings, useUpdateEmbeddingSettings } from "@/api/settings";
+import { FolderMinus } from "lucide-react";
+
+import {
+  useEmbeddingSettings,
+  useFolderSettings,
+  useUpdateEmbeddingSettings,
+  useUpdateExcludedFolders,
+} from "@/api/settings";
 import type { UpdateEmbeddingSettingsRequest } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -28,6 +36,9 @@ export default function SettingsPage() {
   const { data, isLoading } = useEmbeddingSettings();
   const updateSettings = useUpdateEmbeddingSettings();
 
+  const { data: folderData, isLoading: folderIsLoading } = useFolderSettings();
+  const updateFolders = useUpdateExcludedFolders();
+
   const [provider, setProvider] = useState("");
   const [jinaKey, setJinaKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
@@ -36,6 +47,9 @@ export default function SettingsPage() {
   const [providerDirty, setProviderDirty] = useState(false);
   const [reloadFailed, setReloadFailed] = useState(false);
   const [lastPayload, setLastPayload] = useState<UpdateEmbeddingSettingsRequest | null>(null);
+
+  const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set());
+  const [exclusionsDirty, setExclusionsDirty] = useState(false);
 
   useEffect(() => {
     if (!data) {
@@ -50,6 +64,13 @@ export default function SettingsPage() {
     setReloadFailed(false);
     setLastPayload(null);
   }, [data]);
+
+  useEffect(() => {
+    if (folderData?.excluded) {
+      setSelectedExclusions(new Set(folderData.excluded));
+      setExclusionsDirty(false);
+    }
+  }, [folderData]);
 
   const jinaEmpty = jinaKeyDirty && jinaKey.trim() === "";
   const googleEmpty = googleKeyDirty && googleKey.trim() === "";
@@ -96,9 +117,33 @@ export default function SettingsPage() {
     }
   }
 
-  if (isLoading || !data) {
+  if (isLoading || !data || folderIsLoading || !folderData) {
     return <div className="rounded-[28px] border border-white/10 bg-card/75 p-6 text-sm text-muted-foreground">Loading settings…</div>;
   }
+
+  const handleToggleExclusion = (folder: string, checked: boolean) => {
+    setSelectedExclusions((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(folder);
+      } else {
+        next.delete(folder);
+      }
+      return next;
+    });
+    setExclusionsDirty(true);
+  };
+
+  const handleSaveExclusions = async () => {
+    if (!exclusionsDirty || updateFolders.isPending) return;
+    try {
+      await updateFolders.mutateAsync({ excluded: Array.from(selectedExclusions) });
+      setExclusionsDirty(false);
+      toast.success("Excluded folders updated");
+    } catch (error) {
+      toast.error(readApiErrorMessage(error));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -197,6 +242,54 @@ export default function SettingsPage() {
               Retry
             </Button>
           ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-[32px] border border-white/10 bg-card/80 p-6 shadow-curator backdrop-blur">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-primary/90">Indexing</p>
+            <h3 className="text-2xl font-semibold tracking-tight text-white">Excluded Folders</h3>
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              Select folders to exclude from embedding and indexing. Note: Existing images in newly excluded folders will be marked as inactive on the next scan.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-primary/12 p-3 text-primary">
+            <FolderMinus className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="mt-8 space-y-2">
+          {!folderData.folders.length ? (
+            <p className="text-sm text-muted-foreground">No folders found in the images root.</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {folderData.folders.map((folder) => {
+                const checked = selectedExclusions.has(folder);
+                return (
+                  <label
+                    key={folder}
+                    className="flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 pb-3 pt-3 text-sm transition-colors hover:bg-white/[0.06]"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(c) => handleToggleExclusion(folder, c === true)}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-white">{folder}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 flex items-center gap-3">
+          <Button
+            onClick={handleSaveExclusions}
+            disabled={!exclusionsDirty || updateFolders.isPending}
+          >
+            Save Exclusions
+          </Button>
         </div>
       </section>
     </div>

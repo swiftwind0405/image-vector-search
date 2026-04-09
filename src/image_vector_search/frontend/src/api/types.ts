@@ -97,3 +97,12 @@ export interface UpdateEmbeddingSettingsRequest {
   jina_api_key: string | null;
   google_api_key: string | null;
 }
+
+export interface FolderSettings {
+  folders: string[];
+  excluded: string[];
+}
+
+export interface UpdateExcludedFoldersRequest {
+  excluded: string[];
+}

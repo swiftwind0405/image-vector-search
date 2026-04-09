@@ -94,6 +94,7 @@ def create_app(
                 runtime_services=runtime_services,
                 repository=repository,
                 settings=app_settings,
+                status_service=status_service,
             )
         )
 

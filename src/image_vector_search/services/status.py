@@ -3,7 +3,7 @@ from datetime import datetime
 
 from image_vector_search.adapters.embedding.base import build_embedding_key
 from image_vector_search.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus
-from image_vector_search.scanning.files import iter_image_files
+from image_vector_search.scanning.files import iter_image_files, scan_disk_folders
 
 
 class StatusService:
@@ -100,8 +100,18 @@ class StatusService:
     def get_job(self, job_id: str):
         return self.repository.get_job(job_id)
 
+    def list_disk_folders(self) -> list[str]:
+        return scan_disk_folders(self.settings.images_root)
+
+    def get_excluded_folders(self) -> list[str]:
+        return self.repository.get_excluded_folders()
+
+    def set_excluded_folders(self, folders: list[str]) -> None:
+        self.repository.set_excluded_folders(folders)
+
     def _count_images_on_disk(self) -> int:
-        return sum(1 for _ in iter_image_files(self.settings.images_root))
+        excluded_folders = self.repository.get_excluded_folders()
+        return sum(1 for _ in iter_image_files(self.settings.images_root, excluded_folders=excluded_folders))
 
     def _embedding_key(self) -> str:
         return build_embedding_key(
