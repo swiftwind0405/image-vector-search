@@ -12,6 +12,8 @@ node_modules/
 # C extensions
 *.so
 
+.claude/
+
 # Distribution / packaging
 .Python
 build/
