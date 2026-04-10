@@ -159,6 +159,29 @@ Default container paths:
 
 The repository now ignores large local frontend and Python caches during Docker builds, which keeps the build context smaller and avoids sending local `node_modules`, `.venv`, and other transient artifacts into the image build.
 
+## Release Process
+
+Container publishing is driven by Git tags pushed to GitHub Actions.
+
+Current workflow behavior:
+
+- Pushing branches alone does not publish an image
+- Pushing a tag that matches `v*.*.*` triggers `.github/workflows/docker.yml`
+- Publishing a GitHub Release in the web UI does not trigger the container build by itself
+
+Typical release flow:
+
+```bash
+git checkout master
+git pull
+pytest
+git tag v0.1.0
+git push origin master
+git push origin v0.1.0
+```
+
+After the tag is pushed, GitHub Actions builds and publishes the container image to `ghcr.io/<owner>/<repo>`.
+
 ## Persistence
 
 Files stored under `IMAGE_SEARCH_INDEX_ROOT`:

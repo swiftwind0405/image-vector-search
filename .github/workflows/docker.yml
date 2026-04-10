@@ -3,7 +3,7 @@ name: Docker
 on:
   push:
     tags:
-      - 'v[0-9]+.*'
+      - 'v*.*.*'
 
 env:
   # Use docker.io for Docker Hub if empty
