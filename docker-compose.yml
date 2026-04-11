@@ -7,10 +7,8 @@ services:
       - "9866:8000"
     environment:
       IMAGE_SEARCH_EMBEDDING_PROVIDER: ${IMAGE_SEARCH_EMBEDDING_PROVIDER:-jina}
-      IMAGE_SEARCH_JINA_API_KEY: ${IMAGE_SEARCH_JINA_API_KEY:-}
-      IMAGE_SEARCH_GOOGLE_API_KEY: ${IMAGE_SEARCH_GOOGLE_API_KEY:-}
       IMAGE_SEARCH_IMAGES_ROOT: /data/images
-      IMAGE_SEARCH_INDEX_ROOT: /data/index
+      IMAGE_SEARCH_INDEX_ROOT: /data/config
     volumes:
-      - ./example-images:/data/images:ro
-      - ./example-index:/data/index
+      - ./.data/config:/data/config
+      - ./data/images:/data/images:ro
