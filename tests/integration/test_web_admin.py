@@ -47,6 +47,7 @@ class FakeStatusService:
                 embedding_provider="fake",
                 embedding_model="fake-clip",
                 embedding_version="2026-03",
+                embedding_status="failed",
                 created_at=now,
                 updated_at=now,
             ),
@@ -63,11 +64,18 @@ class FakeStatusService:
                 embedding_provider="fake",
                 embedding_model="fake-clip",
                 embedding_version="2026-03",
+                embedding_status="failed",
                 created_at=now,
                 updated_at=now,
             ),
         ]
         self.purged_hashes: list[str] = []
+        self.last_list_images_args: dict[str, object] = {}
+        self.oversized_images = [
+            self._make_image_record(path="/data/images/oversized.jpg").model_copy(
+                update={"content_hash": "oversized-hash", "embedding_status": "skipped_oversized"}
+            )
+        ]
 
     async def get_index_status(self) -> IndexStatus:
         return self.snapshot
@@ -96,6 +104,7 @@ class FakeStatusService:
             embedding_provider="fake",
             embedding_model="fake-clip",
             embedding_version="2026-03",
+            embedding_status="embedded",
             created_at=now,
             updated_at=now,
         )
@@ -115,9 +124,43 @@ class FakeStatusService:
         tag_id: int | None = None,
         category_id: int | None = None,
         include_descendants: bool = True,
+        limit: int | None = None,
+        cursor: str | None = None,
     ):
         record = self._make_image_record()
-        return [ImageRecordWithLabels(**record.model_dump())]
+        self.last_list_images_args = {
+            "folder": folder,
+            "tag_id": tag_id,
+            "category_id": category_id,
+            "include_descendants": include_descendants,
+            "limit": limit,
+            "cursor": cursor,
+            "include_inactive": False,
+        }
+        return {"items": [ImageRecordWithLabels(**record.model_dump())], "next_cursor": None}
+
+    def list_all_images_with_labels(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+        embedding_status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ):
+        record = self._make_image_record().model_copy(update={"embedding_status": embedding_status or "embedded"})
+        self.last_list_images_args = {
+            "folder": folder,
+            "tag_id": tag_id,
+            "category_id": category_id,
+            "include_descendants": include_descendants,
+            "embedding_status": embedding_status,
+            "limit": limit,
+            "cursor": cursor,
+            "include_inactive": True,
+        }
+        return {"items": [ImageRecordWithLabels(**record.model_dump())], "next_cursor": "cursor-1" if limit else None}
 
     def get_image(self, content_hash: str) -> ImageRecord | None:
         if content_hash == "hash-red":
@@ -139,13 +182,16 @@ class FakeStatusService:
         self.snapshot.vector_entries -= deleted
         return deleted
 
+    def list_oversized_images(self) -> list[ImageRecord]:
+        return list(self.oversized_images)
+
 
 class FakeJobRunner:
     def __init__(self, status_service: FakeStatusService) -> None:
         self.status_service = status_service
         self.enqueued: list[str] = []
 
-    def enqueue(self, job_type: str) -> JobRecord:
+    def enqueue(self, job_type: str, payload: dict | None = None) -> JobRecord:
         now = datetime.now(UTC)
         job = JobRecord(
             id=f"job-{len(self.enqueued) + 2}",
@@ -153,7 +199,7 @@ class FakeJobRunner:
             status="queued",
             requested_at=now,
         )
-        self.enqueued.append(job_type)
+        self.enqueued.append(job_type if payload is None else f"{job_type}:{payload}")
         self.status_service.jobs.insert(0, job)
         return job
 
@@ -239,7 +285,7 @@ def test_list_images_api():
     client = create_test_client()
     response = client.get("/api/images")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    assert isinstance(response.json()["items"], list)
 
 
 def test_list_inactive_images_api():
@@ -273,11 +319,45 @@ def test_list_images_returns_tags_and_categories():
     response = client.get("/api/images")
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 1
-    assert "tags" in body[0]
-    assert "categories" in body[0]
-    assert isinstance(body[0]["tags"], list)
-    assert isinstance(body[0]["categories"], list)
+    assert len(body["items"]) == 1
+    assert "tags" in body["items"][0]
+    assert "categories" in body["items"][0]
+    assert isinstance(body["items"][0]["tags"], list)
+    assert isinstance(body["items"][0]["categories"], list)
+
+
+def test_list_images_api_supports_all_images_filters():
+    client = create_test_client()
+
+    response = client.get(
+        "/api/images?include_inactive=true&embedding_status=skipped_oversized&limit=50"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["next_cursor"] == "cursor-1"
+    assert body["items"][0]["embedding_status"] == "skipped_oversized"
+
+
+def test_oversized_images_api_returns_skipped_images():
+    client = create_test_client()
+
+    response = client.get("/api/images/oversized")
+
+    assert response.status_code == 200
+    assert response.json()[0]["embedding_status"] == "skipped_oversized"
+
+
+def test_force_embed_api_enqueues_embed_selected_job():
+    client = create_test_client()
+
+    response = client.post(
+        "/api/images/oversized/embed",
+        json={"content_hashes": ["oversized-hash"]},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["job_type"] == "embed_selected"
 
 
 def test_thumbnail_missing_record_returns_404():

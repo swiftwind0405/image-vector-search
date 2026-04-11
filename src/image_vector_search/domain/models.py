@@ -71,6 +71,7 @@ class ImageRecord(BaseModel):
     embedding_provider: str
     embedding_model: str
     embedding_version: str
+    embedding_status: str = "embedded"
     created_at: datetime
     updated_at: datetime
 
@@ -104,7 +105,13 @@ class IndexingReport(BaseModel):
     path_updated: int = 0
     deactivated: int = 0
     skipped: int = 0
+    skipped_oversized: int = 0
     errors: int = 0
+
+
+class PaginatedImages(BaseModel):
+    items: list[ImageRecordWithLabels] = []
+    next_cursor: str | None = None
 
 
 class IndexStatus(BaseModel):

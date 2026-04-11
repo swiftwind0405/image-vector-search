@@ -21,6 +21,7 @@ function makeImage(
     embedding_provider: "fake",
     embedding_model: "fake",
     embedding_version: "v1",
+    embedding_status: "embedded",
     created_at: now,
     updated_at: now,
     tags: opts.tags ?? [],

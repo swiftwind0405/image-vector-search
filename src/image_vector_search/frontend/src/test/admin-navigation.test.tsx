@@ -77,6 +77,21 @@ vi.mock("../api/images", () => ({
     data: inactiveImages,
     isLoading: false,
   }),
+  useImages: () => ({
+    data: [],
+    isLoading: false,
+  }),
+  useImagesInfinite: () => ({
+    data: { pages: [] },
+    isLoading: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  }),
+  useForceEmbedImages: () => ({
+    isPending: false,
+    mutate: vi.fn(),
+  }),
   usePurgeInactiveImages: () => ({
     isPending: false,
     mutate: purgeInactiveMutate,
@@ -110,6 +125,7 @@ vi.mock("../api/tags", () => ({
   useRenameTag: () => ({ isPending: false, mutate: vi.fn() }),
   useDeleteTag: () => ({ isPending: false, mutate: vi.fn() }),
   useBulkDeleteTags: () => ({ isPending: false, mutate: vi.fn() }),
+  useImportTags: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 vi.mock("../api/categories", () => ({
@@ -131,6 +147,7 @@ vi.mock("../api/categories", () => ({
   useUpdateCategory: () => ({ isPending: false, mutate: vi.fn() }),
   useDeleteCategory: () => ({ isPending: false, mutate: vi.fn() }),
   useBulkDeleteCategories: () => ({ isPending: false, mutate: vi.fn() }),
+  useImportCategories: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 describe("admin shell redesign constraints", () => {

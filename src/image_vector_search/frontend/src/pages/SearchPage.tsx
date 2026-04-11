@@ -23,6 +23,7 @@ function searchResultToImage(r: SearchResult): ImageRecordWithLabels {
     embedding_provider: "",
     embedding_model: "",
     embedding_version: "",
+    embedding_status: "embedded",
     created_at: "",
     updated_at: "",
     tags: r.tags,

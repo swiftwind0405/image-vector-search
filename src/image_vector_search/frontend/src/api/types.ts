@@ -31,6 +31,11 @@ export interface ImageRecord {
   embedding_provider: string;
   embedding_model: string;
   embedding_version: string;
+  embedding_status:
+    | "embedded"
+    | "skipped_oversized"
+    | "failed"
+    | "pending";
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +47,11 @@ export interface PurgeInactiveImagesRequest {
 export interface ImageRecordWithLabels extends ImageRecord {
   tags: Tag[];
   categories: Category[];
+}
+
+export interface PaginatedImages {
+  items: ImageRecordWithLabels[];
+  next_cursor: string | null;
 }
 
 export interface IndexStatus {
@@ -105,4 +115,8 @@ export interface FolderSettings {
 
 export interface UpdateExcludedFoldersRequest {
   excluded: string[];
+}
+
+export interface ForceEmbedImagesRequest {
+  content_hashes: string[];
 }

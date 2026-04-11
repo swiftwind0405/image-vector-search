@@ -17,6 +17,7 @@ class FakeIndexService:
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.fail_job_type: str | None = None
+        self.embed_selected_payloads: list[list[str]] = []
 
     def run_incremental_update(self) -> IndexingReport:
         self.calls.append("incremental")
@@ -29,6 +30,13 @@ class FakeIndexService:
         if self.fail_job_type == "full_rebuild":
             raise RuntimeError("full rebuild failed")
         return IndexingReport(scanned=12, added=2, reused=10)
+
+    def force_embed_images(self, content_hashes: list[str]) -> dict:
+        self.calls.append("embed_selected")
+        self.embed_selected_payloads.append(list(content_hashes))
+        if self.fail_job_type == "embed_selected":
+            raise RuntimeError("embed selected failed")
+        return {"succeeded": len(content_hashes), "failed": 0, "errors": []}
 
 
 class FakeVectorIndex:
@@ -95,6 +103,41 @@ def test_job_runner_clears_last_error_summary_after_clean_success(tmp_path: Path
     job_runner.run_next()
 
     assert repository.get_system_state("last_error_summary") is None
+
+
+def test_job_runner_runs_embed_selected_jobs_with_payload(tmp_path: Path):
+    repository = MetadataRepository(tmp_path / "metadata.db")
+    repository.initialize_schema()
+    index_service = FakeIndexService()
+    job_runner = JobRunner(repository, index_service)
+
+    job = job_runner.enqueue(
+        "embed_selected",
+        payload={"content_hashes": ["hash-a", "hash-b"]},
+    )
+    job_runner.run_next()
+
+    stored_job = repository.get_job(job.id)
+    assert stored_job is not None
+    assert stored_job.status == "succeeded"
+    assert index_service.embed_selected_payloads == [["hash-a", "hash-b"]]
+    assert json.loads(stored_job.summary_json or "{}")["succeeded"] == 2
+
+
+def test_job_runner_marks_embed_selected_failures(tmp_path: Path):
+    repository = MetadataRepository(tmp_path / "metadata.db")
+    repository.initialize_schema()
+    index_service = FakeIndexService()
+    index_service.fail_job_type = "embed_selected"
+    job_runner = JobRunner(repository, index_service)
+
+    job = job_runner.enqueue("embed_selected", payload={"content_hashes": ["hash-a"]})
+    job_runner.run_next()
+
+    stored_job = repository.get_job(job.id)
+    assert stored_job is not None
+    assert stored_job.status == "failed"
+    assert stored_job.error_text == "embed selected failed"
 
 
 @pytest.mark.asyncio

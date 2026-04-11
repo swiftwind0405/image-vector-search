@@ -81,6 +81,22 @@ class IndexService:
         stat = image_path.stat()
         current_file = SimpleNamespace(file_size=stat.st_size, mtime=stat.st_mtime)
         existing_path = self.repository.get_image_path(container_path)
+        threshold_bytes = self.settings.max_embedding_file_size_mb * 1024 * 1024
+
+        if (
+            self.settings.max_embedding_file_size_mb > 0
+            and current_file.file_size > threshold_bytes
+        ):
+            self._process_oversized_path(
+                image_path=image_path,
+                container_path=container_path,
+                file_size=current_file.file_size,
+                mtime=current_file.mtime,
+                now=now,
+                embedding_key=embedding_key,
+                report=report,
+            )
+            return
 
         if (
             not force_rehash
@@ -244,6 +260,67 @@ class IndexService:
             )
         )
 
+    def _process_oversized_path(
+        self,
+        *,
+        image_path: Path,
+        container_path: str,
+        file_size: int,
+        mtime: float,
+        now: datetime,
+        embedding_key: str,
+        report: IndexingReport,
+    ) -> None:
+        content_hash = sha256_file(image_path)
+        metadata = read_image_metadata(image_path)
+        existing_image = self.repository.get_image(content_hash)
+        has_embedding = self.vector_index.has_embedding(content_hash, embedding_key)
+        embedding_status = (
+            "embedded"
+            if has_embedding
+            else (
+                existing_image.embedding_status
+                if existing_image is not None and existing_image.embedding_status == "failed"
+                else "skipped_oversized"
+            )
+        )
+
+        self.repository.upsert_image(
+            ImageRecord(
+                content_hash=content_hash,
+                canonical_path=container_path,
+                file_size=file_size,
+                mtime=mtime,
+                mime_type=metadata.mime_type,
+                width=metadata.width,
+                height=metadata.height,
+                is_active=True,
+                last_seen_at=now,
+                embedding_provider=self.settings.embedding_provider,
+                embedding_model=self.settings.embedding_model,
+                embedding_version=self.settings.embedding_version,
+                embedding_status=embedding_status,
+                created_at=existing_image.created_at if existing_image is not None else now,
+                updated_at=now,
+            )
+        )
+        self.repository.upsert_image_path(
+            ImagePathRecord(
+                content_hash=content_hash,
+                path=container_path,
+                file_size=file_size,
+                mtime=mtime,
+                is_active=True,
+                last_seen_at=now,
+                created_at=existing_image.created_at if existing_image is not None else now,
+                updated_at=now,
+            )
+        )
+        if has_embedding:
+            report.reused += 1
+            return
+        report.skipped_oversized += 1
+
     def _embed_image(self, image_path: Path) -> list[float]:
         client = self.embedding_client
         if client is None:
@@ -256,6 +333,62 @@ class IndexService:
             self.settings.embedding_model,
             self.settings.embedding_version,
         )
+
+    def force_embed_images(self, content_hashes: list[str]) -> dict:
+        succeeded = 0
+        failed = 0
+        errors: list[dict[str, str]] = []
+        embedding_key = self._embedding_key()
+        now = datetime.now(UTC)
+
+        for content_hash in content_hashes:
+            image = self.repository.get_image(content_hash)
+            if image is None:
+                failed += 1
+                errors.append({"hash": content_hash, "message": "Image not found"})
+                continue
+            try:
+                image_path = Path(image.canonical_path)
+                vector = self._embed_image(image_path)
+                self.vector_index.ensure_collection(
+                    dimension=len(vector),
+                    embedding_key=embedding_key,
+                )
+                self.vector_index.upsert_embeddings(
+                    [
+                        {
+                            "content_hash": content_hash,
+                            "embedding_key": embedding_key,
+                            "embedding": vector,
+                        }
+                    ]
+                )
+                self.repository.upsert_image(
+                    image.model_copy(
+                        update={
+                            "embedding_provider": self.settings.embedding_provider,
+                            "embedding_model": self.settings.embedding_model,
+                            "embedding_version": self.settings.embedding_version,
+                            "embedding_status": "embedded",
+                            "updated_at": now,
+                        }
+                    )
+                )
+                succeeded += 1
+            except Exception as exc:
+                failed += 1
+                self.repository.upsert_image(
+                    image.model_copy(
+                        update={
+                            "embedding_status": "failed",
+                            "updated_at": now,
+                        }
+                    )
+                )
+                self.repository.set_system_state("last_error_summary", str(exc))
+                errors.append({"hash": content_hash, "message": str(exc)})
+
+        return {"succeeded": succeeded, "failed": failed, "errors": errors}
 
     def _ensure_embed_loop(self) -> asyncio.AbstractEventLoop:
         """Return a persistent event loop for embedding calls.

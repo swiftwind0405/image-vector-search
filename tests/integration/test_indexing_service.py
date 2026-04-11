@@ -13,12 +13,16 @@ from image_vector_search.services.status import StatusService
 class FakeEmbeddingClient:
     def __init__(self) -> None:
         self.embed_calls: list[list[Path]] = []
+        self.fail_paths: set[Path] = set()
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         raise NotImplementedError
 
     async def embed_images(self, paths: list[Path]) -> list[list[float]]:
         self.embed_calls.append([path.resolve() for path in paths])
+        for path in paths:
+            if path.resolve() in self.fail_paths:
+                raise RuntimeError(f"failed to embed {path.name}")
         return [[1.0, 0.0, 0.0] for _ in paths]
 
     def vector_dimension(self) -> int | None:
@@ -74,6 +78,7 @@ def create_service(
     embedding_provider: str = "gemini",
     embedding_model: str = "fake-clip",
     embedding_version: str = "2026-03",
+    max_embedding_file_size_mb: int = 2,
     vector_index: FakeVectorIndex | None = None,
     repository: MetadataRepository | None = None,
 ) -> tuple[IndexService, MetadataRepository, FakeEmbeddingClient, FakeVectorIndex]:
@@ -88,6 +93,7 @@ def create_service(
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         embedding_version=embedding_version,
+        max_embedding_file_size_mb=max_embedding_file_size_mb,
     )
     repository = repository or MetadataRepository(index_root / "metadata.db")
     repository.initialize_schema()
@@ -217,3 +223,73 @@ def test_incremental_update_records_clear_dimension_mismatch_error(tmp_path: Pat
     assert status.embedding_provider == "gemini"
     assert status.embedding_model == "fake-clip"
     assert status.embedding_version == "2026-03"
+
+
+def test_incremental_update_marks_oversized_images_as_skipped(tmp_path: Path):
+    service, repository, embedding_client, vector_index = create_service(tmp_path)
+    image_path = create_image(service.settings.images_root, "large.jpg", color="purple")
+    image_path.write_bytes(image_path.read_bytes() + b"0" * (3 * 1024 * 1024))
+
+    report = service.run_incremental_update()
+    content_hash = sha256_file(image_path)
+    image = repository.get_image(content_hash)
+
+    assert report.skipped_oversized == 1
+    assert image is not None
+    assert image.embedding_status == "skipped_oversized"
+    assert embedding_client.embed_calls == []
+    assert vector_index.records == {}
+
+
+def test_incremental_update_embeds_large_images_when_limit_disabled(tmp_path: Path):
+    service, repository, embedding_client, vector_index = create_service(
+        tmp_path,
+        max_embedding_file_size_mb=0,
+    )
+    image_path = create_image(service.settings.images_root, "large.jpg", color="purple")
+    image_path.write_bytes(image_path.read_bytes() + b"1" * (3 * 1024 * 1024))
+
+    report = service.run_incremental_update()
+    content_hash = sha256_file(image_path)
+    image = repository.get_image(content_hash)
+
+    assert report.added == 1
+    assert image is not None
+    assert image.embedding_status == "embedded"
+    assert len(embedding_client.embed_calls) == 1
+    assert vector_index.count("gemini:fake-clip:2026-03") == 1
+
+
+def test_force_embed_images_updates_status_to_embedded(tmp_path: Path):
+    service, repository, _, vector_index = create_service(tmp_path)
+    image_path = create_image(service.settings.images_root, "large.jpg", color="purple")
+    image_path.write_bytes(image_path.read_bytes() + b"2" * (3 * 1024 * 1024))
+    service.run_incremental_update()
+    content_hash = sha256_file(image_path)
+
+    result = service.force_embed_images([content_hash])
+    image = repository.get_image(content_hash)
+
+    assert result["succeeded"] == 1
+    assert result["failed"] == 0
+    assert image is not None
+    assert image.embedding_status == "embedded"
+    assert vector_index.count("gemini:fake-clip:2026-03") == 1
+
+
+def test_force_embed_images_marks_failures(tmp_path: Path):
+    service, repository, embedding_client, _ = create_service(tmp_path)
+    image_path = create_image(service.settings.images_root, "large.jpg", color="purple")
+    image_path.write_bytes(image_path.read_bytes() + b"3" * (3 * 1024 * 1024))
+    service.run_incremental_update()
+    content_hash = sha256_file(image_path)
+    embedding_client.fail_paths.add(image_path.resolve())
+
+    result = service.force_embed_images([content_hash])
+    image = repository.get_image(content_hash)
+
+    assert result["succeeded"] == 0
+    assert result["failed"] == 1
+    assert result["errors"][0]["hash"] == content_hash
+    assert image is not None
+    assert image.embedding_status == "failed"

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     embedding_output_dimensionality: int | None = Field(default=None, ge=1)
     embedding_batch_size: int = Field(default=32, ge=1)
+    max_embedding_file_size_mb: int = Field(default=2, ge=0)
     jina_rpm: int = Field(default=100, ge=1, description="Jina API rate limit: requests per minute")
     jina_max_concurrency: int = Field(default=2, ge=1, description="Jina API max concurrent requests")
     vector_index_collection_name: str = "image_embeddings"

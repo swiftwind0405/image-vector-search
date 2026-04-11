@@ -183,7 +183,7 @@ class TestFilteredImagesAPI:
         response = await client.get(f"/api/images?tag_id={tag_id}")
 
         assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()] == ["aaa", "bbb"]
+        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa", "bbb"]
 
     @pytest.mark.anyio
     async def test_list_images_filtered_by_category_includes_descendants(self, client):
@@ -197,7 +197,7 @@ class TestFilteredImagesAPI:
         response = await client.get(f"/api/images?category_id={parent_id}")
 
         assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()] == ["aaa", "bbb"]
+        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa", "bbb"]
 
     @pytest.mark.anyio
     async def test_list_images_filtered_by_category_can_exclude_descendants(self, client):
@@ -213,7 +213,7 @@ class TestFilteredImagesAPI:
         )
 
         assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()] == ["aaa"]
+        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa"]
 
     @pytest.mark.anyio
     async def test_list_images_composes_tag_and_folder_filters(self, client):
@@ -224,4 +224,4 @@ class TestFilteredImagesAPI:
         response = await client.get(f"/api/images?tag_id={tag_id}&folder=nature")
 
         assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()] == ["aaa"]
+        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa"]

@@ -17,6 +17,7 @@ def test_settings_defaults(monkeypatch):
     assert settings.default_top_k == 5
     assert settings.max_top_k == 50
     assert settings.embedding_provider == "jina"
+    assert settings.max_embedding_file_size_mb == 2
 
 
 def test_settings_load_gemini_specific_values(monkeypatch):
@@ -64,3 +65,17 @@ def test_build_embedding_key_handles_none_version():
 
     assert build_embedding_key("gemini", "model", None) == "gemini:model:default"
     assert build_embedding_key("jina", "clip", "v2") == "jina:clip:v2"
+
+
+def test_settings_allow_embedding_size_override(monkeypatch):
+    monkeypatch.setenv("IMAGE_SEARCH_MAX_EMBEDDING_FILE_SIZE_MB", "10")
+
+    settings = Settings()
+
+    assert settings.max_embedding_file_size_mb == 10
+
+
+def test_settings_allow_disabling_embedding_size_limit():
+    settings = Settings(max_embedding_file_size_mb=0)
+
+    assert settings.max_embedding_file_size_mb == 0

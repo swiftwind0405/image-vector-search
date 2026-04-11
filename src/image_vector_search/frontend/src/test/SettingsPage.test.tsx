@@ -20,6 +20,17 @@ vi.mock("@/api/settings", () => ({
     isPending: false,
     mutateAsync: mockMutateAsync,
   }),
+  useFolderSettings: () => ({
+    data: {
+      folders: [],
+      excluded: [],
+    },
+    isLoading: false,
+  }),
+  useUpdateExcludedFolders: () => ({
+    isPending: false,
+    mutateAsync: vi.fn(),
+  }),
 }));
 
 import { toast } from "sonner";

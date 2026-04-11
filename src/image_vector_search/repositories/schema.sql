@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS images (
   embedding_provider TEXT NOT NULL,
   embedding_model TEXT NOT NULL,
   embedding_version TEXT NOT NULL,
+  embedding_status TEXT NOT NULL DEFAULT 'pending',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

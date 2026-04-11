@@ -16,13 +16,14 @@ class JobRunner:
         self._running_job_id: str | None = None
         self._lock = Lock()
 
-    def enqueue(self, job_type: str) -> JobRecord:
+    def enqueue(self, job_type: str, payload: dict | None = None) -> JobRecord:
         now = datetime.now(UTC)
         job = JobRecord(
             id=uuid4().hex,
             job_type=job_type,
             status="queued",
             requested_at=now,
+            summary_json=json.dumps(payload) if payload is not None else None,
         )
         self.repository.create_job(job)
         with self._lock:
@@ -48,7 +49,8 @@ class JobRunner:
         self.repository.update_job(job_id, status="running", started_at=started_at)
 
         try:
-            summary = self._run_job(job.job_type)
+            payload = json.loads(job.summary_json) if job.summary_json else {}
+            summary = self._run_job(job.job_type, payload)
         except Exception as exc:
             finished_at = datetime.now(UTC)
             error_text = str(exc)
@@ -65,7 +67,9 @@ class JobRunner:
                 job_id,
                 status="succeeded",
                 finished_at=finished_at,
-                summary_json=json.dumps(summary.model_dump()),
+                summary_json=json.dumps(
+                    summary.model_dump() if hasattr(summary, "model_dump") else summary
+                ),
             )
             if getattr(summary, "errors", 0) == 0:
                 self.repository.delete_system_state("last_error_summary")
@@ -75,11 +79,13 @@ class JobRunner:
 
         return self.repository.get_job(job_id)
 
-    def _run_job(self, job_type: str):
+    def _run_job(self, job_type: str, payload: dict):
         if job_type == "incremental":
             return self.index_service.run_incremental_update()
         if job_type == "full_rebuild":
             return self.index_service.run_full_rebuild()
+        if job_type == "embed_selected":
+            return self.index_service.force_embed_images(payload.get("content_hashes", []))
         raise ValueError(f"Unsupported job type: {job_type}")
 
 
