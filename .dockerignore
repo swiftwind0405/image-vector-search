@@ -24,5 +24,4 @@ src/image_vector_search/frontend/.vite
 src/image_vector_search/frontend/.vite-temp
 tests
 docs
-example-index
-sample-data
+data

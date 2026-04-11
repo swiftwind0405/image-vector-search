@@ -35,13 +35,13 @@
 
 ```bash
 cp .env.example .env
-mkdir -p ./data/images ./.data/config
+mkdir -p ./data/images ./data/config
 ```
 
 常见做法：
 
 - 本地调试：`IMAGE_SEARCH_IMAGES_ROOT=./data/images`
-- 索引数据：`IMAGE_SEARCH_INDEX_ROOT=./.data/config`
+- 索引数据：`IMAGE_SEARCH_INDEX_ROOT=./data/config`
 
 你也可以把 `IMAGE_SEARCH_IMAGES_ROOT` 指向真实图片目录。
 

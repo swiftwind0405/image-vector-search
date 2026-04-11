@@ -24,7 +24,7 @@ Local image semantic search service with a FastAPI backend, browser-based admin 
 
 ```bash
 cp .env.example .env
-mkdir -p ./data/images ./.data/config
+mkdir -p ./data/images ./data/config
 ```
 
 Put sample images into `./data/images` or point `IMAGE_SEARCH_IMAGES_ROOT` to your own directory.
