@@ -16,3 +16,10 @@ def test_readme_mentions_required_environment_variables():
     assert "JINA_API_KEY" in readme
     assert "/data/images" in readme
     assert "/data/config" in readme
+
+
+def test_readme_mentions_make_dev() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "make dev" in readme
+    assert "make dev-backend" in readme
+    assert "make dev-frontend" in readme

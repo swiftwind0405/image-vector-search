@@ -10,7 +10,9 @@ class LoginRequest(BaseModel):
 
 def create_auth_router(*, admin_username: str, admin_password: str) -> APIRouter:
     router = APIRouter()
-    auth_enabled = bool(admin_username and admin_password)
+    normalized_username = admin_username.strip()
+    normalized_password = admin_password.strip()
+    auth_enabled = bool(normalized_username and normalized_password)
 
     @router.get("/api/auth/me")
     async def auth_me(request: Request):
@@ -23,7 +25,7 @@ def create_auth_router(*, admin_username: str, admin_password: str) -> APIRouter
     async def auth_login(payload: LoginRequest, request: Request):
         if not auth_enabled:
             return JSONResponse({"ok": True})
-        if payload.username == admin_username and payload.password == admin_password:
+        if payload.username == normalized_username and payload.password == normalized_password:
             request.session["authenticated"] = True
             return JSONResponse({"ok": True})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

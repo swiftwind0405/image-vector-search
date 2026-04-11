@@ -104,6 +104,21 @@ See [.env.example](.env.example) for a full template.
 
 ## Local Development
 
+Start backend and frontend together:
+
+```bash
+make dev
+```
+
+This starts the FastAPI backend and the Vite frontend dev server together without opening a browser.
+
+Run only one side if needed:
+
+```bash
+make dev-backend
+make dev-frontend
+```
+
 Run tests:
 
 ```bash

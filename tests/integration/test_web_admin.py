@@ -248,6 +248,22 @@ def test_admin_home_returns_200():
     assert response.status_code == 200
 
 
+def test_auth_me_skips_auth_when_admin_credentials_are_whitespace():
+    status_service = FakeStatusService()
+    app = create_app(
+        settings=Settings(admin_username="   ", admin_password="   "),
+        search_service=FakeSearchService(),
+        status_service=status_service,
+        job_runner=FakeJobRunner(status_service),
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/auth/me")
+
+    assert response.status_code == 200
+    assert response.json() == {"authenticated": True}
+
+
 def test_status_api_returns_snapshot():
     client = create_test_client()
 
