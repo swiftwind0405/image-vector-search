@@ -24,10 +24,10 @@ Local image semantic search service with a FastAPI backend, browser-based admin 
 
 ```bash
 cp .env.example .env
-mkdir -p ./example-images ./example-index
+mkdir -p ./data/images ./.data/config
 ```
 
-Put sample images into `./example-images` or point `IMAGE_SEARCH_IMAGES_ROOT` to your own directory.
+Put sample images into `./data/images` or point `IMAGE_SEARCH_IMAGES_ROOT` to your own directory.
 
 ### 2. Install dependencies
 
@@ -155,7 +155,7 @@ If you want search to work immediately after container startup, provide a provid
 Default container paths:
 
 - images root: `/data/images`
-- index root: `/data/index`
+- index root: `/data/config`
 
 The repository now ignores large local frontend and Python caches during Docker builds, which keeps the build context smaller and avoids sending local `node_modules`, `.venv`, and other transient artifacts into the image build.
 

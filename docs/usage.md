@@ -35,13 +35,13 @@
 
 ```bash
 cp .env.example .env
-mkdir -p ./example-images ./example-index
+mkdir -p ./data/images ./.data/config
 ```
 
 常见做法：
 
-- 本地调试：`IMAGE_SEARCH_IMAGES_ROOT=./example-images`
-- 索引数据：`IMAGE_SEARCH_INDEX_ROOT=./example-index`
+- 本地调试：`IMAGE_SEARCH_IMAGES_ROOT=./data/images`
+- 索引数据：`IMAGE_SEARCH_INDEX_ROOT=./.data/config`
 
 你也可以把 `IMAGE_SEARCH_IMAGES_ROOT` 指向真实图片目录。
 
@@ -286,7 +286,7 @@ docker compose up --build
 当前 Compose 默认约定：
 
 - 图片目录挂载到 `/data/images`
-- 索引目录挂载到 `/data/index`
+- 索引目录挂载到 `/data/config`
 - provider 默认为 `jina`
 - 如果没有提供任一 provider 的 key，容器仍会启动，但需要后续在后台页面补充配置
 
