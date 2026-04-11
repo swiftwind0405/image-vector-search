@@ -3,12 +3,12 @@ from pathlib import Path
 
 def test_fixture_docs_exist() -> None:
     assert Path("tests/fixtures/README.md").exists()
-    assert Path("sample-data/README.md").exists()
 
 
-def test_sample_data_readme_mentions_builder() -> None:
-    text = Path("sample-data/README.md").read_text(encoding="utf-8")
+def test_fixture_readme_mentions_demo_builder() -> None:
+    text = Path("tests/fixtures/README.md").read_text(encoding="utf-8")
     assert "build_demo_image_set.py" in text
+    assert "tmp/demo-set" in text
 
 
 def test_readme_mentions_required_environment_variables():

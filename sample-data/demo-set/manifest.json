@@ -1,7 +1,0 @@
-{
-  "source_root": "/path/to/local/images",
-  "output_root": "/Users/stanleyyang/Workspace/projects/image-vector-search/sample-data/demo-set",
-  "copied_count": 0,
-  "limit": 24,
-  "images": []
-}

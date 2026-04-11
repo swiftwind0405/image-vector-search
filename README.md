@@ -116,6 +116,15 @@ Run only unit tests:
 pytest tests/unit/
 ```
 
+Build a local demo dataset for manual validation without adding files to the
+repository:
+
+```bash
+.venv/bin/python scripts/build_demo_image_set.py \
+  --source /path/to/local/images \
+  --output tmp/demo-set
+```
+
 Run the frontend in dev mode:
 
 ```bash
