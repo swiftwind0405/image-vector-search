@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ImageOff } from "lucide-react";
 import GalleryCard from "./GalleryCard";
 import type { ImageRecordWithLabels } from "@/api/types";
@@ -7,9 +8,18 @@ interface Props {
   onOpen: (hash: string) => void;
   selectedHashes?: Set<string>;
   onSelect?: (hash: string) => void;
+  renderStatusBadge: (image: ImageRecordWithLabels) => ReactNode;
+  renderAction?: (image: ImageRecordWithLabels) => ReactNode;
 }
 
-export default function GalleryGrid({ images, onOpen, selectedHashes, onSelect }: Props) {
+export default function GalleryGrid({
+  images,
+  onOpen,
+  selectedHashes,
+  onSelect,
+  renderStatusBadge,
+  renderAction,
+}: Props) {
   if (images.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
@@ -28,6 +38,8 @@ export default function GalleryGrid({ images, onOpen, selectedHashes, onSelect }
           onOpen={onOpen}
           selected={selectedHashes?.has(image.content_hash)}
           onSelect={onSelect}
+          statusBadge={renderStatusBadge(image)}
+          action={renderAction?.(image)}
         />
       ))}
     </div>

@@ -198,7 +198,6 @@ Temporary Items
 # Local Docker / Milvus data
 milvus-data/
 data/
-.data/
 .worktrees/
 
 # Tmp files
@@ -213,9 +212,6 @@ src/image_vector_search/frontend/dist/
 .vite/
 
 .superpowers
-
-example-images/
-example-index/
 
 findings.md
 progress.md

@@ -1,7 +1,13 @@
 import pytest
 from datetime import UTC, datetime
 
-from image_vector_search.domain.models import ImagePathRecord, ImageRecord, JobRecord, Tag
+from image_vector_search.domain.models import (
+    ImagePathRecord,
+    ImageRecord,
+    JobRecord,
+    PaginatedImages,
+    Tag,
+)
 from image_vector_search.repositories.sqlite import MetadataRepository, choose_canonical_path
 
 
@@ -17,6 +23,7 @@ def _build_image(
     canonical_path: str,
     is_active: bool = True,
     last_seen_at: datetime | None = None,
+    embedding_status: str = "embedded",
 ) -> ImageRecord:
     observed_at = last_seen_at or datetime(2026, 1, 1, 10, 0, 0)
     return ImageRecord(
@@ -32,6 +39,7 @@ def _build_image(
         embedding_provider="jina",
         embedding_model="jina-clip-v2",
         embedding_version="v1",
+        embedding_status=embedding_status,
         created_at=observed_at,
         updated_at=observed_at,
     )
@@ -80,6 +88,89 @@ def test_initialize_schema_creates_core_tables(tmp_path):
         }
 
     assert {"images", "image_paths", "jobs", "system_state"}.issubset(names)
+
+
+def test_initialize_schema_migrates_existing_images_embedding_status(tmp_path):
+    db_path = tmp_path / "metadata.sqlite3"
+    repository = MetadataRepository(db_path)
+    with repository.connect() as connection:
+        connection.executescript(
+            """
+            CREATE TABLE images (
+              content_hash TEXT PRIMARY KEY,
+              canonical_path TEXT NOT NULL,
+              file_size INTEGER NOT NULL,
+              mtime REAL NOT NULL,
+              mime_type TEXT NOT NULL,
+              width INTEGER NOT NULL,
+              height INTEGER NOT NULL,
+              is_active INTEGER NOT NULL,
+              last_seen_at TEXT NOT NULL,
+              embedding_provider TEXT NOT NULL,
+              embedding_model TEXT NOT NULL,
+              embedding_version TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE image_paths (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              content_hash TEXT NOT NULL,
+              path TEXT NOT NULL UNIQUE,
+              file_size INTEGER NOT NULL,
+              mtime REAL NOT NULL,
+              is_active INTEGER NOT NULL,
+              last_seen_at TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE jobs (
+              id TEXT PRIMARY KEY,
+              job_type TEXT NOT NULL,
+              status TEXT NOT NULL,
+              requested_at TEXT NOT NULL,
+              started_at TEXT,
+              finished_at TEXT,
+              summary_json TEXT,
+              error_text TEXT
+            );
+            CREATE TABLE system_state (
+              key TEXT PRIMARY KEY,
+              value TEXT NOT NULL
+            );
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO images (
+                content_hash, canonical_path, file_size, mtime, mime_type, width, height,
+                is_active, last_seen_at, embedding_provider, embedding_model, embedding_version,
+                created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy-hash",
+                "/data/images/legacy.jpg",
+                100,
+                1.0,
+                "image/jpeg",
+                12,
+                8,
+                1,
+                "2026-01-01T10:00:00+00:00",
+                "jina",
+                "jina-clip-v2",
+                "v1",
+                "2026-01-01T10:00:00+00:00",
+                "2026-01-01T10:00:00+00:00",
+            ),
+        )
+
+    repository.initialize_schema()
+    image = repository.get_image("legacy-hash")
+
+    assert image is not None
+    assert image.embedding_status == "embedded"
 
 
 def test_connect_enables_sqlite_foreign_keys(tmp_path):
@@ -213,6 +304,81 @@ def test_read_status_aggregates_returns_image_counts(tmp_path):
     assert status.total_images == 2
     assert status.active_images == 1
     assert status.inactive_images == 1
+
+
+def test_list_all_images_with_labels_filters_and_includes_inactive(tmp_path):
+    repository = _build_repository(tmp_path)
+    embedded = _build_image(
+        content_hash="embedded",
+        canonical_path="/data/images/a.jpg",
+        embedding_status="embedded",
+    )
+    oversized = _build_image(
+        content_hash="oversized",
+        canonical_path="/data/images/b.jpg",
+        embedding_status="skipped_oversized",
+    )
+    inactive = _build_image(
+        content_hash="inactive",
+        canonical_path="/data/images/c.jpg",
+        is_active=False,
+        embedding_status="failed",
+    )
+    repository.upsert_image(embedded)
+    repository.upsert_image(oversized)
+    repository.upsert_image(inactive)
+
+    all_images = repository.list_all_images_with_labels()
+    oversized_only = repository.list_all_images_with_labels(
+        embedding_status="skipped_oversized"
+    )
+
+    assert [img.content_hash for img in all_images.items] == [
+        "embedded",
+        "oversized",
+        "inactive",
+    ]
+    assert all_images.next_cursor is None
+    assert [img.content_hash for img in oversized_only.items] == ["oversized"]
+
+
+def test_list_active_images_with_labels_paginates_by_cursor(tmp_path):
+    repository = _build_repository(tmp_path)
+    for index in range(10):
+        repository.upsert_image(
+            _build_image(
+                content_hash=f"hash-{index}",
+                canonical_path=f"/data/images/{index:02d}.jpg",
+            )
+        )
+
+    first_page = repository.list_active_images_with_labels(limit=4)
+    assert isinstance(first_page, PaginatedImages)
+    assert [img.content_hash for img in first_page.items] == [
+        "hash-0",
+        "hash-1",
+        "hash-2",
+        "hash-3",
+    ]
+    assert first_page.next_cursor == "/data/images/03.jpg"
+
+    second_page = repository.list_active_images_with_labels(
+        limit=4,
+        cursor=first_page.next_cursor,
+    )
+    third_page = repository.list_active_images_with_labels(
+        limit=4,
+        cursor=second_page.next_cursor,
+    )
+
+    assert [img.content_hash for img in second_page.items] == [
+        "hash-4",
+        "hash-5",
+        "hash-6",
+        "hash-7",
+    ]
+    assert [img.content_hash for img in third_page.items] == ["hash-8", "hash-9"]
+    assert third_page.next_cursor is None
 
 
 def test_list_inactive_images_returns_only_inactive_records(tmp_path):

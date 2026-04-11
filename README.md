@@ -24,7 +24,7 @@ Local image semantic search service with a FastAPI backend, browser-based admin 
 
 ```bash
 cp .env.example .env
-mkdir -p ./data/images ./.data/config
+mkdir -p ./data/images ./data/config
 ```
 
 Put sample images into `./data/images` or point `IMAGE_SEARCH_IMAGES_ROOT` to your own directory.
@@ -161,13 +161,13 @@ The repository now ignores large local frontend and Python caches during Docker 
 
 ## Release Process
 
-Container publishing is driven by Git tags pushed to GitHub Actions.
+Container publishing is driven by published GitHub Releases.
 
 Current workflow behavior:
 
 - Pushing branches alone does not publish an image
-- Pushing a tag that matches `v*.*.*` triggers `.github/workflows/docker.yml`
-- Publishing a GitHub Release in the web UI does not trigger the container build by itself
+- Pushing a tag alone does not trigger `.github/workflows/docker.yml`
+- Publishing a GitHub Release triggers `.github/workflows/docker.yml`
 
 Typical release flow:
 
@@ -180,7 +180,13 @@ git push origin master
 git push origin v0.1.0
 ```
 
-After the tag is pushed, GitHub Actions builds and publishes the container image to `ghcr.io/<owner>/<repo>`.
+Then publish a GitHub Release for `v0.1.0` in the repository UI or with the GitHub CLI:
+
+```bash
+gh release create v0.1.0 --generate-notes
+```
+
+After the Release is published, GitHub Actions builds and publishes the container image to `ghcr.io/<owner>/<repo>`.
 
 ## Persistence
 

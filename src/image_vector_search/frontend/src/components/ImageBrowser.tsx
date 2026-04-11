@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,11 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useImages } from "@/api/images";
+import {
+  useForceEmbedImages,
+  useImages,
+  useImagesInfinite,
+} from "@/api/images";
 import {
   useFolders,
   useOpenFile,
@@ -74,6 +79,7 @@ interface ImageBrowserProps {
     includeDescendants?: boolean;
   };
   emptyMessage?: string;
+  includeAllImages?: boolean;
 }
 
 function getStoredViewMode(): "list" | "gallery" {
@@ -91,8 +97,10 @@ export default function ImageBrowser({
   hideTitle,
   queryScope,
   emptyMessage = "No images indexed yet",
+  includeAllImages = false,
 }: ImageBrowserProps) {
   const [folder, setFolder] = useState<string | undefined>(undefined);
+  const [embeddingStatus, setEmbeddingStatus] = useState<string>("all");
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [bulkTagId, setBulkTagId] = useState<string>("");
@@ -105,15 +113,27 @@ export default function ImageBrowser({
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [modalHash, setModalHash] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: images, isLoading } = useImages({
+  const imageQueryOptions = {
     folder,
     tagId: queryScope?.tagId,
     categoryId: queryScope?.categoryId,
     includeDescendants: queryScope?.includeDescendants,
+    includeInactive: includeAllImages,
+    embeddingStatus: embeddingStatus === "all" ? undefined : embeddingStatus,
+  };
+  const standardImagesQuery = useImages(imageQueryOptions);
+  const infiniteImagesQuery = useImagesInfinite({
+    ...imageQueryOptions,
+    limit: 200,
   });
+  const images = includeAllImages
+    ? (infiniteImagesQuery.data?.pages.flatMap((page) => page.items) ?? [])
+    : (standardImagesQuery.data ?? []);
+  const isLoading = includeAllImages
+    ? infiniteImagesQuery.isLoading
+    : standardImagesQuery.isLoading;
   const { data: folders } = useFolders();
   const { data: allTags } = useTags();
   const { data: allCategories } = useCategories();
@@ -130,12 +150,18 @@ export default function ImageBrowser({
   const bulkFolderRemoveTag = useBulkFolderRemoveTag();
   const bulkFolderAddCategory = useBulkFolderAddCategory();
   const bulkFolderRemoveCategory = useBulkFolderRemoveCategory();
+  const forceEmbedImages = useForceEmbedImages();
 
   useEffect(() => {
     setSelectedHashes(new Set());
     setExpandedHash(null);
-    setPage(1);
-  }, [folder, queryScope?.tagId, queryScope?.categoryId, queryScope?.includeDescendants]);
+  }, [
+    folder,
+    embeddingStatus,
+    queryScope?.tagId,
+    queryScope?.categoryId,
+    queryScope?.includeDescendants,
+  ]);
 
   useEffect(() => {
     try {
@@ -196,18 +222,15 @@ export default function ImageBrowser({
     setActiveTags((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
-    setPage(1);
   };
 
   const handleCategoryToggle = (id: number) => {
     setActiveCategoryId((prev) => (prev === id ? null : id));
-    setPage(1);
   };
 
   const handleClearFilters = () => {
     setActiveTags([]);
     setActiveCategoryId(null);
-    setPage(1);
   };
 
   const handleBulkAddTag = () => {
@@ -323,13 +346,95 @@ export default function ImageBrowser({
     return createdId;
   };
 
-  const totalPages = Math.max(1, Math.ceil(filteredImages.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const paginatedImages = filteredImages.slice((safePage - 1) * pageSize, safePage * pageSize);
-
   const modalImage = modalHash
     ? filteredImages.find((img) => img.content_hash === modalHash) ?? null
     : null;
+  const eligibleSelectedHashes = useMemo(
+    () =>
+      filteredImages
+        .filter(
+          (img) =>
+            selectedHashes.has(img.content_hash) &&
+            img.embedding_status !== "embedded",
+        )
+        .map((img) => img.content_hash),
+    [filteredImages, selectedHashes],
+  );
+
+  useEffect(() => {
+    if (!includeAllImages) {
+      return;
+    }
+    const node = loadMoreRef.current;
+    if (!node) {
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (
+        entries.some((entry) => entry.isIntersecting) &&
+        infiniteImagesQuery.hasNextPage &&
+        !infiniteImagesQuery.isFetchingNextPage
+      ) {
+        infiniteImagesQuery.fetchNextPage();
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    includeAllImages,
+    infiniteImagesQuery,
+    filteredImages.length,
+  ]);
+
+  const formatFileSizeMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const renderStatusBadge = (image: ImageRecordWithLabels) => {
+    if (image.embedding_status === "embedded") {
+      return <span className="text-emerald-200">已向量化</span>;
+    }
+    if (image.embedding_status === "skipped_oversized") {
+      return <span className="text-amber-200">超大 ({formatFileSizeMb(image.file_size)})</span>;
+    }
+    if (image.embedding_status === "failed") {
+      return <span className="text-rose-200">嵌入失败</span>;
+    }
+    return <span className="text-zinc-200">待处理</span>;
+  };
+
+  const handleForceEmbed = (contentHashes: string[]) => {
+    if (contentHashes.length === 0) {
+      return;
+    }
+    forceEmbedImages.mutate(
+      { content_hashes: contentHashes },
+      {
+        onSuccess: () => {
+          toast.success(`已提交 ${contentHashes.length} 张图片的向量化任务`);
+        },
+        onError: () => {
+          toast.error("提交向量化任务失败");
+        },
+      },
+    );
+  };
+
+  const renderForceEmbedAction = (image: ImageRecordWithLabels) => {
+    if (image.embedding_status !== "skipped_oversized" && image.embedding_status !== "failed") {
+      return null;
+    }
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 rounded-full border-white/15 bg-black/40 px-2 text-[11px] text-white hover:bg-black/60"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleForceEmbed([image.content_hash]);
+        }}
+      >
+        重新向量化
+      </Button>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -357,6 +462,24 @@ export default function ImageBrowser({
             ))}
           </SelectContent>
         </Select>
+
+        {includeAllImages && (
+          <Select
+            value={embeddingStatus}
+            onValueChange={(value) => setEmbeddingStatus(value ?? "all")}
+          >
+            <SelectTrigger className="w-full rounded-2xl border-white/10 bg-white/[0.03] xl:w-56">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全部状态</SelectItem>
+              <SelectItem value="embedded">已向量化</SelectItem>
+              <SelectItem value="skipped_oversized">超大</SelectItem>
+              <SelectItem value="failed">嵌入失败</SelectItem>
+              <SelectItem value="pending">待处理</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
 
         {images && (
           <span className="text-sm text-muted-foreground">
@@ -427,6 +550,25 @@ export default function ImageBrowser({
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {selectedCount > 0 && (
             <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
+          )}
+
+          {includeAllImages && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={eligibleSelectedHashes.length === 0 || forceEmbedImages.isPending}
+                className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                onClick={() => handleForceEmbed(eligibleSelectedHashes)}
+              >
+                强制向量化
+              </Button>
+              {selectedCount > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  无限滚动下“全选”仅包含当前已加载结果
+                </span>
+              )}
+            </>
           )}
 
           <Dialog open={bulkTagDialogOpen} onOpenChange={setBulkTagDialogOpen}>
@@ -562,29 +704,18 @@ export default function ImageBrowser({
           ) : (
             <>
               <GalleryGrid
-                images={paginatedImages}
+                images={filteredImages}
                 onOpen={(hash) => setModalHash(hash)}
                 selectedHashes={selectedHashes}
                 onSelect={toggleSelect}
+                renderStatusBadge={renderStatusBadge}
+                renderAction={renderForceEmbedAction}
               />
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm text-muted-foreground">
                   {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
                   {images && filteredImages.length !== images.length && ` of ${images.length} total`}
                 </p>
-                {totalPages > 1 && (
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                      Previous
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      {safePage} / {totalPages}
-                    </span>
-                    <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
-                      Next
-                    </Button>
-                  </div>
-                )}
               </div>
             </>
           )}
@@ -617,7 +748,7 @@ export default function ImageBrowser({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedImages.map((image) => (
+                    {filteredImages.map((image) => (
                       <React.Fragment key={image.content_hash}>
                         <TableRow
                           className="cursor-pointer hover:bg-white/[0.03]"
@@ -642,12 +773,25 @@ export default function ImageBrowser({
                           <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                             {image.canonical_path}
                           </TableCell>
-                          <TableCell className="text-sm">{image.mime_type}</TableCell>
                           <TableCell className="text-sm">
-                            {image.width}x{image.height}
+                            <div className="space-y-1">
+                              <div>{image.mime_type}</div>
+                              <Badge variant="outline" className="border-white/10 bg-white/[0.03]">
+                                {renderStatusBadge(image)}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="space-y-1">
+                              <div>{image.width}x{image.height}</div>
+                              {!image.is_active && (
+                                <div className="text-xs text-amber-300">inactive</div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
+                              {renderForceEmbedAction(image)}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -690,28 +834,22 @@ export default function ImageBrowser({
                     ))}
                   </TableBody>
                 </Table>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t">
-                    <p className="text-sm text-muted-foreground">
-                      {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                        Previous
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        {safePage} / {totalPages}
-                      </span>
-                      <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </CardContent>
         </Card>
+      )}
+
+      {includeAllImages && (
+        <div ref={loadMoreRef} className="flex min-h-10 items-center justify-center">
+          {infiniteImagesQuery.isFetchingNextPage ? (
+            <p className="text-sm text-muted-foreground">Loading more images...</p>
+          ) : infiniteImagesQuery.hasNextPage ? (
+            <p className="text-sm text-muted-foreground">Scroll to load more</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">已加载全部</p>
+          )}
+        </div>
       )}
 
       <ImageModal

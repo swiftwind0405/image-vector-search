@@ -26,6 +26,10 @@ class PurgeInactiveImagesRequest(BaseModel):
     content_hashes: list[str] = Field(default_factory=list)
 
 
+class ForceEmbedImagesRequest(BaseModel):
+    content_hashes: list[str] = Field(default_factory=list)
+
+
 def create_admin_router(*, status_service, job_runner, search_service) -> APIRouter:
     router = APIRouter()
 
@@ -53,16 +57,50 @@ def create_admin_router(*, status_service, job_runner, search_service) -> APIRou
         tag_id: int | None = None,
         category_id: int | None = None,
         include_descendants: bool = True,
+        include_inactive: bool = True,
+        embedding_status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
     ):
-        return JSONResponse(
-            content=jsonable_encoder(
-                status_service.list_active_images_with_labels(
-                    folder=folder,
-                    tag_id=tag_id,
-                    category_id=category_id,
-                    include_descendants=include_descendants,
-                )
+        images = (
+            status_service.list_all_images_with_labels(
+                folder=folder,
+                tag_id=tag_id,
+                category_id=category_id,
+                include_descendants=include_descendants,
+                embedding_status=embedding_status,
+                limit=limit,
+                cursor=cursor,
             )
+            if include_inactive
+            else status_service.list_active_images_with_labels(
+                folder=folder,
+                tag_id=tag_id,
+                category_id=category_id,
+                include_descendants=include_descendants,
+                limit=limit,
+                cursor=cursor,
+                embedding_status=embedding_status,
+            )
+        )
+        return JSONResponse(
+            content=jsonable_encoder(images)
+        )
+
+    @router.get("/api/images/oversized")
+    async def list_oversized_images():
+        return JSONResponse(content=jsonable_encoder(status_service.list_oversized_images()))
+
+    @router.post("/api/images/oversized/embed", status_code=status.HTTP_202_ACCEPTED)
+    async def enqueue_force_embed(payload: ForceEmbedImagesRequest):
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content=jsonable_encoder(
+                job_runner.enqueue(
+                    "embed_selected",
+                    payload={"content_hashes": payload.content_hashes},
+                )
+            ),
         )
 
     @router.get("/api/images/inactive")

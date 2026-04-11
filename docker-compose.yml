@@ -10,5 +10,5 @@ services:
       IMAGE_SEARCH_IMAGES_ROOT: /data/images
       IMAGE_SEARCH_INDEX_ROOT: /data/config
     volumes:
-      - ./.data/config:/data/config
+      - ./data/config:/data/config
       - ./data/images:/data/images:ro

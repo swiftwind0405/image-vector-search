@@ -2,7 +2,12 @@ import asyncio
 from datetime import datetime
 
 from image_vector_search.adapters.embedding.base import build_embedding_key
-from image_vector_search.domain.models import ImageRecord, ImageRecordWithLabels, IndexStatus
+from image_vector_search.domain.models import (
+    ImageRecord,
+    ImageRecordWithLabels,
+    IndexStatus,
+    PaginatedImages,
+)
 from image_vector_search.scanning.files import iter_image_files, scan_disk_folders
 
 
@@ -51,7 +56,10 @@ class StatusService:
         tag_id: int | None = None,
         category_id: int | None = None,
         include_descendants: bool = True,
-    ) -> list[ImageRecordWithLabels]:
+        limit: int | None = None,
+        cursor: str | None = None,
+        embedding_status: str | None = None,
+    ) -> PaginatedImages:
         images_root = str(self.settings.images_root) if folder else None
         return self.repository.list_active_images_with_labels(
             folder=folder,
@@ -59,6 +67,31 @@ class StatusService:
             tag_id=tag_id,
             category_id=category_id,
             include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
+            embedding_status=embedding_status,
+        )
+
+    def list_all_images_with_labels(
+        self,
+        folder: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+        embedding_status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> PaginatedImages:
+        images_root = str(self.settings.images_root) if folder else None
+        return self.repository.list_all_images_with_labels(
+            folder=folder,
+            images_root=images_root,
+            embedding_status=embedding_status,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
         )
 
     def get_image(self, content_hash: str) -> ImageRecord | None:
@@ -66,6 +99,11 @@ class StatusService:
 
     def list_inactive_images(self) -> list[ImageRecord]:
         return self.repository.list_inactive_images()
+
+    def list_oversized_images(self) -> list[ImageRecord]:
+        return self.repository.list_all_images_with_labels(
+            embedding_status="skipped_oversized"
+        ).items
 
     def purge_inactive_images(self, content_hashes: list[str]) -> int:
         if not content_hashes:

@@ -21,4 +21,17 @@ describe("buildImagesPath", () => {
       "/api/images?folder=nature&tag_id=7",
     );
   });
+
+  it("adds inactive, status, limit, and cursor filters", () => {
+    expect(
+      buildImagesPath({
+        includeInactive: true,
+        embeddingStatus: "skipped_oversized",
+        limit: 200,
+        cursor: "/data/images/01.jpg",
+      }),
+    ).toBe(
+      "/api/images?include_inactive=true&embedding_status=skipped_oversized&limit=200&cursor=%2Fdata%2Fimages%2F01.jpg",
+    );
+  });
 });

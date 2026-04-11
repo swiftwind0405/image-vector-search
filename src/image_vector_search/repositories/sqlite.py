@@ -7,6 +7,7 @@ from image_vector_search.domain.models import (
     Category,
     CategoryNode,
     ImagePathRecord,
+    PaginatedImages,
     ImageRecord,
     ImageRecordWithLabels,
     JobRecord,
@@ -42,6 +43,7 @@ class MetadataRepository:
         schema_sql = schema_path.read_text(encoding="utf-8")
         with self.connect() as connection:
             connection.executescript(schema_sql)
+            self._ensure_embedding_status_column(connection)
 
     def upsert_image(self, image: ImageRecord) -> None:
         with self.connect() as connection:
@@ -50,9 +52,9 @@ class MetadataRepository:
                 INSERT INTO images (
                     content_hash, canonical_path, file_size, mtime, mime_type, width, height,
                     is_active, last_seen_at, embedding_provider, embedding_model, embedding_version,
-                    created_at, updated_at
+                    embedding_status, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(content_hash) DO UPDATE SET
                     canonical_path = excluded.canonical_path,
                     file_size = excluded.file_size,
@@ -65,6 +67,7 @@ class MetadataRepository:
                     embedding_provider = excluded.embedding_provider,
                     embedding_model = excluded.embedding_model,
                     embedding_version = excluded.embedding_version,
+                    embedding_status = excluded.embedding_status,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -80,6 +83,7 @@ class MetadataRepository:
                     image.embedding_provider,
                     image.embedding_model,
                     image.embedding_version,
+                    image.embedding_status,
                     _to_iso(image.created_at),
                     _to_iso(image.updated_at),
                 ),
@@ -102,38 +106,22 @@ class MetadataRepository:
         tag_id: int | None = None,
         category_id: int | None = None,
         include_descendants: bool = True,
+        limit: int | None = None,
+        cursor: str | None = None,
+        embedding_status: str | None = None,
     ) -> list[ImageRecord]:
-        with self.connect() as connection:
-            if folder is not None and images_root is not None:
-                prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
-                rows = connection.execute(
-                    "SELECT * FROM images WHERE is_active = 1 AND canonical_path LIKE ? ORDER BY canonical_path ASC",
-                    (prefix + "%",),
-                ).fetchall()
-            else:
-                rows = connection.execute(
-                    "SELECT * FROM images WHERE is_active = 1 ORDER BY canonical_path ASC"
-                ).fetchall()
-        images = [_row_to_image(row) for row in rows]
-        if not images:
-            return []
-
-        allowed_hashes: set[str] | None = None
-        if tag_id is not None:
-            allowed_hashes = self.filter_by_tags([tag_id])
-        if category_id is not None:
-            category_hashes = self.filter_by_category(
-                category_id,
-                include_subcategories=include_descendants,
-            )
-            allowed_hashes = (
-                category_hashes
-                if allowed_hashes is None
-                else allowed_hashes & category_hashes
-            )
-        if allowed_hashes is None:
-            return images
-        return [image for image in images if image.content_hash in allowed_hashes]
+        page = self._list_images_page(
+            active_only=True,
+            folder=folder,
+            images_root=images_root,
+            embedding_status=embedding_status,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
+        )
+        return page.items
 
     def list_active_images_with_labels(
         self,
@@ -142,27 +130,44 @@ class MetadataRepository:
         tag_id: int | None = None,
         category_id: int | None = None,
         include_descendants: bool = True,
-    ) -> list[ImageRecordWithLabels]:
-        images = self.list_active_images(
+        limit: int | None = None,
+        cursor: str | None = None,
+        embedding_status: str | None = None,
+    ) -> PaginatedImages:
+        return self._list_images_page(
+            active_only=True,
             folder=folder,
             images_root=images_root,
+            embedding_status=embedding_status,
             tag_id=tag_id,
             category_id=category_id,
             include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
         )
-        if not images:
-            return []
-        hashes = [img.content_hash for img in images]
-        tags_map = self.get_tags_for_images(hashes)
-        cats_map = self.get_categories_for_images(hashes)
-        return [
-            ImageRecordWithLabels(
-                **img.model_dump(),
-                tags=tags_map.get(img.content_hash, []),
-                categories=cats_map.get(img.content_hash, []),
-            )
-            for img in images
-        ]
+
+    def list_all_images_with_labels(
+        self,
+        folder: str | None = None,
+        images_root: str | None = None,
+        embedding_status: str | None = None,
+        tag_id: int | None = None,
+        category_id: int | None = None,
+        include_descendants: bool = True,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> PaginatedImages:
+        return self._list_images_page(
+            active_only=False,
+            folder=folder,
+            images_root=images_root,
+            embedding_status=embedding_status,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
+        )
 
     def list_inactive_images(self) -> list[ImageRecord]:
         with self.connect() as connection:
@@ -784,6 +789,143 @@ class MetadataRepository:
             sort_order=row["sort_order"], created_at=_from_iso(row["created_at"]),
         )
 
+    def _list_images_page(
+        self,
+        *,
+        active_only: bool,
+        folder: str | None,
+        images_root: str | None,
+        embedding_status: str | None,
+        tag_id: int | None,
+        category_id: int | None,
+        include_descendants: bool,
+        limit: int | None,
+        cursor: str | None,
+    ) -> PaginatedImages:
+        sql, params = self._build_list_images_query(
+            active_only=active_only,
+            folder=folder,
+            images_root=images_root,
+            embedding_status=embedding_status,
+            tag_id=tag_id,
+            category_id=category_id,
+            include_descendants=include_descendants,
+            limit=limit,
+            cursor=cursor,
+        )
+        with self.connect() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        has_more = limit is not None and len(rows) > limit
+        page_rows = rows[:limit] if has_more and limit is not None else rows
+        images = [_row_to_image(row) for row in page_rows]
+        if not images:
+            return PaginatedImages(items=[], next_cursor=None)
+        hashes = [img.content_hash for img in images]
+        tags_map = self.get_tags_for_images(hashes)
+        cats_map = self.get_categories_for_images(hashes)
+        items = [
+            ImageRecordWithLabels(
+                **img.model_dump(),
+                tags=tags_map.get(img.content_hash, []),
+                categories=cats_map.get(img.content_hash, []),
+            )
+            for img in images
+        ]
+        next_cursor = items[-1].canonical_path if has_more else None
+        return PaginatedImages(items=items, next_cursor=next_cursor)
+
+    def _build_list_images_query(
+        self,
+        *,
+        active_only: bool,
+        folder: str | None,
+        images_root: str | None,
+        embedding_status: str | None,
+        tag_id: int | None,
+        category_id: int | None,
+        include_descendants: bool,
+        limit: int | None,
+        cursor: str | None,
+    ) -> tuple[str, list[object]]:
+        ctes: list[str] = []
+        params: list[object] = []
+        where: list[str] = []
+
+        if active_only:
+            where.append("images.is_active = 1")
+        if folder is not None and images_root is not None:
+            prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
+            where.append("images.canonical_path LIKE ?")
+            params.append(prefix + "%")
+        if embedding_status is not None:
+            where.append("images.embedding_status = ?")
+            params.append(embedding_status)
+        if tag_id is not None:
+            where.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM image_tags it
+                    WHERE it.content_hash = images.content_hash
+                      AND it.tag_id = ?
+                )
+                """.strip()
+            )
+            params.append(tag_id)
+        if category_id is not None and include_descendants:
+            ctes.append(
+                """
+                descendants(id) AS (
+                    SELECT id FROM categories WHERE id = ?
+                    UNION ALL
+                    SELECT c.id
+                    FROM categories c
+                    JOIN descendants d ON c.parent_id = d.id
+                )
+                """.strip()
+            )
+            params.insert(0, category_id)
+            where.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM image_tags it
+                    WHERE it.content_hash = images.content_hash
+                      AND it.category_id IN (SELECT id FROM descendants)
+                )
+                """.strip()
+            )
+        elif category_id is not None:
+            where.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM image_tags it
+                    WHERE it.content_hash = images.content_hash
+                      AND it.category_id = ?
+                )
+                """.strip()
+            )
+            params.append(category_id)
+        if cursor is not None:
+            where.append("images.canonical_path > ?")
+            params.append(cursor)
+
+        with_clause = f"WITH RECURSIVE {', '.join(ctes)} " if ctes else ""
+        where_clause = f" WHERE {' AND '.join(where)}" if where else ""
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = " LIMIT ?"
+            params.append(limit + 1)
+        sql = (
+            f"{with_clause}"
+            "SELECT images.* FROM images"
+            f"{where_clause}"
+            " ORDER BY images.canonical_path ASC"
+            f"{limit_clause}"
+        )
+        return sql, params
+
     def set_system_state(self, key: str, value: str) -> None:
         with self.connect() as connection:
             connection.execute(
@@ -883,6 +1025,25 @@ class MetadataRepository:
             (canonical_path, seen_at, seen_at, content_hash),
         )
 
+    def _ensure_embedding_status_column(self, connection: sqlite3.Connection) -> None:
+        rows = connection.execute("PRAGMA table_info(images)").fetchall()
+        columns = {str(row["name"]) for row in rows}
+        if "embedding_status" in columns:
+            return
+        connection.execute(
+            """
+            ALTER TABLE images
+            ADD COLUMN embedding_status TEXT NOT NULL DEFAULT 'pending'
+            """
+        )
+        connection.execute(
+            """
+            UPDATE images
+            SET embedding_status = 'embedded'
+            WHERE embedding_status = 'pending'
+            """
+        )
+
 
 def _to_iso(value: datetime | None) -> str | None:
     if value is None:
@@ -910,6 +1071,7 @@ def _row_to_image(row: sqlite3.Row) -> ImageRecord:
         embedding_provider=row["embedding_provider"],
         embedding_model=row["embedding_model"],
         embedding_version=row["embedding_version"],
+        embedding_status=row["embedding_status"],
         created_at=_from_iso(row["created_at"]) or datetime.min,
         updated_at=_from_iso(row["updated_at"]) or datetime.min,
     )

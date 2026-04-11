@@ -1,5 +1,5 @@
 import ImageBrowser from "@/components/ImageBrowser";
 
 export default function ImagesPage() {
-  return <ImageBrowser title="Images" />;
+  return <ImageBrowser title="Images" includeAllImages />;
 }
