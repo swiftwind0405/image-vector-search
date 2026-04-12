@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Tag, FolderTree, Folder, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings, LayoutGrid } from "lucide-react";
+import { LayoutDashboard, Tag, FolderTree, Folder, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings, LayoutGrid, Menu, X } from "lucide-react";
 import { useLogout } from "@/api/auth";
 import { cn } from "@/lib/utils";
 import logoMark from "../../logo.svg";
@@ -66,51 +67,37 @@ const pageMeta = [
   },
 ];
 
-export default function Layout() {
-  const logout = useLogout();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const meta = pageMeta.find((item) => item.match(location.pathname)) ?? {
-    title: "Image Search",
-    subtitle: "A curated workspace for image retrieval and archive management.",
-    eyebrow: "Workspace",
-  };
-
-  async function handleLogout() {
-    await logout.mutateAsync();
-    navigate("/login", { replace: true });
-  }
-
+function SidebarContent({ onNavigate, onLogout }: { onNavigate?: () => void; onLogout: () => void }) {
   return (
-    <div className="flex min-h-screen bg-transparent text-foreground">
-      <aside className="hidden w-72 shrink-0 border-r border-white/8 bg-sidebar/85 p-6 shadow-curator backdrop-blur xl:flex xl:flex-col">
-        <div className="space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-primary/90">
-            <Sparkles className="h-3.5 w-3.5" />
-            Curated Admin
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-inset">
-                <img src={logoMark} alt="Image Search logo" className="h-full w-full object-contain" />
-              </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white">Image Search</h1>
-            </div>
-            <p className="max-w-xs text-sm leading-6 text-muted-foreground">
-              A quiet workspace for indexing, searching, and organizing a living image archive.
-            </p>
-          </div>
+    <>
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-primary/90">
+          <Sparkles className="h-3.5 w-3.5" />
+          Curated Admin
         </div>
-
-        <div className="mt-10 space-y-2">
-          <div className="px-3 text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">
-            Navigation
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] p-2 shadow-inset">
+              <img src={logoMark} alt="Image Search logo" className="h-full w-full object-contain" />
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-white">Image Search</h1>
           </div>
+          <p className="max-w-xs text-sm leading-6 text-muted-foreground">
+            A quiet workspace for indexing, searching, and organizing a living image archive.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-10 space-y-2">
+        <div className="px-3 text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">
+          Navigation
+        </div>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === "/"}
+            onClick={onNavigate}
             className={({ isActive }) =>
               cn(
                 "group relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-3 text-sm transition-all duration-200",
@@ -140,29 +127,84 @@ export default function Layout() {
             )}
           </NavLink>
         ))}
-        </div>
+      </div>
 
-        <div className="mt-10 rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-primary/15 p-2 text-primary">
-              <Database className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">Index workspace</p>
-              <p className="text-xs text-muted-foreground">Default dark curation theme enabled</p>
-            </div>
+      <div className="mt-10 rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-primary/15 p-2 text-primary">
+            <Database className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">Index workspace</p>
+            <p className="text-xs text-muted-foreground">Default dark curation theme enabled</p>
           </div>
         </div>
+      </div>
 
-        <div className="mt-auto">
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
-        </div>
+      <div className="mt-auto">
+        <button
+          onClick={onLogout}
+          className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
+      </div>
+    </>
+  );
+}
+
+export default function Layout() {
+  const logout = useLogout();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const meta = pageMeta.find((item) => item.match(location.pathname)) ?? {
+    title: "Image Search",
+    subtitle: "A curated workspace for image retrieval and archive management.",
+    eyebrow: "Workspace",
+  };
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  async function handleLogout() {
+    setMobileOpen(false);
+    await logout.mutateAsync();
+    navigate("/login", { replace: true });
+  }
+
+  return (
+    <div className="flex min-h-screen bg-transparent text-foreground">
+      {/* Desktop sidebar */}
+      <aside className="hidden w-72 shrink-0 border-r border-white/8 bg-sidebar/85 p-6 shadow-curator backdrop-blur xl:flex xl:flex-col">
+        <SidebarContent onLogout={handleLogout} />
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm xl:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-white/8 bg-sidebar p-6 shadow-curator transition-transform duration-300 xl:hidden",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="absolute right-4 top-4 rounded-xl p-2 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <SidebarContent onNavigate={() => setMobileOpen(false)} onLogout={handleLogout} />
       </aside>
 
       <main className="flex-1 overflow-auto">
@@ -170,7 +212,16 @@ export default function Layout() {
           <header className="mb-6 overflow-hidden rounded-[30px] border border-white/10 bg-card/80 px-5 py-5 shadow-curator backdrop-blur sm:px-7">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.26em] text-primary/90">{meta.eyebrow}</p>
+                <div className="flex items-center gap-3">
+                  {/* Mobile menu button */}
+                  <button
+                    onClick={() => setMobileOpen(true)}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] p-2 text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-white xl:hidden"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                  <p className="text-[11px] uppercase tracking-[0.26em] text-primary/90">{meta.eyebrow}</p>
+                </div>
                 <div className="space-y-2">
                   <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                     {meta.title}
