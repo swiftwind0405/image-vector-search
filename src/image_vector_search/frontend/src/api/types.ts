@@ -38,6 +38,9 @@ export interface ImageRecord {
     | "pending";
   created_at: string;
   updated_at: string;
+  indexed?: boolean;
+  indexed_content_hash?: string | null;
+  file_url?: string;
 }
 
 export interface PurgeInactiveImagesRequest {

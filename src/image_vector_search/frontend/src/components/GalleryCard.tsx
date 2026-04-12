@@ -22,6 +22,7 @@ export default function GalleryCard({
 }: Props) {
   const [imgError, setImgError] = useState(false);
   const filename = image.canonical_path.split("/").pop() ?? image.canonical_path;
+  const imageSrc = image.file_url ?? `/api/images/${image.content_hash}/file`;
 
   return (
     <div
@@ -33,7 +34,7 @@ export default function GalleryCard({
           <ImageOff className="h-8 w-8 text-neutral-600" />
         ) : (
           <img
-            src={`/api/images/${image.content_hash}/file`}
+            src={imageSrc}
             alt={filename}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             onError={() => setImgError(true)}

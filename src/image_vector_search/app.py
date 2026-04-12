@@ -13,6 +13,7 @@ from image_vector_search.services.tagging import TagService
 from image_vector_search.runtime import RuntimeServices, build_runtime_services
 from image_vector_search.tools import ToolContext, default_registry
 from image_vector_search.api.admin_bulk_routes import create_admin_bulk_router
+from image_vector_search.api.admin_folder_routes import create_admin_folder_router
 from image_vector_search.api.admin_routes import create_admin_router
 from image_vector_search.api.admin_settings_routes import create_admin_settings_router
 from image_vector_search.api.admin_tag_routes import create_admin_tag_router
@@ -87,7 +88,11 @@ def create_app(
                 search_service=search_service,
             )
         )
-    repository = getattr(runtime_services, "repository", None) if runtime_services is not None else None
+    repository = (
+        getattr(runtime_services, "repository", None)
+        if runtime_services is not None
+        else getattr(status_service, "repository", None)
+    )
     if runtime_services is not None and repository is not None:
         app.include_router(
             create_admin_settings_router(
@@ -95,6 +100,19 @@ def create_app(
                 repository=repository,
                 settings=app_settings,
                 status_service=status_service,
+            )
+        )
+
+    if repository is not None and status_service is not None:
+        app.include_router(
+            create_admin_folder_router(
+                repository=repository,
+                status_service=status_service,
+                images_root=str(app_settings.images_root),
+                auth_enabled=bool(
+                    app_settings.admin_username.strip()
+                    and app_settings.admin_password.strip()
+                ),
             )
         )
 

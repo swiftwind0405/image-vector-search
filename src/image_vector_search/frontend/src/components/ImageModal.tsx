@@ -66,6 +66,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
   if (!image) return null;
 
   const filename = image.canonical_path.split("/").pop() ?? image.canonical_path;
+  const imageSrc = image.file_url ?? `/api/images/${image.content_hash}/file`;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
@@ -140,7 +141,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
           <div className="flex h-full w-full flex-col overflow-hidden pt-16 md:flex-row">
             <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
               <img
-                src={`/api/images/${image.content_hash}/file`}
+                src={imageSrc}
                 alt={filename}
                 className="h-full w-full object-contain p-5"
               />

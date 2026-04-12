@@ -28,6 +28,11 @@ class MilvusLiteIndex(VectorIndex):
     _TCP_PORT_MIN = 20_000
     _TCP_PORT_MAX = 60_000
     _START_PORT_ATTEMPTS = 10
+    _GRPC_OPTIONS = {
+        "grpc.keepalive_time_ms": 60_000,
+        "grpc.keepalive_timeout_ms": 10_000,
+        "grpc.keepalive_permit_without_calls": False,
+    }
 
     def __init__(self, db_path: Path, collection_name: str) -> None:
         self.db_path = db_path.absolute().resolve()
@@ -39,7 +44,7 @@ class MilvusLiteIndex(VectorIndex):
         if uri is None:
             raise RuntimeError(f"Failed to start Milvus Lite for {self.db_path}")
         try:
-            self.client = MilvusClient(uri=uri)
+            self.client = self._create_client(uri)
         except Exception:
             self._closed = True
             server_manager_instance.release_server(str(self.db_path))
@@ -285,7 +290,7 @@ class MilvusLiteIndex(VectorIndex):
             uri = self._start_server()
             if uri is None:
                 raise RuntimeError(f"Failed to restart Milvus Lite for {self.db_path}")
-            self.client = MilvusClient(uri=uri)
+            self.client = self._create_client(uri)
             logger.info("Milvus client reconnected for %s", self.db_path)
             return self.client
 
@@ -296,6 +301,9 @@ class MilvusLiteIndex(VectorIndex):
             if uri is not None:
                 return f"tcp://{address}"
         return None
+
+    def _create_client(self, uri: str) -> MilvusClient:
+        return MilvusClient(uri=uri, grpc_options=self._GRPC_OPTIONS, dedicated=True)
 
     @staticmethod
     def _allocate_loopback_address() -> str:

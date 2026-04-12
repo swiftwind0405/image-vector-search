@@ -101,6 +101,18 @@ export function useImagesInfinite(options: ImagesQueryOptions = {}) {
   });
 }
 
+export function useFilesystemImages(limit?: number) {
+  return useQuery({
+    queryKey: ["images", "filesystem", limit ?? null],
+    queryFn: async () =>
+      await apiFetch<PaginatedImages>(
+        limit !== undefined
+          ? `/api/images/filesystem?limit=${limit}`
+          : "/api/images/filesystem",
+      ),
+  });
+}
+
 export function useInactiveImages() {
   return useQuery({
     queryKey: ["images", "inactive"],

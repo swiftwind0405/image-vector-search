@@ -4,6 +4,7 @@ import DashboardPage from "./pages/DashboardPage";
 import TagsPage from "./pages/TagsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ImagesPage from "./pages/ImagesPage";
+import FoldersPage from "./pages/FoldersPage";
 import TagImagesPage from "./pages/TagImagesPage";
 import CategoryImagesPage from "./pages/CategoryImagesPage";
 import SearchPage from "./pages/SearchPage";
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="tags/:tagId/images" element={<TagImagesPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="categories/:categoryId/images" element={<CategoryImagesPage />} />
+        <Route path="folders" element={<FoldersPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="settings" element={<SettingsPage />} />

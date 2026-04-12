@@ -280,3 +280,39 @@ def test_milvus_lite_index_starts_milvus_with_loopback_tcp_address(
     index.close()
 
     assert server_calls == [{"path": str(db_path.resolve()), "address": client_calls[0]["kwargs"]["uri"][6:]}]
+
+
+def test_milvus_lite_index_configures_safer_grpc_keepalive_options(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    db_path = tmp_path / "milvus.db"
+    calls: list[dict] = []
+
+    class RecordingMilvusClient:
+        def __init__(self, *args, **kwargs) -> None:
+            calls.append({"args": args, "kwargs": kwargs})
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "start_and_get_uri",
+        lambda path, address=None: f"tcp://{address}" if address else "unix:/tmp/fake-milvus.sock",
+    )
+    monkeypatch.setattr(
+        milvus_lite_module.server_manager_instance,
+        "release_server",
+        lambda path: None,
+    )
+    monkeypatch.setattr(milvus_lite_module, "MilvusClient", RecordingMilvusClient)
+
+    index = MilvusLiteIndex(db_path=db_path, collection_name="image_embeddings")
+    index.close()
+
+    assert calls[0]["kwargs"]["grpc_options"] == {
+        "grpc.keepalive_time_ms": 60000,
+        "grpc.keepalive_timeout_ms": 10000,
+        "grpc.keepalive_permit_without_calls": False,
+    }
+    assert calls[0]["kwargs"]["dedicated"] is True

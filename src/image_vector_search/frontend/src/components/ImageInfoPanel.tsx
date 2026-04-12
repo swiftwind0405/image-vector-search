@@ -62,6 +62,7 @@ interface Props {
 
 export default function ImageInfoPanel({ image }: Props) {
   const filename = image.canonical_path.split("/").pop() ?? image.canonical_path;
+  const isIndexed = image.indexed ?? true;
 
   return (
     <div className="h-full overflow-y-auto">
@@ -86,7 +87,13 @@ export default function ImageInfoPanel({ image }: Props) {
         <div className="px-4 pt-4">
           <SectionLabel>Properties</SectionLabel>
         </div>
-        <ImageTagEditor contentHash={image.content_hash} />
+        {isIndexed ? (
+          <ImageTagEditor contentHash={image.indexed_content_hash ?? image.content_hash} />
+        ) : (
+          <div className="px-4 pb-4 text-sm text-muted-foreground">
+            Not indexed yet
+          </div>
+        )}
       </div>
     </div>
   );

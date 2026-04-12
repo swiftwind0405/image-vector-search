@@ -28,6 +28,14 @@ def choose_canonical_path(existing: str | None, active_paths: list[str]) -> str 
     return sorted(active_paths)[0]
 
 
+def _escape_like_pattern(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+
+
 class MetadataRepository:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
@@ -94,6 +102,20 @@ class MetadataRepository:
             row = connection.execute(
                 "SELECT * FROM images WHERE content_hash = ?",
                 (content_hash,),
+            ).fetchone()
+        if row is None:
+            return None
+        return _row_to_image(row)
+
+    def get_active_image_by_canonical_path(self, canonical_path: str) -> ImageRecord | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM images
+                WHERE canonical_path = ? AND is_active = 1
+                """,
+                (canonical_path,),
             ).fetchone()
         if row is None:
             return None
@@ -192,6 +214,43 @@ class MetadataRepository:
                 if len(parts) == 2:
                     folders.add(parts[0])
         return sorted(folders)
+
+    def list_images_in_folder(
+        self,
+        path: str,
+        images_root: str,
+        *,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> list[ImageRecord]:
+        normalized_path = path.strip("/")
+        base_root = images_root.rstrip("/")
+        prefix_no_wild = (
+            f"{base_root}/"
+            if not normalized_path
+            else f"{base_root}/{normalized_path}/"
+        )
+        like_prefix = _escape_like_pattern(prefix_no_wild) + "%"
+        params: dict[str, object] = {
+            "prefix": like_prefix,
+            "prefix_no_wild": prefix_no_wild,
+            "cursor": cursor,
+        }
+        sql = """
+            SELECT *
+            FROM images
+            WHERE is_active = 1
+              AND canonical_path LIKE :prefix ESCAPE '\\'
+              AND instr(substr(canonical_path, length(:prefix_no_wild) + 1), '/') = 0
+              AND (:cursor IS NULL OR canonical_path > :cursor)
+            ORDER BY canonical_path ASC
+        """
+        if limit is not None:
+            sql += "\n LIMIT :limit"
+            params["limit"] = limit
+        with self.connect() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return [_row_to_image(row) for row in rows]
 
     def get_image_path(self, path: str) -> ImagePathRecord | None:
         with self.connect() as connection:
