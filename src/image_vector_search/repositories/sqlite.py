@@ -4,9 +4,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from image_vector_search.domain.models import (
+    Album,
+    AlbumRule,
     Category,
     CategoryNode,
     ImagePathRecord,
+    PaginatedAlbumImages,
     PaginatedImages,
     ImageRecord,
     ImageRecordWithLabels,
@@ -52,6 +55,7 @@ class MetadataRepository:
         with self.connect() as connection:
             connection.executescript(schema_sql)
             self._ensure_embedding_status_column(connection)
+            self._ensure_album_schema(connection)
 
     def upsert_image(self, image: ImageRecord) -> None:
         with self.connect() as connection:
@@ -483,6 +487,275 @@ class MetadataRepository:
             )
             return Tag(id=cursor.lastrowid, name=name, created_at=_from_iso(now))
 
+    def create_album(
+        self,
+        name: str,
+        album_type: str,
+        description: str | None = None,
+        rule_logic: str | None = None,
+    ) -> Album:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO albums (name, type, description, rule_logic, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (name, album_type, description or "", rule_logic, now, now),
+            )
+        album = self.get_album(int(cursor.lastrowid))
+        if album is None:
+            raise RuntimeError("Failed to read newly created album")
+        return album
+
+    def list_albums(self) -> list[Album]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT a.*
+                FROM albums a
+                ORDER BY a.name
+                """
+            ).fetchall()
+        albums = [self._album_from_row(row) for row in rows]
+        for album in albums:
+            album.source_paths = self.get_album_source_paths(album.id)
+            if album.type == "manual":
+                album.image_count = self._count_manual_album_images(album.id)
+                album.cover_image = self._get_manual_album_cover(album.id)
+            else:
+                page = self.list_smart_album_images(album.id, limit=1, cursor=None)
+                album.image_count = self.count_smart_album_images(album.id)
+                album.cover_image = page.items[0] if page.items else None
+        return albums
+
+    def get_album(self, album_id: int) -> Album | None:
+        row = self._get_album_row(album_id)
+        if row is None:
+            return None
+        album = self._album_from_row(row)
+        album.source_paths = self.get_album_source_paths(album.id)
+        if album.type == "manual":
+            album.image_count = self._count_manual_album_images(album.id)
+            album.cover_image = self._get_manual_album_cover(album.id)
+        else:
+            page = self.list_smart_album_images(album.id, limit=1, cursor=None)
+            album.image_count = self.count_smart_album_images(album.id)
+            album.cover_image = page.items[0] if page.items else None
+        return album
+
+    def update_album(
+        self,
+        album_id: int,
+        name: str,
+        description: str | None = None,
+    ) -> Album | None:
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            conn.execute(
+                """
+                UPDATE albums
+                SET name = ?, description = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (name, description or "", now, album_id),
+            )
+        return self.get_album(album_id)
+
+    def delete_album(self, album_id: int) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM albums WHERE id = ?", (album_id,))
+
+    def add_images_to_album(self, album_id: int, content_hashes: list[str]) -> int:
+        if not content_hashes:
+            return 0
+        added_at = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            current_max_sort_order = conn.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) AS max_sort_order FROM album_images WHERE album_id = ?",
+                (album_id,),
+            ).fetchone()["max_sort_order"]
+            rows = [
+                (album_id, content_hash, int(current_max_sort_order) + index + 1, added_at)
+                for index, content_hash in enumerate(content_hashes)
+            ]
+            cursor = conn.executemany(
+                """
+                INSERT OR IGNORE INTO album_images (album_id, content_hash, sort_order, added_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                rows,
+            )
+            return cursor.rowcount
+
+    def remove_images_from_album(self, album_id: int, content_hashes: list[str]) -> int:
+        if not content_hashes:
+            return 0
+        placeholders = ",".join("?" * len(content_hashes))
+        with self.connect() as conn:
+            cursor = conn.execute(
+                f"DELETE FROM album_images WHERE album_id = ? AND content_hash IN ({placeholders})",
+                [album_id, *content_hashes],
+            )
+            return cursor.rowcount
+
+    def list_album_images(
+        self,
+        album_id: int,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> PaginatedAlbumImages:
+        params: list[object] = [album_id]
+        cursor_clause = ""
+        if cursor is not None:
+            sort_order, album_image_id = _parse_album_images_cursor(cursor)
+            cursor_clause = """
+                AND (
+                    ai.sort_order > ?
+                    OR (ai.sort_order = ? AND ai.id > ?)
+                )
+            """
+            params.extend([sort_order, sort_order, album_image_id])
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = "LIMIT ?"
+            params.append(limit + 1)
+        with self.connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT images.*, ai.sort_order AS album_sort_order, ai.id AS album_image_id
+                FROM images
+                JOIN album_images ai ON ai.content_hash = images.content_hash
+                WHERE ai.album_id = ?
+                  AND images.is_active = 1
+                  {cursor_clause}
+                ORDER BY ai.sort_order ASC, ai.id ASC, images.canonical_path ASC
+                {limit_clause}
+                """,
+                params,
+            ).fetchall()
+        has_more = limit is not None and len(rows) > limit
+        page_rows = rows[:limit] if has_more and limit is not None else rows
+        images = [_row_to_image(row) for row in page_rows]
+        if not images:
+            return PaginatedAlbumImages(items=[], next_cursor=None)
+        hashes = [img.content_hash for img in images]
+        tags_map = self.get_tags_for_images(hashes)
+        cats_map = self.get_categories_for_images(hashes)
+        items = [
+            ImageRecordWithLabels(
+                **img.model_dump(),
+                tags=tags_map.get(img.content_hash, []),
+                categories=cats_map.get(img.content_hash, []),
+            )
+            for img in images
+        ]
+        next_cursor = None
+        if has_more:
+            last_row = page_rows[-1]
+            next_cursor = f"{int(last_row['album_sort_order'])}:{int(last_row['album_image_id'])}"
+        return PaginatedAlbumImages(items=items, next_cursor=next_cursor)
+
+    def set_album_rules(self, album_id: int, rules: list[dict[str, object]]) -> None:
+        tag_ids = [int(rule["tag_id"]) for rule in rules]
+        if len(tag_ids) != len(set(tag_ids)):
+            raise ValueError("Duplicate tag_id in album rules")
+        now = _to_iso(datetime.now(timezone.utc))
+        with self.connect() as conn:
+            conn.execute("DELETE FROM album_rules WHERE album_id = ?", (album_id,))
+            if rules:
+                conn.executemany(
+                    """
+                    INSERT INTO album_rules (album_id, tag_id, match_mode, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (album_id, int(rule["tag_id"]), str(rule["match_mode"]), now)
+                        for rule in rules
+                    ],
+                )
+
+    def get_album_rules(self, album_id: int) -> list[AlbumRule]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ar.id, ar.album_id, ar.tag_id, ar.match_mode, ar.created_at, t.name AS tag_name
+                FROM album_rules ar
+                LEFT JOIN tags t ON t.id = ar.tag_id
+                WHERE ar.album_id = ?
+                ORDER BY ar.id
+                """,
+                (album_id,),
+            ).fetchall()
+        return [
+            AlbumRule(
+                id=int(row["id"]),
+                album_id=int(row["album_id"]),
+                tag_id=int(row["tag_id"]),
+                match_mode=row["match_mode"],
+                created_at=_from_iso(row["created_at"]) or datetime.min,
+                tag_name=row["tag_name"],
+            )
+            for row in rows
+        ]
+
+    def set_album_source_paths(self, album_id: int, paths: list[str]) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM album_source_paths WHERE album_id = ?", (album_id,))
+            if paths:
+                now = _to_iso(datetime.now(timezone.utc))
+                conn.executemany(
+                    """
+                    INSERT INTO album_source_paths (album_id, path, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    [(album_id, path, now) for path in paths],
+                )
+
+    def get_album_source_paths(self, album_id: int) -> list[str]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT path
+                FROM album_source_paths
+                WHERE album_id = ?
+                ORDER BY id
+                """,
+                (album_id,),
+            ).fetchall()
+        return [str(row["path"]) for row in rows]
+
+    def list_smart_album_images(
+        self,
+        album_id: int,
+        limit: int | None = None,
+        cursor: str | None = None,
+    ) -> PaginatedAlbumImages:
+        sql, params, has_include_rules = self._build_smart_album_query(
+            album_id=album_id,
+            select_count=False,
+            limit=limit,
+            cursor=cursor,
+        )
+        if not has_include_rules:
+            return PaginatedAlbumImages(items=[], next_cursor=None)
+        with self.connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return self._build_album_images_page(rows, limit)
+
+    def count_smart_album_images(self, album_id: int) -> int:
+        sql, params, has_include_rules = self._build_smart_album_query(
+            album_id=album_id,
+            select_count=True,
+            limit=None,
+            cursor=None,
+        )
+        if not has_include_rules:
+            return 0
+        with self.connect() as conn:
+            row = conn.execute(sql, params).fetchone()
+        return int(row["count"]) if row is not None else 0
+
     def list_tags(self) -> list[Tag]:
         with self.connect() as conn:
             rows = conn.execute("""
@@ -848,6 +1121,186 @@ class MetadataRepository:
             sort_order=row["sort_order"], created_at=_from_iso(row["created_at"]),
         )
 
+    def _album_from_row(self, row: sqlite3.Row) -> Album:
+        return Album(
+            id=int(row["id"]),
+            name=row["name"],
+            type=row["type"],
+            description=row["description"] or "",
+            rule_logic=row["rule_logic"],
+            source_paths=[],
+            image_count=None,
+            cover_image=None,
+            created_at=_from_iso(row["created_at"]) or datetime.min,
+            updated_at=_from_iso(row["updated_at"]) or datetime.min,
+        )
+
+    def _get_album_row(self, album_id: int) -> sqlite3.Row | None:
+        with self.connect() as conn:
+            return conn.execute(
+                """
+                SELECT a.*
+                FROM albums a
+                WHERE a.id = ?
+                """,
+                (album_id,),
+            ).fetchone()
+
+    def _count_manual_album_images(self, album_id: int) -> int:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM album_images WHERE album_id = ?",
+                (album_id,),
+            ).fetchone()
+        return int(row["count"]) if row is not None else 0
+
+    def _get_manual_album_cover(self, album_id: int) -> ImageRecordWithLabels | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT images.*
+                FROM images
+                JOIN album_images ai ON ai.content_hash = images.content_hash
+                WHERE ai.album_id = ?
+                  AND images.is_active = 1
+                ORDER BY ai.sort_order ASC, ai.id ASC, images.canonical_path ASC
+                LIMIT 1
+                """,
+                (album_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return self._build_image_with_labels(_row_to_image(row))
+
+    def _build_image_with_labels(self, image: ImageRecord) -> ImageRecordWithLabels:
+        tags = self.get_tags_for_images([image.content_hash]).get(image.content_hash, [])
+        categories = self.get_categories_for_images([image.content_hash]).get(image.content_hash, [])
+        return ImageRecordWithLabels(
+            **image.model_dump(),
+            tags=tags,
+            categories=categories,
+        )
+
+    def _build_album_images_page(
+        self,
+        rows: list[sqlite3.Row],
+        limit: int | None,
+    ) -> PaginatedAlbumImages:
+        has_more = limit is not None and len(rows) > limit
+        page_rows = rows[:limit] if has_more and limit is not None else rows
+        images = [_row_to_image(row) for row in page_rows]
+        if not images:
+            return PaginatedAlbumImages(items=[], next_cursor=None)
+        hashes = [img.content_hash for img in images]
+        tags_map = self.get_tags_for_images(hashes)
+        cats_map = self.get_categories_for_images(hashes)
+        items = [
+            ImageRecordWithLabels(
+                **img.model_dump(),
+                tags=tags_map.get(img.content_hash, []),
+                categories=cats_map.get(img.content_hash, []),
+            )
+            for img in images
+        ]
+        next_cursor = items[-1].canonical_path if has_more else None
+        return PaginatedAlbumImages(items=items, next_cursor=next_cursor)
+
+    def _build_smart_album_query(
+        self,
+        *,
+        album_id: int,
+        select_count: bool,
+        limit: int | None,
+        cursor: str | None,
+    ) -> tuple[str, list[object], bool]:
+        album_row = self._get_album_row(album_id)
+        if album_row is None:
+            return ("SELECT 0 AS count" if select_count else "SELECT * FROM images WHERE 1 = 0", [], False)
+        album_type = album_row["type"]
+        rule_logic = album_row["rule_logic"]
+        if album_type != "smart":
+            return ("SELECT 0 AS count" if select_count else "SELECT * FROM images WHERE 1 = 0", [], False)
+
+        rules = self.get_album_rules(album_id)
+        include_tag_ids = [rule.tag_id for rule in rules if rule.match_mode == "include"]
+        exclude_tag_ids = [rule.tag_id for rule in rules if rule.match_mode == "exclude"]
+        source_paths = self.get_album_source_paths(album_id)
+
+        if not include_tag_ids:
+            return ("SELECT 0 AS count" if select_count else "SELECT * FROM images WHERE 1 = 0", [], False)
+
+        params: list[object] = []
+        path_clause = ""
+        if source_paths:
+            path_parts: list[str] = []
+            for source_path in source_paths:
+                normalized = source_path.strip("/")
+                path_parts.append("images.canonical_path LIKE ?")
+                params.append(f"%/{normalized}/%")
+            path_clause = " AND (" + " OR ".join(path_parts) + ")"
+
+        exclude_clause = ""
+        if exclude_tag_ids:
+            placeholders = ",".join("?" * len(exclude_tag_ids))
+            exclude_clause = (
+                " AND images.content_hash NOT IN ("
+                "SELECT content_hash FROM image_tags WHERE tag_id IN (" + placeholders + ")"
+                ")"
+            )
+            params.extend(exclude_tag_ids)
+
+        if rule_logic == "and":
+            include_placeholders = ",".join("?" * len(include_tag_ids))
+            select_sql = "COUNT(*) AS count" if select_count else "images.*"
+            sql = f"""
+                SELECT {select_sql}
+                FROM images
+                JOIN image_tags it ON it.content_hash = images.content_hash
+                WHERE images.is_active = 1
+                  AND it.tag_id IN ({include_placeholders})
+                  {path_clause}
+                  {exclude_clause}
+            """
+            params = [*include_tag_ids, *params]
+            if cursor is not None and not select_count:
+                sql += " AND images.canonical_path > ?"
+                params.append(cursor)
+            sql += """
+                GROUP BY images.content_hash
+                HAVING COUNT(DISTINCT it.tag_id) = ?
+            """
+            params.append(len(include_tag_ids))
+            if select_count:
+                sql = f"SELECT COUNT(*) AS count FROM ({sql}) matched_images"
+            else:
+                sql += " ORDER BY images.canonical_path"
+                if limit is not None:
+                    sql += " LIMIT ?"
+                    params.append(limit + 1)
+            return (sql, params, True)
+
+        include_placeholders = ",".join("?" * len(include_tag_ids))
+        select_sql = "COUNT(DISTINCT images.content_hash) AS count" if select_count else "DISTINCT images.*"
+        sql = f"""
+            SELECT {select_sql}
+            FROM images
+            JOIN image_tags it ON it.content_hash = images.content_hash
+            WHERE images.is_active = 1
+              AND it.tag_id IN ({include_placeholders})
+              {path_clause}
+              {exclude_clause}
+        """
+        params = [*include_tag_ids, *params]
+        if cursor is not None and not select_count:
+            sql += " AND images.canonical_path > ?"
+            params.append(cursor)
+        if not select_count:
+            sql += " ORDER BY images.canonical_path"
+            if limit is not None:
+                sql += " LIMIT ?"
+                params.append(limit + 1)
+        return (sql, params, True)
+
     def _list_images_page(
         self,
         *,
@@ -1103,6 +1556,64 @@ class MetadataRepository:
             """
         )
 
+    def _ensure_album_schema(self, connection: sqlite3.Connection) -> None:
+        table_names = {
+            str(row["name"])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+
+        if "albums" in table_names:
+            album_columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(albums)").fetchall()
+            }
+            if "description" not in album_columns:
+                connection.execute(
+                    "ALTER TABLE albums ADD COLUMN description TEXT NOT NULL DEFAULT ''"
+                )
+            if "updated_at" not in album_columns:
+                connection.execute(
+                    "ALTER TABLE albums ADD COLUMN updated_at TEXT"
+                )
+                connection.execute(
+                    """
+                    UPDATE albums
+                    SET updated_at = COALESCE(updated_at, created_at)
+                    """
+                )
+
+        if "album_images" in table_names:
+            album_image_columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(album_images)").fetchall()
+            }
+            if "sort_order" not in album_image_columns:
+                connection.execute(
+                    "ALTER TABLE album_images ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"
+                )
+            if "added_at" not in album_image_columns:
+                connection.execute(
+                    "ALTER TABLE album_images ADD COLUMN added_at TEXT"
+                )
+                if "created_at" in album_image_columns:
+                    connection.execute(
+                        """
+                        UPDATE album_images
+                        SET added_at = COALESCE(added_at, created_at)
+                        """
+                    )
+                else:
+                    now = _to_iso(datetime.now(timezone.utc))
+                    connection.execute(
+                        """
+                        UPDATE album_images
+                        SET added_at = COALESCE(added_at, ?)
+                        """,
+                        (now,),
+                    )
+
 
 def _to_iso(value: datetime | None) -> str | None:
     if value is None:
@@ -1136,6 +1647,8 @@ def _row_to_image(row: sqlite3.Row) -> ImageRecord:
     )
 
 
+
+
 def _row_to_job(row: sqlite3.Row) -> JobRecord:
     return JobRecord(
         id=row["id"],
@@ -1160,3 +1673,11 @@ def _row_to_image_path(row: sqlite3.Row) -> ImagePathRecord:
         created_at=_from_iso(row["created_at"]) or datetime.min,
         updated_at=_from_iso(row["updated_at"]) or datetime.min,
     )
+
+
+def _parse_album_images_cursor(cursor: str) -> tuple[int, int]:
+    try:
+        sort_order_text, album_image_id_text = cursor.split(":", 1)
+        return int(sort_order_text), int(album_image_id_text)
+    except (ValueError, AttributeError) as exc:
+        raise ValueError("Invalid album image cursor") from exc

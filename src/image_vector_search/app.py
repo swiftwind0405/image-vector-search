@@ -9,10 +9,12 @@ from starlette.responses import FileResponse
 
 from image_vector_search.adapters.http_tool_adapter import build_tool_router
 from image_vector_search.config import Settings
+from image_vector_search.services.albums import AlbumService
 from image_vector_search.services.tagging import TagService
 from image_vector_search.runtime import RuntimeServices, build_runtime_services
 from image_vector_search.tools import ToolContext, default_registry
 from image_vector_search.api.admin_bulk_routes import create_admin_bulk_router
+from image_vector_search.api.admin_album_routes import create_admin_album_router
 from image_vector_search.api.admin_folder_routes import create_admin_folder_router
 from image_vector_search.api.admin_routes import create_admin_router
 from image_vector_search.api.admin_settings_routes import create_admin_settings_router
@@ -26,6 +28,7 @@ def create_app(
     status_service=None,
     job_runner=None,
     tag_service=None,
+    album_service=None,
 ) -> FastAPI:
     app_settings = settings or Settings()
     runtime_services: RuntimeServices | None = None
@@ -39,8 +42,11 @@ def create_app(
         status_service = runtime_services.status_service
         job_runner = runtime_services.job_runner
         tag_service = runtime_services.tag_service
+        album_service = runtime_services.album_service
     elif tag_service is None:
         tag_service = _derive_tag_service(status_service)
+    elif album_service is None:
+        album_service = _derive_album_service(status_service)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -119,6 +125,9 @@ def create_app(
     if tag_service is not None:
         app.include_router(create_admin_tag_router(tag_service=tag_service))
 
+    if album_service is not None:
+        app.include_router(create_admin_album_router(album_service=album_service))
+
     if tag_service is not None:
         app.include_router(
             create_admin_bulk_router(
@@ -147,3 +156,10 @@ def _derive_tag_service(status_service) -> TagService | None:
     if repository is None:
         return None
     return TagService(repository=repository)
+
+
+def _derive_album_service(status_service) -> AlbumService | None:
+    repository = getattr(status_service, "repository", None)
+    if repository is None:
+        return None
+    return AlbumService(repository=repository)

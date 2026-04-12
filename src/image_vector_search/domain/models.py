@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -34,6 +37,28 @@ class CategoryNode(BaseModel):
     created_at: datetime
     children: list["CategoryNode"] = []
     image_count: int | None = None
+
+
+class Album(BaseModel):
+    id: int
+    name: str
+    type: Literal["manual", "smart"]
+    description: str = ""
+    rule_logic: Literal["and", "or"] | None = None
+    source_paths: list[str] = []
+    image_count: int | None = None
+    cover_image: ImageRecord | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AlbumRule(BaseModel):
+    id: int
+    album_id: int
+    tag_id: int
+    match_mode: Literal["include", "exclude"]
+    created_at: datetime
+    tag_name: str | None = None
 
 
 class SearchResult(BaseModel):
@@ -110,6 +135,11 @@ class IndexingReport(BaseModel):
 
 
 class PaginatedImages(BaseModel):
+    items: list[ImageRecordWithLabels] = []
+    next_cursor: str | None = None
+
+
+class PaginatedAlbumImages(BaseModel):
     items: list[ImageRecordWithLabels] = []
     next_cursor: str | None = None
 

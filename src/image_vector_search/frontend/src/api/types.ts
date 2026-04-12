@@ -18,6 +18,15 @@ export interface CategoryNode extends Category {
   image_count: number | null;
 }
 
+export interface AlbumRule {
+  id: number;
+  album_id: number;
+  tag_id: number;
+  tag_name: string | null;
+  match_mode: "include" | "exclude";
+  created_at: string;
+}
+
 export interface ImageRecord {
   content_hash: string;
   canonical_path: string;
@@ -50,6 +59,19 @@ export interface PurgeInactiveImagesRequest {
 export interface ImageRecordWithLabels extends ImageRecord {
   tags: Tag[];
   categories: Category[];
+}
+
+export interface Album {
+  id: number;
+  name: string;
+  type: "manual" | "smart";
+  description: string;
+  rule_logic: "and" | "or" | null;
+  source_paths: string[];
+  image_count: number | null;
+  cover_image: ImageRecordWithLabels | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PaginatedImages {

@@ -8,6 +8,7 @@ from image_vector_search.adapters.embedding.rate_limiter import AdaptiveRateLimi
 from image_vector_search.adapters.vector_index.milvus_lite import MilvusLiteIndex
 from image_vector_search.config import Settings
 from image_vector_search.repositories.sqlite import MetadataRepository
+from image_vector_search.services.albums import AlbumService
 from image_vector_search.services.indexing import IndexService
 from image_vector_search.services.jobs import BackgroundJobWorker, JobRunner
 from image_vector_search.services.search import SearchService
@@ -24,6 +25,7 @@ class RuntimeServices:
     embedding_client: EmbeddingClient | None
     vector_index: MilvusLiteIndex
     tag_service: TagService
+    album_service: AlbumService
     index_service: IndexService
     repository: MetadataRepository
     settings: Settings
@@ -97,6 +99,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         vector_index=vector_index,
     )
     tag_service = TagService(repository=repository)
+    album_service = AlbumService(repository=repository)
     job_runner = JobRunner(repository, index_service)
     background_worker = BackgroundJobWorker(job_runner)
     return RuntimeServices(
@@ -107,6 +110,7 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
         embedding_client=embedding_client,
         vector_index=vector_index,
         tag_service=tag_service,
+        album_service=album_service,
         index_service=index_service,
         repository=repository,
         settings=settings,

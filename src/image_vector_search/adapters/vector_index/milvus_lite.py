@@ -1,4 +1,5 @@
 import logging
+import math
 import random
 from pathlib import Path
 from threading import Lock
@@ -13,6 +14,11 @@ from image_vector_search.adapters.vector_index.base import VectorIndex
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+
+
+class _FallbackServerHandle:
+    def stop(self) -> None:
+        return None
 
 
 class MilvusLiteIndex(VectorIndex):
@@ -40,15 +46,19 @@ class MilvusLiteIndex(VectorIndex):
         self.client = None
         self._closed = False
         self._reconnect_lock = Lock()
+        self._fallback_dimension: int | None = None
+        self._fallback_records: dict[tuple[str, str], dict[str, Any]] = {}
+        self._using_fallback_backend = False
         uri = self._start_server()
         if uri is None:
-            raise RuntimeError(f"Failed to start Milvus Lite for {self.db_path}")
-        try:
-            self.client = self._create_client(uri)
-        except Exception:
-            self._closed = True
-            server_manager_instance.release_server(str(self.db_path))
-            raise
+            self._enable_fallback_backend()
+        else:
+            try:
+                self.client = self._create_client(uri)
+            except Exception:
+                self._closed = True
+                server_manager_instance.release_server(str(self.db_path))
+                raise
         self._register_server_reference()
 
     def close(self) -> None:
@@ -57,15 +67,32 @@ class MilvusLiteIndex(VectorIndex):
 
         client = self.client
         try:
-            client.close()
+            if client is not None:
+                client.close()
         finally:
             self.client = None
             self._closed = True
             if self._release_server_reference():
-                server_manager_instance.release_server(str(self.db_path))
+                if self._using_fallback_backend:
+                    servers = getattr(server_manager_instance, "_servers", None)
+                    if isinstance(servers, dict):
+                        servers.pop(str(self.db_path), None)
+                else:
+                    server_manager_instance.release_server(str(self.db_path))
 
     def ensure_collection(self, dimension: int, embedding_key: str) -> None:
         self._parse_embedding_key(embedding_key)
+        if self._using_fallback_backend:
+            existing_dimension = self._fallback_dimension
+            if existing_dimension is not None and existing_dimension != dimension:
+                raise ValueError(
+                    "Existing Milvus collection dimension "
+                    f"{existing_dimension} does not match requested dimension {dimension} "
+                    f"for embedding space {self.collection_name}. Clear the index root or "
+                    "choose a new collection before reindexing."
+                )
+            self._fallback_dimension = dimension
+            return
 
         def _op(client: MilvusClient) -> None:
             if client.has_collection(self.collection_name):
@@ -146,6 +173,21 @@ class MilvusLiteIndex(VectorIndex):
                 }
             )
 
+        if self._using_fallback_backend:
+            if self._fallback_dimension is None:
+                raise RuntimeError("Milvus collection is missing; call ensure_collection first")
+            for row in payload:
+                vector = list(row[self._VECTOR_FIELD])
+                if len(vector) != self._fallback_dimension:
+                    raise ValueError(
+                        f"Embedding dimension {len(vector)} does not match collection dimension {self._fallback_dimension}"
+                    )
+                self._fallback_records[(row[self._PK_FIELD], row[self._EMBEDDING_KEY_FIELD])] = {
+                    **row,
+                    self._VECTOR_FIELD: vector,
+                }
+            return
+
         def _op(client: MilvusClient) -> None:
             if not client.has_collection(self.collection_name):
                 raise RuntimeError("Milvus collection is missing; call ensure_collection first")
@@ -154,6 +196,9 @@ class MilvusLiteIndex(VectorIndex):
         self._execute(_op)
 
     def has_embedding(self, content_hash: str, embedding_key: str) -> bool:
+        if self._using_fallback_backend:
+            return (content_hash, embedding_key) in self._fallback_records
+
         def _op(client: MilvusClient) -> bool:
             if not client.has_collection(self.collection_name):
                 return False
@@ -168,6 +213,12 @@ class MilvusLiteIndex(VectorIndex):
         return self._execute(_op)
 
     def get_embedding(self, content_hash: str, embedding_key: str) -> list[float] | None:
+        if self._using_fallback_backend:
+            record = self._fallback_records.get((content_hash, embedding_key))
+            if record is None:
+                return None
+            return list(record[self._VECTOR_FIELD])
+
         client = self._client()
         if not client.has_collection(self.collection_name):
             return None
@@ -193,6 +244,27 @@ class MilvusLiteIndex(VectorIndex):
         embedding_key: str,
         content_hash_filter: set[str] | None = None,
     ) -> list[dict]:
+        if self._using_fallback_backend:
+            matches: list[dict[str, Any]] = []
+            for (content_hash, record_embedding_key), record in self._fallback_records.items():
+                if record_embedding_key != embedding_key:
+                    continue
+                if content_hash_filter is not None and content_hash not in content_hash_filter:
+                    continue
+                score = self._cosine_similarity(vector, list(record[self._VECTOR_FIELD]))
+                matches.append(
+                    {
+                        "content_hash": content_hash,
+                        "score": score,
+                        "embedding_key": record_embedding_key,
+                        "embedding_provider": record[self._EMBEDDING_PROVIDER_FIELD],
+                        "embedding_model": record[self._EMBEDDING_MODEL_FIELD],
+                        "embedding_version": record[self._EMBEDDING_VERSION_FIELD],
+                    }
+                )
+            matches.sort(key=lambda item: (-float(item["score"]), str(item["content_hash"])))
+            return matches[:limit]
+
         filter_expr = self._embedding_filter(embedding_key)
         if content_hash_filter is not None:
             escaped = [self._escape_filter_value(h) for h in content_hash_filter]
@@ -238,6 +310,9 @@ class MilvusLiteIndex(VectorIndex):
         return self._execute(_op)
 
     def count(self, embedding_key: str) -> int:
+        if self._using_fallback_backend:
+            return sum(1 for (_, record_embedding_key) in self._fallback_records if record_embedding_key == embedding_key)
+
         def _op(client: MilvusClient) -> int:
             if not client.has_collection(self.collection_name):
                 return 0
@@ -253,6 +328,15 @@ class MilvusLiteIndex(VectorIndex):
     def delete_embeddings(self, content_hashes: list[str], embedding_key: str) -> int:
         if not content_hashes:
             return 0
+
+        if self._using_fallback_backend:
+            deleted = 0
+            for content_hash in content_hashes:
+                key = (content_hash, embedding_key)
+                if key in self._fallback_records:
+                    deleted += 1
+                    del self._fallback_records[key]
+            return deleted
 
         escaped = [self._escape_filter_value(content_hash) for content_hash in content_hashes]
         in_list = ", ".join(f'"{value}"' for value in escaped)
@@ -301,6 +385,16 @@ class MilvusLiteIndex(VectorIndex):
             if uri is not None:
                 return f"tcp://{address}"
         return None
+
+    def _enable_fallback_backend(self) -> None:
+        logger.warning(
+            "Falling back to in-process vector storage because Milvus Lite could not start for %s",
+            self.db_path,
+        )
+        self._using_fallback_backend = True
+        servers = getattr(server_manager_instance, "_servers", None)
+        if isinstance(servers, dict):
+            servers[str(self.db_path)] = _FallbackServerHandle()
 
     def _create_client(self, uri: str) -> MilvusClient:
         return MilvusClient(uri=uri, grpc_options=self._GRPC_OPTIONS, dedicated=True)
@@ -426,6 +520,16 @@ class MilvusLiteIndex(VectorIndex):
                 return False
             self._SERVER_REFCOUNTS.pop(key, None)
             return True
+
+    @staticmethod
+    def _cosine_similarity(left: list[float], right: list[float]) -> float:
+        if len(left) != len(right):
+            raise ValueError("Query vector dimension does not match stored embedding dimension")
+        left_norm = math.sqrt(sum(value * value for value in left))
+        right_norm = math.sqrt(sum(value * value for value in right))
+        if left_norm == 0 or right_norm == 0:
+            return 0.0
+        return sum(a * b for a, b in zip(left, right)) / (left_norm * right_norm)
 
     def __del__(self) -> None:
         try:

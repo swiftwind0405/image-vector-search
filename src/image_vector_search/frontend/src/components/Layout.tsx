@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Tag, FolderTree, Folder, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings } from "lucide-react";
+import { LayoutDashboard, Tag, FolderTree, Folder, ImagePlus, Search, LogOut, Sparkles, Database, ArrowUpRight, Settings, LayoutGrid } from "lucide-react";
 import { useLogout } from "@/api/auth";
 import { cn } from "@/lib/utils";
 import logoMark from "../../logo.svg";
@@ -9,6 +9,7 @@ const navItems = [
   { to: "/search", icon: Search, label: "Search" },
   { to: "/tags", icon: Tag, label: "Tags" },
   { to: "/categories", icon: FolderTree, label: "Categories" },
+  { to: "/albums", icon: LayoutGrid, label: "Albums" },
   { to: "/folders", icon: Folder, label: "Folders" },
   { to: "/images", icon: ImagePlus, label: "Images" },
   { to: "/settings", icon: Settings, label: "Settings" },
@@ -44,6 +45,12 @@ const pageMeta = [
     title: "Category Structure",
     subtitle: "Shape the hierarchy that organizes the archive and inspect each branch visually.",
     eyebrow: "Taxonomy",
+  },
+  {
+    match: (pathname: string) => pathname.startsWith("/albums"),
+    title: "Album Collections",
+    subtitle: "Assemble manual sets, define smart rules, and review each collection as a living image sequence.",
+    eyebrow: "Collections",
   },
   {
     match: (pathname: string) => pathname.startsWith("/folders"),
