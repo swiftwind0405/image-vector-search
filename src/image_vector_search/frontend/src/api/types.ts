@@ -5,19 +5,6 @@ export interface Tag {
   image_count: number | null;
 }
 
-export interface Category {
-  id: number;
-  name: string;
-  parent_id: number | null;
-  sort_order: number;
-  created_at: string;
-}
-
-export interface CategoryNode extends Category {
-  children: CategoryNode[];
-  image_count: number | null;
-}
-
 export interface AlbumRule {
   id: number;
   album_id: number;
@@ -58,7 +45,6 @@ export interface PurgeInactiveImagesRequest {
 
 export interface ImageRecordWithLabels extends ImageRecord {
   tags: Tag[];
-  categories: Category[];
 }
 
 export interface Album {
@@ -112,7 +98,6 @@ export interface SearchResult {
   height: number;
   mime_type: string;
   tags: Tag[];
-  categories: Category[];
 }
 
 export interface BulkResponse {

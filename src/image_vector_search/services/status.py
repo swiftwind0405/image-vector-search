@@ -4,7 +4,6 @@ from datetime import datetime
 from image_vector_search.adapters.embedding.base import build_embedding_key
 from image_vector_search.domain.models import (
     ImageRecord,
-    ImageRecordWithLabels,
     IndexStatus,
     PaginatedImages,
 )
@@ -38,24 +37,18 @@ class StatusService:
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
     ) -> list[ImageRecord]:
         images_root = str(self.settings.images_root) if folder else None
         return self.repository.list_active_images(
             folder=folder,
             images_root=images_root,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
         )
 
     def list_active_images_with_labels(
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         limit: int | None = None,
         cursor: str | None = None,
         embedding_status: str | None = None,
@@ -65,8 +58,6 @@ class StatusService:
             folder=folder,
             images_root=images_root,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
             embedding_status=embedding_status,
@@ -76,8 +67,6 @@ class StatusService:
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         embedding_status: str | None = None,
         limit: int | None = None,
         cursor: str | None = None,
@@ -88,8 +77,6 @@ class StatusService:
             images_root=images_root,
             embedding_status=embedding_status,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
         )

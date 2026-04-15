@@ -106,21 +106,6 @@ class TestBulkTagsBySelection:
         assert data["affected"] == 2
 
     @pytest.mark.anyio
-    async def test_bulk_add_categories_works(self, client):
-        resp = await client.post("/api/categories", json={"name": "Nature"})
-        assert resp.status_code == 201
-        category_id = resp.json()["id"]
-
-        resp = await client.post(
-            "/api/bulk/categories/add",
-            json={"content_hashes": ["aaa", "bbb"], "category_id": category_id},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["ok"] is True
-        assert data["affected"] == 2
-
-    @pytest.mark.anyio
     async def test_exceeding_500_hashes_returns_400(self, client):
         resp = await client.post("/api/tags", json={"name": "overflow"})
         tag_id = resp.json()["id"]

@@ -13,7 +13,6 @@ export default function ImagesPage() {
       (data?.items ?? []).map((image) => ({
         ...image,
         tags: image.tags ?? [],
-        categories: image.categories ?? [],
       })),
     [data?.items],
   );
@@ -26,7 +25,7 @@ export default function ImagesPage() {
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
-            className="h-48 animate-pulse rounded-[24px] border border-white/10 bg-white/[0.04]"
+            className="h-48 animate-pulse rounded-lg border border-border bg-[#f7f7f8]"
           />
         ))}
       </div>
@@ -35,7 +34,7 @@ export default function ImagesPage() {
 
   if (error) {
     return (
-      <div className="rounded-[28px] border border-rose-400/20 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">
+      <div className="rounded-lg border border-[#fbd5d5] bg-[#fef2f2] px-5 py-4 text-sm text-[#9b2c2c]">
         Failed to load filesystem images.
       </div>
     );
@@ -44,7 +43,7 @@ export default function ImagesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium uppercase tracking-[0.22em] text-muted-foreground">
+        <h3 className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">
           All Photos
         </h3>
         <p className="text-xs text-muted-foreground">{images.length} visible</p>

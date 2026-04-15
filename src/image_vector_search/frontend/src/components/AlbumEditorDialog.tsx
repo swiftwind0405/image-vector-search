@@ -223,10 +223,10 @@ export default function AlbumEditorDialog({
 
         {effectiveType === "smart" && (
           <div className="space-y-5">
-              <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="space-y-3 rounded-lg border border-border bg-[#f9f9fa] p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-white">Rules</h3>
+                    <h3 className="text-sm font-medium text-foreground">Rules</h3>
                     <p className="text-xs text-muted-foreground">
                       Define include/exclude tags before saving the smart album.
                     </p>
@@ -292,9 +292,9 @@ export default function AlbumEditorDialog({
                 )}
               </div>
 
-              <div className="space-y-3 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+              <div className="space-y-3 rounded-lg border border-border bg-[#f9f9fa] p-4">
                 <div>
-                  <h3 className="text-sm font-medium text-white">Source paths</h3>
+                  <h3 className="text-sm font-medium text-foreground">Source paths</h3>
                   <p className="text-xs text-muted-foreground">
                     Limit smart matching to specific folders before saving.
                   </p>
@@ -316,9 +316,9 @@ export default function AlbumEditorDialog({
                     {sourcePathDrafts.map((path) => (
                       <div
                         key={path}
-                        className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2"
+                        className="flex items-center justify-between rounded-md border border-border bg-[#f7f7f8] px-3 py-2"
                       >
-                        <span className="text-sm text-white">{path}</span>
+                        <span className="text-sm text-foreground">{path}</span>
                         <Button
                           type="button"
                           variant="ghost"

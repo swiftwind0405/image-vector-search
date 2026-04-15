@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import FilterBar from "../components/FilterBar";
-import type { Tag, CategoryNode } from "../api/types";
+import type { Tag } from "../api/types";
 
 const makeTag = (id: number, name: string): Tag => ({
   id,
@@ -11,29 +11,15 @@ const makeTag = (id: number, name: string): Tag => ({
   image_count: null,
 });
 
-const makeCategoryNode = (id: number, name: string): CategoryNode => ({
-  id,
-  name,
-  parent_id: null,
-  sort_order: 0,
-  created_at: "2026-01-01T00:00:00",
-  children: [],
-  image_count: null,
-});
-
 describe("FilterBar", () => {
   const tags = [makeTag(1, "nature"), makeTag(2, "travel")];
-  const categories = [makeCategoryNode(10, "Travel"), makeCategoryNode(20, "Work")];
 
   it("renders tag chips", () => {
     render(
       <FilterBar
         tags={tags}
-        categories={[]}
         activeTags={[]}
-        activeCategoryId={null}
         onTagToggle={vi.fn()}
-        onCategoryToggle={vi.fn()}
         onClear={vi.fn()}
       />,
     );
@@ -46,11 +32,8 @@ describe("FilterBar", () => {
     render(
       <FilterBar
         tags={tags}
-        categories={[]}
         activeTags={[]}
-        activeCategoryId={null}
         onTagToggle={onTagToggle}
-        onCategoryToggle={vi.fn()}
         onClear={vi.fn()}
       />,
     );
@@ -63,11 +46,8 @@ describe("FilterBar", () => {
     render(
       <FilterBar
         tags={tags}
-        categories={[]}
         activeTags={["nature"]}
-        activeCategoryId={null}
         onTagToggle={onTagToggle}
-        onCategoryToggle={vi.fn()}
         onClear={vi.fn()}
       />,
     );
@@ -83,11 +63,8 @@ describe("FilterBar", () => {
     render(
       <FilterBar
         tags={tags}
-        categories={categories}
         activeTags={["nature"]}
-        activeCategoryId={null}
         onTagToggle={vi.fn()}
-        onCategoryToggle={vi.fn()}
         onClear={onClear}
       />,
     );
@@ -101,11 +78,8 @@ describe("FilterBar", () => {
     render(
       <FilterBar
         tags={tags}
-        categories={categories}
         activeTags={[]}
-        activeCategoryId={null}
         onTagToggle={vi.fn()}
-        onCategoryToggle={vi.fn()}
         onClear={vi.fn()}
       />,
     );

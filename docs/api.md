@@ -138,7 +138,6 @@
 - `search_images`
 - `search_similar`
 - `manage_tags`
-- `manage_categories`
 - `tag_images`
 - `list_images`
 - `get_image_info`
@@ -182,8 +181,7 @@
       "width": 1024,
       "height": 768,
       "mime_type": "image/jpeg",
-      "tags": [],
-      "categories": []
+      "tags": []
     }
   ]
 }
@@ -225,8 +223,7 @@
 ```json
 {
   "folder": "nature",
-  "tag_id": 1,
-  "category_id": 2
+  "tag_id": 1
 }
 ```
 
@@ -250,8 +247,7 @@
       "embedding_version": "v2",
       "created_at": "2026-04-08T10:00:00+00:00",
       "updated_at": "2026-04-08T10:00:00+00:00",
-      "tags": [],
-      "categories": []
+      "tags": []
     }
   ]
 }
@@ -269,7 +265,7 @@
 }
 ```
 
-返回图片基础元数据，并尽量附带 `tags` 和 `categories`。
+返回图片基础元数据，并尽量附带 `tags`。
 
 #### 3.3.5 `get_index_status`
 
@@ -350,30 +346,15 @@
 }
 ```
 
-#### 3.3.8 `manage_categories`
+#### 3.3.8 `tag_images`
 
-统一的分类管理工具。
-
-`action` 支持：
-
-- `create`
-- `rename`
-- `delete`
-- `move`
-- `list`
-
-#### 3.3.9 `tag_images`
-
-对单张图片增删标签或分类。
+对单张图片增删标签。
 
 `action` 支持：
 
 - `add_tag`
 - `remove_tag`
-- `add_category`
-- `remove_category`
 - `list_tags`
-- `list_categories`
 
 ## 4. 后台管理 HTTP API
 
@@ -433,8 +414,6 @@
 
 - `folder`：目录过滤
 - `tag_id`：标签过滤
-- `category_id`：分类过滤
-- `include_descendants`：是否包含子分类，默认 `true`
 
 返回值是图片数组，每项结构等同 `ImageRecordWithLabels`。
 
@@ -576,7 +555,7 @@
 - `422`：目标 provider 没有可用 key
 - `500`：配置已保存，但 embedding client 热重载失败
 
-## 4.4 标签与分类
+## 4.4 标签
 
 ### 标签接口
 
@@ -647,88 +626,7 @@
 
 批量删除上限为 `500`。
 
-### 分类接口
-
-#### `POST /api/categories`
-
-请求体：
-
-```json
-{
-  "name": "Nature",
-  "parent_id": null
-}
-```
-
-#### `GET /api/categories`
-
-返回分类树数组，节点结构：
-
-- `id`
-- `name`
-- `parent_id`
-- `sort_order`
-- `created_at`
-- `children`
-- `image_count`
-
-#### `GET /api/categories/{category_id}/children`
-
-返回某一分类的直接子分类列表。
-
-#### `PUT /api/categories/{category_id}`
-
-可用于重命名或移动分类。
-
-请求体示例，重命名：
-
-```json
-{
-  "name": "Plants"
-}
-```
-
-请求体示例，移到根节点：
-
-```json
-{
-  "move_to_root": true
-}
-```
-
-请求体示例，移到新父节点：
-
-```json
-{
-  "move_to_parent_id": 12
-}
-```
-
-#### `DELETE /api/categories/{category_id}`
-
-成功返回 `204 No Content`。
-
-#### `POST /api/categories/batch-delete`
-
-请求体：
-
-```json
-{
-  "category_ids": [10, 11]
-}
-```
-
-响应：
-
-```json
-{
-  "deleted": 2
-}
-```
-
-批量删除上限为 `500`。
-
-### 图片与标签/分类关系
+### 图片与标签关系
 
 #### `POST /api/images/{content_hash}/tags`
 
@@ -756,24 +654,6 @@
 
 返回当前图片的标签列表。
 
-#### `POST /api/images/{content_hash}/categories`
-
-请求体：
-
-```json
-{
-  "category_id": 2
-}
-```
-
-#### `DELETE /api/images/{content_hash}/categories/{category_id}`
-
-成功返回 `204 No Content`。
-
-#### `GET /api/images/{content_hash}/categories`
-
-返回当前图片的分类列表。
-
 ## 4.5 批量操作与文件联动
 
 ### `GET /api/folders`
@@ -784,7 +664,7 @@
 ["nature", "urban"]
 ```
 
-### 批量标签/分类接口
+### 批量标签接口
 
 以下接口返回结构一致：
 
@@ -799,8 +679,6 @@
 
 - `POST /api/bulk/tags/add`
 - `POST /api/bulk/tags/remove`
-- `POST /api/bulk/categories/add`
-- `POST /api/bulk/categories/remove`
 
 请求体分别为：
 
@@ -808,15 +686,6 @@
 {
   "content_hashes": ["aaa", "bbb"],
   "tag_id": 1
-}
-```
-
-或：
-
-```json
-{
-  "content_hashes": ["aaa", "bbb"],
-  "category_id": 2
 }
 ```
 
@@ -828,8 +697,6 @@
 
 - `POST /api/bulk/folder/tags/add`
 - `POST /api/bulk/folder/tags/remove`
-- `POST /api/bulk/folder/categories/add`
-- `POST /api/bulk/folder/categories/remove`
 
 请求体示例：
 
@@ -837,15 +704,6 @@
 {
   "folder": "nature",
   "tag_id": 1
-}
-```
-
-或：
-
-```json
-{
-  "folder": "nature",
-  "category_id": 2
 }
 ```
 
@@ -891,19 +749,7 @@
 }
 ```
 
-### 5.2 `Category`
-
-```json
-{
-  "id": 2,
-  "name": "Nature",
-  "parent_id": null,
-  "sort_order": 0,
-  "created_at": "2026-04-08T10:00:00+00:00"
-}
-```
-
-### 5.3 `SearchResult`
+### 5.2 `SearchResult`
 
 ```json
 {
@@ -913,12 +759,11 @@
   "width": 1024,
   "height": 768,
   "mime_type": "image/jpeg",
-  "tags": [],
-  "categories": []
+  "tags": []
 }
 ```
 
-### 5.4 `ImageRecordWithLabels`
+### 5.3 `ImageRecordWithLabels`
 
 ```json
 {
@@ -936,12 +781,11 @@
   "embedding_version": "v2",
   "created_at": "2026-04-08T10:00:00+00:00",
   "updated_at": "2026-04-08T10:00:00+00:00",
-  "tags": [],
-  "categories": []
+  "tags": []
 }
 ```
 
-### 5.5 `JobRecord`
+### 5.4 `JobRecord`
 
 ```json
 {

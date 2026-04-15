@@ -21,22 +21,14 @@ vi.mock("../api/images", async () => {
   return {
     ...actual,
     useImageTags: () => ({ data: [] }),
-    useImageCategories: () => ({ data: [] }),
     useAddTagToImage: () => ({ mutate: vi.fn() }),
     useRemoveTagFromImage: () => ({ mutate: vi.fn() }),
-    useAddCategoryToImage: () => ({ mutate: vi.fn() }),
-    useRemoveCategoryFromImage: () => ({ mutate: vi.fn() }),
   };
 });
 
 vi.mock("../api/tags", () => ({
   useTags: () => ({ data: [] }),
   useCreateTag: () => ({ isPending: false, mutate: vi.fn() }),
-}));
-
-vi.mock("../api/categories", () => ({
-  useCategories: () => ({ data: [] }),
-  useCreateCategory: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 import FoldersPage from "../pages/FoldersPage";
@@ -68,7 +60,6 @@ function makeImage(
     created_at: "2026-04-11T00:00:00Z",
     updated_at: "2026-04-11T00:00:00Z",
     tags: [],
-    categories: [],
     indexed: true,
     indexed_content_hash: contentHash,
     file_url: `/api/images/${contentHash}/file`,

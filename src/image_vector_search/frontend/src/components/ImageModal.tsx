@@ -1,12 +1,14 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, X, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSearch, FolderOpen, Images, X, Info } from "lucide-react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import ImageInfoPanel from "@/components/ImageInfoPanel";
+import { useAddImagesToAlbum, useListAlbums } from "@/api/albums";
 import { useOpenFile, useRevealFile } from "@/api/bulk";
-import type { ImageRecordWithLabels } from "@/api/types";
+import type { Album, ImageRecordWithLabels } from "@/api/types";
 import { useState } from "react";
 
 interface Props {
@@ -72,34 +74,34 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
     <DialogPrimitive.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Backdrop
-          className="fixed inset-0 z-50 bg-[rgba(7,8,12,0.94)] backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+          className="fixed inset-0 z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         />
         <DialogPrimitive.Popup
-          className="fixed inset-0 z-50 flex outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+          className="fixed inset-0 z-50 flex bg-background text-foreground outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         >
           {/* Top bar */}
-          <div className="absolute left-0 right-0 top-0 z-10 flex h-16 items-center justify-between px-4 bg-gradient-to-b from-black/70 to-transparent">
+          <div className="absolute left-0 right-0 top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur">
             <div className="flex items-center gap-3 min-w-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 text-white hover:bg-white/10"
+                className="shrink-0"
                 onClick={onClose}
               >
                 <X className="h-5 w-5" />
               </Button>
-              <span className="text-sm text-white/90 truncate" title={filename}>
+              <span className="text-sm text-foreground truncate" title={filename}>
                 {filename}
               </span>
-              <span className="text-xs text-white/50">
+              <span className="text-xs text-muted-foreground">
                 {currentIndex + 1} / {images.length}
               </span>
             </div>
             <div className="flex items-center gap-1">
+              <AddToAlbumsButton contentHash={image.content_hash} />
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/10"
                 title="Open file"
                 onClick={() =>
                   openFile.mutate(
@@ -113,7 +115,6 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/10"
                 title="Reveal in finder"
                 onClick={() =>
                   revealFile.mutate(
@@ -127,7 +128,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn("text-white hover:bg-white/10", showInfo && "bg-white/15")}
+                className={cn(showInfo && "bg-accent text-accent-foreground")}
                 title="Toggle info panel (Shift+I)"
                 onClick={() => setShowInfo((v) => !v)}
               >
@@ -139,7 +140,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
           {/* Main area: image + optional info panel */}
           {/* Desktop: row (image left, info right) / Mobile: column (image top, info bottom) */}
           <div className="flex h-full w-full flex-col overflow-hidden pt-16 md:flex-row">
-            <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
+            <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-muted/40">
               <img
                 src={imageSrc}
                 alt={filename}
@@ -149,7 +150,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               {/* Prev / Next arrows */}
               {hasPrev && (
                 <button
-                  className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition-colors hover:bg-black/70"
+                  className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/85 text-foreground shadow-sm transition-colors hover:bg-background"
                   onClick={() => onNavigate(images[currentIndex - 1].content_hash)}
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -157,7 +158,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
               )}
               {hasNext && (
                 <button
-                  className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition-colors hover:bg-black/70"
+                  className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/85 text-foreground shadow-sm transition-colors hover:bg-background"
                   onClick={() => onNavigate(images[currentIndex + 1].content_hash)}
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -167,7 +168,7 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
 
             <div
               className={cn(
-                "overflow-y-auto border-white/10 bg-card/92 transition-all duration-200 backdrop-blur",
+                "overflow-y-auto border-border bg-card transition-all duration-200",
                 "md:h-full md:border-l",
                 "max-md:border-t max-md:w-full",
                 showInfo
@@ -185,5 +186,128 @@ export default function ImageModal({ image, images, open, onClose, onNavigate }:
         </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
+  );
+}
+
+function AddToAlbumsButton({ contentHash }: { contentHash: string }) {
+  const { data: albums, isLoading } = useListAlbums();
+  const addImagesToAlbum = useAddImagesToAlbum();
+  const [open, setOpen] = useState(false);
+  const [selectedAlbumIds, setSelectedAlbumIds] = useState<number[]>([]);
+
+  const manualAlbums = useMemo(
+    () => (albums ?? []).filter((album): album is Album => album.type === "manual"),
+    [albums],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedAlbumIds([]);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setSelectedAlbumIds([]);
+  }, [contentHash]);
+
+  function toggleAlbum(albumId: number, selected: boolean) {
+    setSelectedAlbumIds((current) =>
+      selected
+        ? Array.from(new Set([...current, albumId]))
+        : current.filter((selectedAlbumId) => selectedAlbumId !== albumId),
+    );
+  }
+
+  async function handleSubmit() {
+    if (selectedAlbumIds.length === 0) return;
+
+    try {
+      await Promise.all(
+        selectedAlbumIds.map((albumId) =>
+          addImagesToAlbum.mutateAsync({
+            albumId,
+            contentHashes: [contentHash],
+          }),
+        ),
+      );
+      toast.success(
+        selectedAlbumIds.length === 1
+          ? "Image added to album"
+          : `Image added to ${selectedAlbumIds.length} albums`,
+      );
+      setOpen(false);
+    } catch {
+      toast.error("Failed to add image to albums");
+    }
+  }
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-expanded={open}
+        aria-label="Add to albums"
+        title="Add to albums"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Images className="h-4 w-4" />
+      </Button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-10 z-20 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg"
+          role="dialog"
+          aria-label="Add to albums"
+        >
+          <div className="mb-3">
+            <p className="text-sm font-medium">Add to albums</p>
+            <p className="text-xs text-muted-foreground">Manual albums only.</p>
+          </div>
+
+          <div className="max-h-64 space-y-1 overflow-y-auto">
+            {isLoading ? (
+              <p className="py-2 text-sm text-muted-foreground">Loading albums...</p>
+            ) : manualAlbums.length === 0 ? (
+              <p className="py-2 text-sm text-muted-foreground">No manual albums yet.</p>
+            ) : (
+              manualAlbums.map((album) => (
+                <label
+                  key={album.id}
+                  className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted"
+                >
+                  <Checkbox
+                    aria-label={album.name}
+                    checked={selectedAlbumIds.includes(album.id)}
+                    onCheckedChange={(checked) => toggleAlbum(album.id, checked === true)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-foreground">{album.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {album.image_count ?? 0} images
+                    </span>
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={selectedAlbumIds.length === 0 || addImagesToAlbum.isPending}
+              onClick={handleSubmit}
+            >
+              {selectedAlbumIds.length <= 1
+                ? "Add to album"
+                : `Add to ${selectedAlbumIds.length} albums`}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

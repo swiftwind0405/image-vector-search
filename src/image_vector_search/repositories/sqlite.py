@@ -6,8 +6,6 @@ from pathlib import Path
 from image_vector_search.domain.models import (
     Album,
     AlbumRule,
-    Category,
-    CategoryNode,
     ImagePathRecord,
     PaginatedAlbumImages,
     PaginatedImages,
@@ -40,8 +38,39 @@ def _escape_like_pattern(value: str) -> str:
 
 
 class MetadataRepository:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, images_root: Path | str | None = None) -> None:
         self.db_path = db_path
+        self.images_root = (
+            str(Path(images_root).resolve()) if images_root is not None else None
+        )
+        self.initialize_schema()
+
+    def _excluded_path_clause(
+        self, *, column: str = "images.canonical_path"
+    ) -> tuple[str, list[object]]:
+        """Build a SQL fragment that excludes paths under any configured excluded folder.
+
+        Returns ("", []) when no exclusions are active. The fragment is intended
+        to be appended to an existing WHERE clause with a leading " AND ".
+        """
+        if self.images_root is None:
+            return ("", [])
+        folders = self.get_excluded_folders()
+        if not folders:
+            return ("", [])
+        base = self.images_root.rstrip("/")
+        params: list[object] = []
+        like_clauses: list[str] = []
+        for folder in folders:
+            normalized = folder.strip("/")
+            if not normalized:
+                continue
+            prefix = f"{base}/{normalized}/"
+            params.append(_escape_like_pattern(prefix) + "%")
+            like_clauses.append(f"{column} LIKE ? ESCAPE '\\'")
+        if not like_clauses:
+            return ("", [])
+        return (f"NOT ({' OR '.join(like_clauses)})", params)
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.db_path)
@@ -56,6 +85,7 @@ class MetadataRepository:
             connection.executescript(schema_sql)
             self._ensure_embedding_status_column(connection)
             self._ensure_album_schema(connection)
+            self._drop_category_schema(connection)
 
     def upsert_image(self, image: ImageRecord) -> None:
         with self.connect() as connection:
@@ -130,8 +160,6 @@ class MetadataRepository:
         folder: str | None = None,
         images_root: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         limit: int | None = None,
         cursor: str | None = None,
         embedding_status: str | None = None,
@@ -142,8 +170,6 @@ class MetadataRepository:
             images_root=images_root,
             embedding_status=embedding_status,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
         )
@@ -154,8 +180,6 @@ class MetadataRepository:
         folder: str | None = None,
         images_root: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         limit: int | None = None,
         cursor: str | None = None,
         embedding_status: str | None = None,
@@ -166,8 +190,6 @@ class MetadataRepository:
             images_root=images_root,
             embedding_status=embedding_status,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
         )
@@ -178,8 +200,6 @@ class MetadataRepository:
         images_root: str | None = None,
         embedding_status: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         limit: int | None = None,
         cursor: str | None = None,
     ) -> PaginatedImages:
@@ -189,8 +209,6 @@ class MetadataRepository:
             images_root=images_root,
             embedding_status=embedding_status,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
         )
@@ -204,6 +222,9 @@ class MetadataRepository:
 
     def list_folders(self, images_root: str) -> list[str]:
         root = images_root.rstrip("/") + "/"
+        excluded_prefixes = {
+            f.strip("/") + "/" for f in self.get_excluded_folders() if f.strip("/")
+        }
         with self.connect() as connection:
             rows = connection.execute(
                 "SELECT DISTINCT canonical_path FROM images WHERE is_active = 1"
@@ -213,10 +234,16 @@ class MetadataRepository:
             path = str(row["canonical_path"])
             if path.startswith(root):
                 relative = path[len(root):]
-                # Get the parent directory portion (everything except the filename)
                 parts = relative.rsplit("/", 1)
                 if len(parts) == 2:
-                    folders.add(parts[0])
+                    folder = parts[0]
+                    folder_with_slash = folder + "/"
+                    if any(
+                        folder_with_slash.startswith(prefix)
+                        for prefix in excluded_prefixes
+                    ):
+                        continue
+                    folders.add(folder)
         return sorted(folders)
 
     def list_images_in_folder(
@@ -240,13 +267,27 @@ class MetadataRepository:
             "prefix_no_wild": prefix_no_wild,
             "cursor": cursor,
         }
-        sql = """
+        excluded_clause, excluded_params = self._excluded_path_clause(
+            column="canonical_path"
+        )
+        excluded_sql = ""
+        if excluded_clause:
+            excluded_keys: list[str] = []
+            for index, value in enumerate(excluded_params):
+                key = f"excluded_{index}"
+                params[key] = value
+                excluded_keys.append(f":{key}")
+            rebuilt = excluded_clause
+            for key in excluded_keys:
+                rebuilt = rebuilt.replace("?", key, 1)
+            excluded_sql = f"\n              AND {rebuilt}"
+        sql = f"""
             SELECT *
             FROM images
             WHERE is_active = 1
               AND canonical_path LIKE :prefix ESCAPE '\\'
               AND instr(substr(canonical_path, length(:prefix_no_wild) + 1), '/') = 0
-              AND (:cursor IS NULL OR canonical_path > :cursor)
+              AND (:cursor IS NULL OR canonical_path > :cursor){excluded_sql}
             ORDER BY canonical_path ASC
         """
         if limit is not None:
@@ -616,6 +657,9 @@ class MetadataRepository:
                 )
             """
             params.extend([sort_order, sort_order, album_image_id])
+        excluded_clause, excluded_params = self._excluded_path_clause()
+        excluded_sql = f"AND {excluded_clause}" if excluded_clause else ""
+        params.extend(excluded_params)
         limit_clause = ""
         if limit is not None:
             limit_clause = "LIMIT ?"
@@ -629,6 +673,7 @@ class MetadataRepository:
                 WHERE ai.album_id = ?
                   AND images.is_active = 1
                   {cursor_clause}
+                  {excluded_sql}
                 ORDER BY ai.sort_order ASC, ai.id ASC, images.canonical_path ASC
                 {limit_clause}
                 """,
@@ -641,12 +686,10 @@ class MetadataRepository:
             return PaginatedAlbumImages(items=[], next_cursor=None)
         hashes = [img.content_hash for img in images]
         tags_map = self.get_tags_for_images(hashes)
-        cats_map = self.get_categories_for_images(hashes)
         items = [
             ImageRecordWithLabels(
                 **img.model_dump(),
                 tags=tags_map.get(img.content_hash, []),
-                categories=cats_map.get(img.content_hash, []),
             )
             for img in images
         ]
@@ -778,80 +821,6 @@ class MetadataRepository:
         with self.connect() as conn:
             conn.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
 
-    def create_category(self, name: str, parent_id: int | None = None) -> Category:
-        now = _to_iso(datetime.now(timezone.utc))
-        with self.connect() as conn:
-            cursor = conn.execute(
-                "INSERT INTO categories (name, parent_id, sort_order, created_at) VALUES (?, ?, 0, ?)",
-                (name, parent_id, now),
-            )
-            return Category(
-                id=cursor.lastrowid, name=name, parent_id=parent_id,
-                sort_order=0, created_at=_from_iso(now),
-            )
-
-    def list_categories(self, parent_id: int | None = None) -> list[Category]:
-        with self.connect() as conn:
-            if parent_id is None:
-                rows = conn.execute(
-                    "SELECT id, name, parent_id, sort_order, created_at FROM categories WHERE parent_id IS NULL ORDER BY sort_order, name"
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT id, name, parent_id, sort_order, created_at FROM categories WHERE parent_id = ? ORDER BY sort_order, name",
-                    (parent_id,),
-                ).fetchall()
-            return [self._row_to_category(r) for r in rows]
-
-    def get_category_tree(self) -> list[CategoryNode]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                "SELECT id, name, parent_id, sort_order, created_at FROM categories ORDER BY sort_order, name"
-            ).fetchall()
-            count_rows = conn.execute(
-                "SELECT category_id, COUNT(DISTINCT content_hash) AS image_count FROM image_tags WHERE category_id IS NOT NULL GROUP BY category_id"
-            ).fetchall()
-        counts = {r["category_id"]: r["image_count"] for r in count_rows}
-        nodes: dict[int, CategoryNode] = {}
-        for r in rows:
-            nodes[r["id"]] = CategoryNode(
-                id=r["id"], name=r["name"], parent_id=r["parent_id"],
-                sort_order=r["sort_order"], created_at=_from_iso(r["created_at"]),
-                image_count=counts.get(r["id"], 0),
-            )
-        roots: list[CategoryNode] = []
-        for node in nodes.values():
-            if node.parent_id is not None and node.parent_id in nodes:
-                nodes[node.parent_id].children.append(node)
-            else:
-                roots.append(node)
-        return roots
-
-    def rename_category(self, category_id: int, new_name: str) -> None:
-        with self.connect() as conn:
-            conn.execute("UPDATE categories SET name = ? WHERE id = ?", (new_name, category_id))
-
-    def move_category(self, category_id: int, new_parent_id: int | None) -> None:
-        with self.connect() as conn:
-            conn.execute("UPDATE categories SET parent_id = ? WHERE id = ?", (new_parent_id, category_id))
-
-    def delete_category(self, category_id: int) -> None:
-        with self.connect() as conn:
-            rows = conn.execute("""
-                WITH RECURSIVE descendants(id) AS (
-                    SELECT id FROM categories WHERE id = ?
-                    UNION ALL
-                    SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
-                )
-                SELECT id FROM descendants
-            """, (category_id,)).fetchall()
-            ids = [r["id"] for r in rows]
-            if not ids:
-                return
-            placeholders = ",".join("?" * len(ids))
-            conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
-            conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
-
     def bulk_delete_tags(self, tag_ids: list[int]) -> int:
         if not tag_ids:
             return 0
@@ -862,34 +831,11 @@ class MetadataRepository:
             )
             return cursor.rowcount
 
-    def bulk_delete_categories(self, category_ids: list[int]) -> int:
-        if not category_ids:
-            return 0
-        with self.connect() as conn:
-            all_ids: set[int] = set()
-            for cid in category_ids:
-                rows = conn.execute("""
-                    WITH RECURSIVE descendants(id) AS (
-                        SELECT id FROM categories WHERE id = ?
-                        UNION ALL
-                        SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
-                    )
-                    SELECT id FROM descendants
-                """, (cid,)).fetchall()
-                all_ids.update(r["id"] for r in rows)
-            if not all_ids:
-                return 0
-            ids = list(all_ids)
-            placeholders = ",".join("?" * len(ids))
-            conn.execute(f"DELETE FROM image_tags WHERE category_id IN ({placeholders})", ids)
-            cursor = conn.execute(f"DELETE FROM categories WHERE id IN ({placeholders})", ids)
-            return cursor.rowcount
-
     def add_tag_to_image(self, content_hash: str, tag_id: int) -> None:
         now = _to_iso(datetime.now(timezone.utc))
         with self.connect() as conn:
             conn.execute(
-                "INSERT INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                "INSERT INTO image_tags (content_hash, tag_id, created_at) VALUES (?, ?, ?)",
                 (content_hash, tag_id, now),
             )
 
@@ -898,21 +844,6 @@ class MetadataRepository:
             conn.execute(
                 "DELETE FROM image_tags WHERE content_hash = ? AND tag_id = ?",
                 (content_hash, tag_id),
-            )
-
-    def add_image_to_category(self, content_hash: str, category_id: int) -> None:
-        now = _to_iso(datetime.now(timezone.utc))
-        with self.connect() as conn:
-            conn.execute(
-                "INSERT INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
-                (content_hash, category_id, now),
-            )
-
-    def remove_image_from_category(self, content_hash: str, category_id: int) -> None:
-        with self.connect() as conn:
-            conn.execute(
-                "DELETE FROM image_tags WHERE content_hash = ? AND category_id = ?",
-                (content_hash, category_id),
             )
 
     def get_image_tags(self, content_hash: str) -> list[Tag]:
@@ -924,16 +855,6 @@ class MetadataRepository:
                 ORDER BY t.name
             """, (content_hash,)).fetchall()
             return [Tag(id=r["id"], name=r["name"], created_at=_from_iso(r["created_at"])) for r in rows]
-
-    def get_image_categories(self, content_hash: str) -> list[Category]:
-        with self.connect() as conn:
-            rows = conn.execute("""
-                SELECT c.id, c.name, c.parent_id, c.sort_order, c.created_at
-                FROM categories c JOIN image_tags it ON c.id = it.category_id
-                WHERE it.content_hash = ?
-                ORDER BY c.name
-            """, (content_hash,)).fetchall()
-            return [self._row_to_category(r) for r in rows]
 
     def get_tags_for_images(self, content_hashes: list[str]) -> dict[str, list[Tag]]:
         if not content_hashes:
@@ -952,23 +873,6 @@ class MetadataRepository:
             result.setdefault(r["content_hash"], []).append(tag)
         return result
 
-    def get_categories_for_images(self, content_hashes: list[str]) -> dict[str, list[Category]]:
-        if not content_hashes:
-            return {}
-        with self.connect() as conn:
-            placeholders = ",".join("?" * len(content_hashes))
-            rows = conn.execute(f"""
-                SELECT it.content_hash, c.id, c.name, c.parent_id, c.sort_order, c.created_at
-                FROM categories c JOIN image_tags it ON c.id = it.category_id
-                WHERE it.content_hash IN ({placeholders})
-                ORDER BY c.name
-            """, content_hashes).fetchall()
-        result: dict[str, list[Category]] = {}
-        for r in rows:
-            cat = self._row_to_category(r)
-            result.setdefault(r["content_hash"], []).append(cat)
-        return result
-
     def filter_by_tags(self, tag_ids: list[int]) -> set[str]:
         if not tag_ids:
             return set()
@@ -983,33 +887,13 @@ class MetadataRepository:
             """, [*tag_ids, len(tag_ids)]).fetchall()
             return {r["content_hash"] for r in rows}
 
-    def filter_by_category(self, category_id: int, include_subcategories: bool = True) -> set[str]:
-        with self.connect() as conn:
-            if include_subcategories:
-                rows = conn.execute("""
-                    WITH RECURSIVE descendants(id) AS (
-                        SELECT id FROM categories WHERE id = ?
-                        UNION ALL
-                        SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
-                    )
-                    SELECT DISTINCT it.content_hash
-                    FROM image_tags it
-                    WHERE it.category_id IN (SELECT id FROM descendants)
-                """, (category_id,)).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT DISTINCT content_hash FROM image_tags WHERE category_id = ?",
-                    (category_id,),
-                ).fetchall()
-            return {r["content_hash"] for r in rows}
-
     def bulk_add_tag(self, content_hashes: list[str], tag_id: int) -> int:
         if not content_hashes:
             return 0
         now = _to_iso(datetime.now(timezone.utc))
         with self.connect() as conn:
             cursor = conn.executemany(
-                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, created_at) VALUES (?, ?, ?)",
                 [(h, tag_id, now) for h in content_hashes],
             )
             return cursor.rowcount
@@ -1025,28 +909,6 @@ class MetadataRepository:
             )
             return cursor.rowcount
 
-    def bulk_add_category(self, content_hashes: list[str], category_id: int) -> int:
-        if not content_hashes:
-            return 0
-        now = _to_iso(datetime.now(timezone.utc))
-        with self.connect() as conn:
-            cursor = conn.executemany(
-                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
-                [(h, category_id, now) for h in content_hashes],
-            )
-            return cursor.rowcount
-
-    def bulk_remove_category(self, content_hashes: list[str], category_id: int) -> int:
-        if not content_hashes:
-            return 0
-        placeholders = ",".join("?" * len(content_hashes))
-        with self.connect() as conn:
-            cursor = conn.execute(
-                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND category_id = ?",
-                [*content_hashes, category_id],
-            )
-            return cursor.rowcount
-
     def bulk_folder_add_tag(self, folder: str, tag_id: int, images_root: str) -> int:
         prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
         now = _to_iso(datetime.now(timezone.utc))
@@ -1059,7 +921,7 @@ class MetadataRepository:
             if not hashes:
                 return 0
             cursor = conn.executemany(
-                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, ?, NULL, ?)",
+                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, created_at) VALUES (?, ?, ?)",
                 [(h, tag_id, now) for h in hashes],
             )
             return cursor.rowcount
@@ -1080,46 +942,6 @@ class MetadataRepository:
                 [*hashes, tag_id],
             )
             return cursor.rowcount
-
-    def bulk_folder_add_category(self, folder: str, category_id: int, images_root: str) -> int:
-        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
-        now = _to_iso(datetime.now(timezone.utc))
-        with self.connect() as conn:
-            rows = conn.execute(
-                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
-                (prefix + "%",),
-            ).fetchall()
-            hashes = [str(r["content_hash"]) for r in rows]
-            if not hashes:
-                return 0
-            cursor = conn.executemany(
-                "INSERT OR IGNORE INTO image_tags (content_hash, tag_id, category_id, created_at) VALUES (?, NULL, ?, ?)",
-                [(h, category_id, now) for h in hashes],
-            )
-            return cursor.rowcount
-
-    def bulk_folder_remove_category(self, folder: str, category_id: int, images_root: str) -> int:
-        prefix = images_root.rstrip("/") + "/" + folder.strip("/") + "/"
-        with self.connect() as conn:
-            rows = conn.execute(
-                "SELECT content_hash FROM images WHERE is_active = 1 AND canonical_path LIKE ?",
-                (prefix + "%",),
-            ).fetchall()
-            hashes = [str(r["content_hash"]) for r in rows]
-            if not hashes:
-                return 0
-            placeholders = ",".join("?" * len(hashes))
-            cursor = conn.execute(
-                f"DELETE FROM image_tags WHERE content_hash IN ({placeholders}) AND category_id = ?",
-                [*hashes, category_id],
-            )
-            return cursor.rowcount
-
-    def _row_to_category(self, row) -> Category:
-        return Category(
-            id=row["id"], name=row["name"], parent_id=row["parent_id"],
-            sort_order=row["sort_order"], created_at=_from_iso(row["created_at"]),
-        )
 
     def _album_from_row(self, row: sqlite3.Row) -> Album:
         return Album(
@@ -1147,26 +969,38 @@ class MetadataRepository:
             ).fetchone()
 
     def _count_manual_album_images(self, album_id: int) -> int:
+        excluded_clause, excluded_params = self._excluded_path_clause()
+        excluded_sql = f"AND {excluded_clause}" if excluded_clause else ""
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT COUNT(*) AS count FROM album_images WHERE album_id = ?",
-                (album_id,),
+                f"""
+                SELECT COUNT(*) AS count
+                FROM album_images ai
+                JOIN images ON images.content_hash = ai.content_hash
+                WHERE ai.album_id = ?
+                  AND images.is_active = 1
+                  {excluded_sql}
+                """,
+                [album_id, *excluded_params],
             ).fetchone()
         return int(row["count"]) if row is not None else 0
 
     def _get_manual_album_cover(self, album_id: int) -> ImageRecordWithLabels | None:
+        excluded_clause, excluded_params = self._excluded_path_clause()
+        excluded_sql = f"AND {excluded_clause}" if excluded_clause else ""
         with self.connect() as conn:
             row = conn.execute(
-                """
+                f"""
                 SELECT images.*
                 FROM images
                 JOIN album_images ai ON ai.content_hash = images.content_hash
                 WHERE ai.album_id = ?
                   AND images.is_active = 1
+                  {excluded_sql}
                 ORDER BY ai.sort_order ASC, ai.id ASC, images.canonical_path ASC
                 LIMIT 1
                 """,
-                (album_id,),
+                [album_id, *excluded_params],
             ).fetchone()
         if row is None:
             return None
@@ -1174,11 +1008,9 @@ class MetadataRepository:
 
     def _build_image_with_labels(self, image: ImageRecord) -> ImageRecordWithLabels:
         tags = self.get_tags_for_images([image.content_hash]).get(image.content_hash, [])
-        categories = self.get_categories_for_images([image.content_hash]).get(image.content_hash, [])
         return ImageRecordWithLabels(
             **image.model_dump(),
             tags=tags,
-            categories=categories,
         )
 
     def _build_album_images_page(
@@ -1193,12 +1025,10 @@ class MetadataRepository:
             return PaginatedAlbumImages(items=[], next_cursor=None)
         hashes = [img.content_hash for img in images]
         tags_map = self.get_tags_for_images(hashes)
-        cats_map = self.get_categories_for_images(hashes)
         items = [
             ImageRecordWithLabels(
                 **img.model_dump(),
                 tags=tags_map.get(img.content_hash, []),
-                categories=cats_map.get(img.content_hash, []),
             )
             for img in images
         ]
@@ -1249,6 +1079,12 @@ class MetadataRepository:
             )
             params.extend(exclude_tag_ids)
 
+        excluded_clause_sql, excluded_clause_params = self._excluded_path_clause()
+        excluded_folders_clause = (
+            f" AND {excluded_clause_sql}" if excluded_clause_sql else ""
+        )
+        params.extend(excluded_clause_params)
+
         if rule_logic == "and":
             include_placeholders = ",".join("?" * len(include_tag_ids))
             select_sql = "COUNT(*) AS count" if select_count else "images.*"
@@ -1260,6 +1096,7 @@ class MetadataRepository:
                   AND it.tag_id IN ({include_placeholders})
                   {path_clause}
                   {exclude_clause}
+                  {excluded_folders_clause}
             """
             params = [*include_tag_ids, *params]
             if cursor is not None and not select_count:
@@ -1289,6 +1126,7 @@ class MetadataRepository:
               AND it.tag_id IN ({include_placeholders})
               {path_clause}
               {exclude_clause}
+              {excluded_folders_clause}
         """
         params = [*include_tag_ids, *params]
         if cursor is not None and not select_count:
@@ -1309,8 +1147,6 @@ class MetadataRepository:
         images_root: str | None,
         embedding_status: str | None,
         tag_id: int | None,
-        category_id: int | None,
-        include_descendants: bool,
         limit: int | None,
         cursor: str | None,
     ) -> PaginatedImages:
@@ -1320,8 +1156,6 @@ class MetadataRepository:
             images_root=images_root,
             embedding_status=embedding_status,
             tag_id=tag_id,
-            category_id=category_id,
-            include_descendants=include_descendants,
             limit=limit,
             cursor=cursor,
         )
@@ -1334,12 +1168,10 @@ class MetadataRepository:
             return PaginatedImages(items=[], next_cursor=None)
         hashes = [img.content_hash for img in images]
         tags_map = self.get_tags_for_images(hashes)
-        cats_map = self.get_categories_for_images(hashes)
         items = [
             ImageRecordWithLabels(
                 **img.model_dump(),
                 tags=tags_map.get(img.content_hash, []),
-                categories=cats_map.get(img.content_hash, []),
             )
             for img in images
         ]
@@ -1354,12 +1186,9 @@ class MetadataRepository:
         images_root: str | None,
         embedding_status: str | None,
         tag_id: int | None,
-        category_id: int | None,
-        include_descendants: bool,
         limit: int | None,
         cursor: str | None,
     ) -> tuple[str, list[object]]:
-        ctes: list[str] = []
         params: list[object] = []
         where: list[str] = []
 
@@ -1384,53 +1213,21 @@ class MetadataRepository:
                 """.strip()
             )
             params.append(tag_id)
-        if category_id is not None and include_descendants:
-            ctes.append(
-                """
-                descendants(id) AS (
-                    SELECT id FROM categories WHERE id = ?
-                    UNION ALL
-                    SELECT c.id
-                    FROM categories c
-                    JOIN descendants d ON c.parent_id = d.id
-                )
-                """.strip()
-            )
-            params.insert(0, category_id)
-            where.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM image_tags it
-                    WHERE it.content_hash = images.content_hash
-                      AND it.category_id IN (SELECT id FROM descendants)
-                )
-                """.strip()
-            )
-        elif category_id is not None:
-            where.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM image_tags it
-                    WHERE it.content_hash = images.content_hash
-                      AND it.category_id = ?
-                )
-                """.strip()
-            )
-            params.append(category_id)
         if cursor is not None:
             where.append("images.canonical_path > ?")
             params.append(cursor)
 
-        with_clause = f"WITH RECURSIVE {', '.join(ctes)} " if ctes else ""
+        excluded_clause, excluded_params = self._excluded_path_clause()
+        if excluded_clause:
+            where.append(excluded_clause)
+            params.extend(excluded_params)
+
         where_clause = f" WHERE {' AND '.join(where)}" if where else ""
         limit_clause = ""
         if limit is not None:
             limit_clause = " LIMIT ?"
             params.append(limit + 1)
         sql = (
-            f"{with_clause}"
             "SELECT images.* FROM images"
             f"{where_clause}"
             " ORDER BY images.canonical_path ASC"
@@ -1613,6 +1410,46 @@ class MetadataRepository:
                         """,
                         (now,),
                     )
+
+    def _drop_category_schema(self, connection: sqlite3.Connection) -> None:
+        tables = {
+            str(row["name"])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "categories" not in tables:
+            return
+
+        connection.execute(
+            """
+            CREATE TABLE image_tags__new (
+                content_hash  TEXT NOT NULL REFERENCES images(content_hash) ON DELETE CASCADE,
+                tag_id        INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+                created_at    TEXT NOT NULL,
+                PRIMARY KEY (content_hash, tag_id)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO image_tags__new (content_hash, tag_id, created_at)
+                SELECT content_hash, tag_id, created_at
+                  FROM image_tags
+                 WHERE tag_id IS NOT NULL
+            """
+        )
+        connection.execute("DROP TABLE image_tags")
+        connection.execute("ALTER TABLE image_tags__new RENAME TO image_tags")
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_image_tags_content_hash ON image_tags(content_hash)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags(tag_id)"
+        )
+        connection.execute("DROP TABLE categories")
+        connection.execute("DROP INDEX IF EXISTS idx_image_tags_category_id")
+        connection.execute("DROP INDEX IF EXISTS idx_categories_root_name")
 
 
 def _to_iso(value: datetime | None) -> str | None:

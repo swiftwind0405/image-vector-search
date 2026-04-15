@@ -113,8 +113,6 @@ class FakeStatusService:
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
     ):
         return [self._make_image_record()]
 
@@ -122,8 +120,6 @@ class FakeStatusService:
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         limit: int | None = None,
         cursor: str | None = None,
     ):
@@ -131,8 +127,6 @@ class FakeStatusService:
         self.last_list_images_args = {
             "folder": folder,
             "tag_id": tag_id,
-            "category_id": category_id,
-            "include_descendants": include_descendants,
             "limit": limit,
             "cursor": cursor,
             "include_inactive": False,
@@ -143,8 +137,6 @@ class FakeStatusService:
         self,
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         embedding_status: str | None = None,
         limit: int | None = None,
         cursor: str | None = None,
@@ -153,8 +145,6 @@ class FakeStatusService:
         self.last_list_images_args = {
             "folder": folder,
             "tag_id": tag_id,
-            "category_id": category_id,
-            "include_descendants": include_descendants,
             "embedding_status": embedding_status,
             "limit": limit,
             "cursor": cursor,
@@ -330,16 +320,14 @@ def test_purge_inactive_images_api():
     assert status.json()["inactive_images"] == 1
 
 
-def test_list_images_returns_tags_and_categories():
+def test_list_images_returns_tags():
     client = create_test_client()
     response = client.get("/api/images")
     assert response.status_code == 200
     body = response.json()
     assert len(body["items"]) == 1
     assert "tags" in body["items"][0]
-    assert "categories" in body["items"][0]
     assert isinstance(body["items"][0]["tags"], list)
-    assert isinstance(body["items"][0]["categories"], list)
 
 
 def test_list_images_api_supports_all_images_filters():

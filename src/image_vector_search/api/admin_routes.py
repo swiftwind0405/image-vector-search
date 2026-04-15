@@ -55,8 +55,6 @@ def create_admin_router(*, status_service, job_runner, search_service) -> APIRou
     async def list_images(
         folder: str | None = None,
         tag_id: int | None = None,
-        category_id: int | None = None,
-        include_descendants: bool = True,
         include_inactive: bool = True,
         embedding_status: str | None = None,
         limit: int | None = None,
@@ -66,8 +64,6 @@ def create_admin_router(*, status_service, job_runner, search_service) -> APIRou
             status_service.list_all_images_with_labels(
                 folder=folder,
                 tag_id=tag_id,
-                category_id=category_id,
-                include_descendants=include_descendants,
                 embedding_status=embedding_status,
                 limit=limit,
                 cursor=cursor,
@@ -76,8 +72,6 @@ def create_admin_router(*, status_service, job_runner, search_service) -> APIRou
             else status_service.list_active_images_with_labels(
                 folder=folder,
                 tag_id=tag_id,
-                category_id=category_id,
-                include_descendants=include_descendants,
                 limit=limit,
                 cursor=cursor,
                 embedding_status=embedding_status,

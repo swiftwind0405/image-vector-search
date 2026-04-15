@@ -38,23 +38,16 @@ import {
   useRevealFile,
   useBulkAddTag,
   useBulkRemoveTag,
-  useBulkAddCategory,
-  useBulkRemoveCategory,
   useBulkFolderAddTag,
   useBulkFolderRemoveTag,
-  useBulkFolderAddCategory,
-  useBulkFolderRemoveCategory,
 } from "@/api/bulk";
 import { useTags } from "@/api/tags";
-import { useCategories, useCreateCategory } from "@/api/categories";
 import { useCreateTag } from "@/api/tags";
 import ImageTagEditor from "@/components/ImageTagEditor";
 import FilterBar from "@/components/FilterBar";
 import GalleryGrid from "@/components/GalleryGrid";
 import ImageModal from "@/components/ImageModal";
 import TagSelect from "@/components/TagSelect";
-import CategorySelect from "@/components/CategorySelect";
-import { getDescendantIds } from "@/utils/categories";
 import {
   ChevronRight,
   ChevronDown,
@@ -62,7 +55,6 @@ import {
   FileSearch,
   Settings2,
   Tag,
-  Layers,
   List,
   LayoutGrid,
 } from "lucide-react";
@@ -75,8 +67,6 @@ interface ImageBrowserProps {
   hideTitle?: boolean;
   queryScope?: {
     tagId?: number;
-    categoryId?: number;
-    includeDescendants?: boolean;
   };
   emptyMessage?: string;
   includeAllImages?: boolean;
@@ -104,22 +94,16 @@ export default function ImageBrowser({
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const [selectedHashes, setSelectedHashes] = useState<Set<string>>(new Set());
   const [bulkTagId, setBulkTagId] = useState<string>("");
-  const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
   const [folderTagId, setFolderTagId] = useState<string>("");
-  const [folderCategoryId, setFolderCategoryId] = useState<string>("");
   const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
-  const [bulkCategoryDialogOpen, setBulkCategoryDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "gallery">(getStoredViewMode);
   const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [modalHash, setModalHash] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const imageQueryOptions = {
     folder,
     tagId: queryScope?.tagId,
-    categoryId: queryScope?.categoryId,
-    includeDescendants: queryScope?.includeDescendants,
     includeInactive: includeAllImages,
     embeddingStatus: embeddingStatus === "all" ? undefined : embeddingStatus,
   };
@@ -136,20 +120,14 @@ export default function ImageBrowser({
     : standardImagesQuery.isLoading;
   const { data: folders } = useFolders();
   const { data: allTags } = useTags();
-  const { data: allCategories } = useCategories();
   const createTag = useCreateTag();
-  const createCategory = useCreateCategory();
 
   const openFile = useOpenFile();
   const revealFile = useRevealFile();
   const bulkAddTag = useBulkAddTag();
   const bulkRemoveTag = useBulkRemoveTag();
-  const bulkAddCategory = useBulkAddCategory();
-  const bulkRemoveCategory = useBulkRemoveCategory();
   const bulkFolderAddTag = useBulkFolderAddTag();
   const bulkFolderRemoveTag = useBulkFolderRemoveTag();
-  const bulkFolderAddCategory = useBulkFolderAddCategory();
-  const bulkFolderRemoveCategory = useBulkFolderRemoveCategory();
   const forceEmbedImages = useForceEmbedImages();
 
   useEffect(() => {
@@ -159,8 +137,6 @@ export default function ImageBrowser({
     folder,
     embeddingStatus,
     queryScope?.tagId,
-    queryScope?.categoryId,
-    queryScope?.includeDescendants,
   ]);
 
   useEffect(() => {
@@ -173,11 +149,6 @@ export default function ImageBrowser({
     if (activeTags.length > 0) {
       const imageTagNames = img.tags.map((t) => t.name);
       if (!activeTags.every((name) => imageTagNames.includes(name))) return false;
-    }
-    if (activeCategoryId !== null) {
-      const descendantIds = getDescendantIds(allCategories ?? [], activeCategoryId);
-      const imageCategoryIds = img.categories.map((c) => c.id);
-      if (!imageCategoryIds.some((id) => descendantIds.includes(id))) return false;
     }
     return true;
   });
@@ -224,13 +195,8 @@ export default function ImageBrowser({
     );
   };
 
-  const handleCategoryToggle = (id: number) => {
-    setActiveCategoryId((prev) => (prev === id ? null : id));
-  };
-
   const handleClearFilters = () => {
     setActiveTags([]);
-    setActiveCategoryId(null);
   };
 
   const handleBulkAddTag = () => {
@@ -253,30 +219,6 @@ export default function ImageBrowser({
       {
         onSuccess: (data) => toast.success(`Tag removed from ${data.affected} images`),
         onError: () => toast.error("Failed to remove tag"),
-      },
-    );
-  };
-
-  const handleBulkAddCategory = () => {
-    if (!bulkCategoryId) return;
-    const categoryId = parseInt(bulkCategoryId, 10);
-    bulkAddCategory.mutate(
-      { content_hashes: Array.from(selectedHashes), category_id: categoryId },
-      {
-        onSuccess: (data) => toast.success(`Category added to ${data.affected} images`),
-        onError: () => toast.error("Failed to add category"),
-      },
-    );
-  };
-
-  const handleBulkRemoveCategory = () => {
-    if (!bulkCategoryId) return;
-    const categoryId = parseInt(bulkCategoryId, 10);
-    bulkRemoveCategory.mutate(
-      { content_hashes: Array.from(selectedHashes), category_id: categoryId },
-      {
-        onSuccess: (data) => toast.success(`Category removed from ${data.affected} images`),
-        onError: () => toast.error("Failed to remove category"),
       },
     );
   };
@@ -305,44 +247,11 @@ export default function ImageBrowser({
     );
   };
 
-  const handleFolderAddCategory = () => {
-    if (!folder || !folderCategoryId) return;
-    const categoryId = parseInt(folderCategoryId, 10);
-    bulkFolderAddCategory.mutate(
-      { folder, category_id: categoryId },
-      {
-        onSuccess: (data) => toast.success(`Category added to ${data.affected} images`),
-        onError: () => toast.error("Failed to add category to folder"),
-      },
-    );
-  };
-
-  const handleFolderRemoveCategory = () => {
-    if (!folder || !folderCategoryId) return;
-    const categoryId = parseInt(folderCategoryId, 10);
-    bulkFolderRemoveCategory.mutate(
-      { folder, category_id: categoryId },
-      {
-        onSuccess: (data) => toast.success(`Category removed from ${data.affected} images`),
-        onError: () => toast.error("Failed to remove category from folder"),
-      },
-    );
-  };
-
   const handleCreateTagOption = async (name: string) => {
     const created = await createTag.mutateAsync(name);
     const createdId = String(created.id);
     setBulkTagId(createdId);
     setFolderTagId(createdId);
-    return createdId;
-  };
-
-  const handleCreateCategoryOption = async (name: string) => {
-    const created = await createCategory.mutateAsync({ name });
-    const createdCategory = created as { id: number };
-    const createdId = String(createdCategory.id);
-    setBulkCategoryId(createdId);
-    setFolderCategoryId(createdId);
     return createdId;
   };
 
@@ -425,7 +334,7 @@ export default function ImageBrowser({
       <Button
         variant="outline"
         size="sm"
-        className="h-7 rounded-full border-white/15 bg-black/40 px-2 text-[11px] text-white hover:bg-black/60"
+        className="h-7 rounded-full border-0 bg-black/50 px-2 text-[11px] text-white hover:bg-black/70"
         onClick={(event) => {
           event.stopPropagation();
           handleForceEmbed([image.content_hash]);
@@ -440,17 +349,17 @@ export default function ImageBrowser({
     <div className="space-y-6">
       <div className="space-y-1">
         {breadcrumb}
-        {!hideTitle && title && <h1 className="text-2xl font-semibold text-white">{title}</h1>}
+        {!hideTitle && title && <h1 className="text-2xl font-semibold text-foreground">{title}</h1>}
         {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
       </div>
 
-      <div className="rounded-[32px] border border-white/10 bg-card/72 p-4 shadow-curator backdrop-blur">
+      <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
         <Select
           value={folder ?? "All folders"}
           onValueChange={(v) => setFolder(v === "All folders" || v == null ? undefined : v)}
         >
-          <SelectTrigger className="w-full rounded-2xl border-white/10 bg-white/[0.03] xl:w-64">
+          <SelectTrigger className="w-full rounded-md border-border bg-[#f9f9fa] xl:w-64">
             <SelectValue placeholder="All folders" />
           </SelectTrigger>
           <SelectContent>
@@ -468,7 +377,7 @@ export default function ImageBrowser({
             value={embeddingStatus}
             onValueChange={(value) => setEmbeddingStatus(value ?? "all")}
           >
-            <SelectTrigger className="w-full rounded-2xl border-white/10 bg-white/[0.03] xl:w-56">
+            <SelectTrigger className="w-full rounded-md border-border bg-[#f9f9fa] xl:w-56">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -491,7 +400,7 @@ export default function ImageBrowser({
           <Dialog>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm" className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
+                <Button variant="outline" size="sm" className="rounded-md border-border bg-[#f9f9fa] text-foreground hover:bg-[#f1f1f3]">
                   <Settings2 className="h-4 w-4 mr-2" />
                   Folder Actions
                 </Button>
@@ -521,26 +430,6 @@ export default function ImageBrowser({
                     </Button>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Categories</p>
-                  <div className="flex items-center gap-2">
-                    <CategorySelect
-                      categories={allCategories ?? []}
-                      value={folderCategoryId}
-                      onValueChange={setFolderCategoryId}
-                      onCreate={handleCreateCategoryOption}
-                      triggerClassName="flex-1"
-                      creating={createCategory.isPending}
-                    />
-                    <Button size="sm" onClick={handleFolderAddCategory} disabled={!folderCategoryId}>
-                      Add
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleFolderRemoveCategory} disabled={!folderCategoryId}>
-                      Remove
-                    </Button>
-                  </div>
-                </div>
               </div>
               <DialogFooter showCloseButton />
             </DialogContent>
@@ -558,7 +447,7 @@ export default function ImageBrowser({
                 variant="outline"
                 size="sm"
                 disabled={eligibleSelectedHashes.length === 0 || forceEmbedImages.isPending}
-                className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]"
+                className="rounded-md border-border bg-[#f9f9fa] text-foreground hover:bg-[#f1f1f3]"
                 onClick={() => handleForceEmbed(eligibleSelectedHashes)}
               >
                 强制向量化
@@ -574,7 +463,7 @@ export default function ImageBrowser({
           <Dialog open={bulkTagDialogOpen} onOpenChange={setBulkTagDialogOpen}>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm" disabled={selectedCount === 0} className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
+                <Button variant="outline" size="sm" disabled={selectedCount === 0} className="rounded-md border-border bg-[#f9f9fa] text-foreground hover:bg-[#f1f1f3]">
                   <Tag className="h-4 w-4 mr-2" />
                   Bulk Tags
                 </Button>
@@ -613,49 +502,7 @@ export default function ImageBrowser({
             </DialogContent>
           </Dialog>
 
-          <Dialog open={bulkCategoryDialogOpen} onOpenChange={setBulkCategoryDialogOpen}>
-            <DialogTrigger
-              render={
-                <Button variant="outline" size="sm" disabled={selectedCount === 0} className="rounded-2xl border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.07]">
-                  <Layers className="h-4 w-4 mr-2" />
-                  Bulk Categories
-                </Button>
-              }
-            />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Bulk Categories · {selectedCount} selected</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2 py-2">
-                <div className="flex items-center gap-2">
-                  <CategorySelect
-                    categories={allCategories ?? []}
-                    value={bulkCategoryId}
-                    onValueChange={setBulkCategoryId}
-                    onCreate={handleCreateCategoryOption}
-                    triggerClassName="flex-1"
-                    creating={createCategory.isPending}
-                  />
-                  <Button size="sm" onClick={handleBulkAddCategory} disabled={!bulkCategoryId}>
-                    Add
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleBulkRemoveCategory} disabled={!bulkCategoryId}>
-                    Remove
-                  </Button>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedHashes(new Set()); setBulkCategoryDialogOpen(false); }}>
-                  Clear Selection
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setBulkCategoryDialogOpen(false)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <div className="flex items-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+          <div className="flex items-center overflow-hidden rounded-md border border-border bg-[#f9f9fa]">
             <Button
               variant={viewMode === "list" ? "default" : "ghost"}
               size="sm"
@@ -681,11 +528,8 @@ export default function ImageBrowser({
 
       <FilterBar
         tags={allTags ?? []}
-        categories={allCategories ?? []}
         activeTags={activeTags}
-        activeCategoryId={activeCategoryId}
         onTagToggle={handleTagToggle}
-        onCategoryToggle={handleCategoryToggle}
         onClear={handleClearFilters}
       />
 
@@ -694,7 +538,7 @@ export default function ImageBrowser({
       ) : viewMode === "gallery" ? (
         <>
           {filteredImages.length === 0 ? (
-            <Card className="rounded-[28px] border-white/10 bg-card/72 shadow-curator">
+            <Card className="rounded-lg border-border bg-card">
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground">
                   {!images || images.length === 0 ? emptyMessage : "No images match the active filters."}
@@ -713,7 +557,7 @@ export default function ImageBrowser({
               />
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm text-muted-foreground">
-                  {filteredImages.length} images{(activeTags.length > 0 || activeCategoryId !== null) && " (filtered)"}
+                  {filteredImages.length} images{activeTags.length > 0 && " (filtered)"}
                   {images && filteredImages.length !== images.length && ` of ${images.length} total`}
                 </p>
               </div>
@@ -721,7 +565,7 @@ export default function ImageBrowser({
           )}
         </>
       ) : (
-        <Card className="rounded-[28px] border-white/10 bg-card/72 shadow-curator">
+        <Card className="rounded-lg border-border bg-card">
           <CardContent className="p-0">
             {!images || images.length === 0 ? (
               <p className="text-sm text-muted-foreground p-4">{emptyMessage}</p>
@@ -751,7 +595,7 @@ export default function ImageBrowser({
                     {filteredImages.map((image) => (
                       <React.Fragment key={image.content_hash}>
                         <TableRow
-                          className="cursor-pointer hover:bg-white/[0.03]"
+                          className="cursor-pointer hover:bg-[#f9f9fa]"
                           onClick={() => toggleExpand(image.content_hash)}
                         >
                           <TableCell onClick={(e) => e.stopPropagation()}>
@@ -776,7 +620,7 @@ export default function ImageBrowser({
                           <TableCell className="text-sm">
                             <div className="space-y-1">
                               <div>{image.mime_type}</div>
-                              <Badge variant="outline" className="border-white/10 bg-white/[0.03]">
+                              <Badge variant="outline" className="border-border bg-[#f9f9fa]">
                                 {renderStatusBadge(image)}
                               </Badge>
                             </div>
@@ -825,7 +669,7 @@ export default function ImageBrowser({
                         </TableRow>
                         {expandedHash === image.content_hash && (
                           <TableRow>
-                            <TableCell colSpan={7} className="bg-white/[0.02] p-0">
+                            <TableCell colSpan={7} className="bg-[#fbfbfc] p-0">
                               <ImageTagEditor contentHash={image.content_hash} />
                             </TableCell>
                           </TableRow>

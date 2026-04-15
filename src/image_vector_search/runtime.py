@@ -68,7 +68,10 @@ def build_runtime_services(settings: Settings) -> RuntimeServices:
     settings.index_root.mkdir(parents=True, exist_ok=True)
     settings.images_root.mkdir(parents=True, exist_ok=True)
 
-    repository = MetadataRepository(_metadata_db_path(settings))
+    repository = MetadataRepository(
+        _metadata_db_path(settings),
+        images_root=settings.images_root,
+    )
     repository.initialize_schema()
 
     provider, api_key = _resolve_embedding_selection(repository=repository, settings=settings)

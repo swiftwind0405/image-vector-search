@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from image_vector_search.tools.context import ToolContext
-from image_vector_search.tools.tag_tools import manage_categories, manage_tags, tag_images
+from image_vector_search.tools.tag_tools import manage_tags, tag_images
 
 
 class FakeTagService:
@@ -34,40 +34,13 @@ class FakeTagService:
     async def delete_tag(self, tag_id):
         return True
 
-    async def create_category(self, name, parent_id=None):
-        return MagicMock(id=1, name=name, model_dump=lambda: {"id": 1, "name": name})
-
-    async def list_categories(self):
-        return []
-
-    async def get_category_tree(self):
-        return []
-
-    async def rename_category(self, category_id, new_name):
-        return MagicMock(model_dump=lambda: {})
-
-    async def delete_category(self, category_id):
-        return True
-
-    async def move_category(self, category_id, parent_id):
-        return True
-
     async def add_tag_to_image(self, content_hash, tag_id):
         return True
 
     async def remove_tag_from_image(self, content_hash, tag_id):
         return True
 
-    async def add_category_to_image(self, content_hash, category_id):
-        return True
-
-    async def remove_category_from_image(self, content_hash, category_id):
-        return True
-
     async def list_tags_for_image(self, content_hash):
-        return []
-
-    async def list_categories_for_image(self, content_hash):
         return []
 
 
@@ -120,18 +93,6 @@ async def test_manage_tags_missing_name(ctx):
 async def test_manage_tags_empty_name(ctx):
     with pytest.raises(ValueError):
         await manage_tags(ctx, action="create", name="")
-
-
-@pytest.mark.asyncio
-async def test_manage_categories_create(ctx):
-    result = await manage_categories(ctx, action="create", name="nature")
-    assert "category" in result
-
-
-@pytest.mark.asyncio
-async def test_manage_categories_list(ctx):
-    result = await manage_categories(ctx, action="list")
-    assert "categories" in result
 
 
 @pytest.mark.asyncio

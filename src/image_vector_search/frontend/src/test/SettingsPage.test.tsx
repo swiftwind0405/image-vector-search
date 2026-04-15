@@ -7,6 +7,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockUseEmbeddingSettings = vi.fn();
 const mockMutateAsync = vi.fn();
 
+const { STABLE_FOLDER_SETTINGS, STABLE_UPDATE_FOLDERS } = vi.hoisted(() => ({
+  STABLE_FOLDER_SETTINGS: {
+    data: {
+      folders: [] as string[],
+      excluded: [] as string[],
+    },
+    isLoading: false,
+  },
+  STABLE_UPDATE_FOLDERS: {
+    isPending: false,
+    mutateAsync: async () => undefined,
+  },
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
@@ -20,17 +34,8 @@ vi.mock("@/api/settings", () => ({
     isPending: false,
     mutateAsync: mockMutateAsync,
   }),
-  useFolderSettings: () => ({
-    data: {
-      folders: [],
-      excluded: [],
-    },
-    isLoading: false,
-  }),
-  useUpdateExcludedFolders: () => ({
-    isPending: false,
-    mutateAsync: vi.fn(),
-  }),
+  useFolderSettings: () => STABLE_FOLDER_SETTINGS,
+  useUpdateExcludedFolders: () => STABLE_UPDATE_FOLDERS,
 }));
 
 import { toast } from "sonner";

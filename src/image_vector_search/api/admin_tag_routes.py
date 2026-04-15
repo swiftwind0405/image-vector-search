@@ -13,26 +13,11 @@ class CreateTagRequest(BaseModel):
 class RenameTagRequest(BaseModel):
     name: str
 
-class CreateCategoryRequest(BaseModel):
-    name: str
-    parent_id: int | None = None
-
-class UpdateCategoryRequest(BaseModel):
-    name: str | None = None
-    move_to_parent_id: int | None = None
-    move_to_root: bool = False
-
 class BatchDeleteTagsRequest(BaseModel):
     tag_ids: list[int]
 
-class BatchDeleteCategoriesRequest(BaseModel):
-    category_ids: list[int]
-
 class AddTagToImageRequest(BaseModel):
     tag_id: int
-
-class AddImageToCategoryRequest(BaseModel):
-    category_id: int
 
 
 def create_admin_tag_router(*, tag_service: TagService) -> APIRouter:
@@ -90,69 +75,6 @@ def create_admin_tag_router(*, tag_service: TagService) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(e))
         return {"deleted": deleted}
 
-    # --- Categories ---
-    @router.post("/api/categories", status_code=201)
-    def create_category(body: CreateCategoryRequest):
-        try:
-            cat = tag_service.create_category(body.name, parent_id=body.parent_id)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        return cat.model_dump()
-
-    @router.get("/api/categories")
-    def get_category_tree():
-        tree = tag_service.get_category_tree()
-        return [n.model_dump() for n in tree]
-
-    @router.get("/api/categories/export")
-    def export_categories():
-        md = tag_service.export_categories_markdown()
-        return Response(
-            content=md,
-            media_type="text/markdown; charset=utf-8",
-            headers={"Content-Disposition": "attachment; filename=categories.md"},
-        )
-
-    @router.post("/api/categories/import")
-    async def import_categories(file: UploadFile = File(...)):
-        raw = await file.read()
-        try:
-            content = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
-        result = tag_service.import_categories_markdown(content)
-        return result
-
-    @router.get("/api/categories/{category_id}/children")
-    def get_category_children(category_id: int):
-        children = tag_service.list_categories(parent_id=category_id)
-        return [c.model_dump() for c in children]
-
-    @router.put("/api/categories/{category_id}")
-    def update_category(category_id: int, body: UpdateCategoryRequest):
-        try:
-            if body.name is not None:
-                tag_service.rename_category(category_id, body.name)
-            if body.move_to_root:
-                tag_service.move_category(category_id, None)
-            elif body.move_to_parent_id is not None:
-                tag_service.move_category(category_id, body.move_to_parent_id)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        return {"ok": True}
-
-    @router.delete("/api/categories/{category_id}", status_code=204)
-    def delete_category(category_id: int):
-        tag_service.delete_category(category_id)
-
-    @router.post("/api/categories/batch-delete")
-    def batch_delete_categories(body: BatchDeleteCategoriesRequest):
-        try:
-            deleted = tag_service.bulk_delete_categories(body.category_ids)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        return {"deleted": deleted}
-
     # --- Image associations ---
     @router.post("/api/images/{content_hash}/tags", status_code=201)
     def add_tag_to_image(content_hash: str, body: AddTagToImageRequest):
@@ -166,18 +88,5 @@ def create_admin_tag_router(*, tag_service: TagService) -> APIRouter:
     @router.get("/api/images/{content_hash}/tags")
     def get_image_tags(content_hash: str):
         return [t.model_dump() for t in tag_service.get_image_tags(content_hash)]
-
-    @router.post("/api/images/{content_hash}/categories", status_code=201)
-    def add_image_to_category(content_hash: str, body: AddImageToCategoryRequest):
-        tag_service.add_image_to_category(content_hash, body.category_id)
-        return {"ok": True}
-
-    @router.delete("/api/images/{content_hash}/categories/{category_id}", status_code=204)
-    def remove_image_from_category(content_hash: str, category_id: int):
-        tag_service.remove_image_from_category(content_hash, category_id)
-
-    @router.get("/api/images/{content_hash}/categories")
-    def get_image_categories(content_hash: str):
-        return [c.model_dump() for c in tag_service.get_image_categories(content_hash)]
 
     return router

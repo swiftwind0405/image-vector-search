@@ -21,22 +21,14 @@ vi.mock("../api/images", async () => {
   return {
     ...actual,
     useImageTags: () => ({ data: [] }),
-    useImageCategories: () => ({ data: [] }),
     useAddTagToImage: () => ({ mutate: vi.fn() }),
     useRemoveTagFromImage: () => ({ mutate: vi.fn() }),
-    useAddCategoryToImage: () => ({ mutate: vi.fn() }),
-    useRemoveCategoryFromImage: () => ({ mutate: vi.fn() }),
   };
 });
 
 vi.mock("../api/tags", () => ({
   useTags: () => ({ data: [] }),
   useCreateTag: () => ({ isPending: false, mutate: vi.fn() }),
-}));
-
-vi.mock("../api/categories", () => ({
-  useCategories: () => ({ data: [] }),
-  useCreateCategory: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
 import ImagesPage from "../pages/ImagesPage";

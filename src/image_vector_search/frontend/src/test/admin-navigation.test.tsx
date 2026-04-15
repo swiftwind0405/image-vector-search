@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import Layout from "../components/Layout";
 import TagsPage from "../pages/TagsPage";
-import CategoriesPage from "../pages/CategoriesPage";
 import DashboardPage from "../pages/DashboardPage";
 
 vi.mock("sonner", () => ({
@@ -128,28 +127,6 @@ vi.mock("../api/tags", () => ({
   useImportTags: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
-vi.mock("../api/categories", () => ({
-  useCategories: () => ({
-    data: [
-      {
-        id: 10,
-        name: "Nature",
-        parent_id: null,
-        sort_order: 0,
-        created_at: "2026-01-01T00:00:00",
-        children: [],
-        image_count: 1,
-      },
-    ],
-    isLoading: false,
-  }),
-  useCreateCategory: () => ({ isPending: false, mutate: vi.fn() }),
-  useUpdateCategory: () => ({ isPending: false, mutate: vi.fn() }),
-  useDeleteCategory: () => ({ isPending: false, mutate: vi.fn() }),
-  useBulkDeleteCategories: () => ({ isPending: false, mutate: vi.fn() }),
-  useImportCategories: () => ({ isPending: false, mutate: vi.fn() }),
-}));
-
 describe("admin shell redesign constraints", () => {
   it("renders the brand, route navigation, and a page context bar", () => {
     render(
@@ -162,13 +139,12 @@ describe("admin shell redesign constraints", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Image Search")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Image Search logo" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute("href", "/search");
-    expect(screen.getByRole("link", { name: "Tags" })).toHaveAttribute("href", "/tags");
-    expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
-    expect(screen.getByRole("link", { name: "Images" })).toHaveAttribute("href", "/images");
+    expect(screen.getAllByText("Image Search").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("img", { name: "Image Search logo" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Dashboard" })[0]).toHaveAttribute("href", "/");
+    expect(screen.getAllByRole("link", { name: "Search" })[0]).toHaveAttribute("href", "/search");
+    expect(screen.getAllByRole("link", { name: "Tags" })[0]).toHaveAttribute("href", "/tags");
+    expect(screen.getAllByRole("link", { name: "Images" })[0]).toHaveAttribute("href", "/images");
     expect(screen.getByRole("heading", { name: "Search Workspace", level: 2 })).toBeInTheDocument();
     expect(screen.getByText("Search workspace body")).toBeInTheDocument();
   });
@@ -235,19 +211,6 @@ describe("admin shell redesign constraints", () => {
     expect(screen.getByRole("link", { name: "sunset" })).toHaveAttribute(
       "href",
       "/tags/3/images",
-    );
-  });
-
-  it("renders a category image detail link from the categories page", () => {
-    render(
-      <MemoryRouter>
-        <CategoriesPage />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole("link", { name: "Nature 1 images" })).toHaveAttribute(
-      "href",
-      "/categories/10/images",
     );
   });
 });

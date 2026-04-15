@@ -23,6 +23,24 @@ def create_admin_folder_router(
     router = APIRouter()
     root_path = Path(images_root).resolve()
 
+    def _excluded_folder_set() -> set[str]:
+        return {
+            folder.strip("/")
+            for folder in repository.get_excluded_folders()
+            if folder.strip("/")
+        }
+
+    def _is_excluded(relative_path: str, excluded: set[str]) -> bool:
+        if not excluded:
+            return False
+        normalized = relative_path.strip("/")
+        if not normalized:
+            return False
+        for prefix in excluded:
+            if normalized == prefix or normalized.startswith(prefix + "/"):
+                return True
+        return False
+
     def _require_authentication(request: Request) -> None:
         if auth_enabled and not request.session.get("authenticated", False):
             raise HTTPException(
@@ -119,14 +137,19 @@ def create_admin_folder_router(
         _require_authentication(request)
         known_folders = _known_folders()
         normalized_path = _normalize_path(path, known_folders)
+        excluded = _excluded_folder_set()
+        if _is_excluded(normalized_path, excluded):
+            raise HTTPException(status_code=404, detail="not found")
         target_dir = _resolve_directory(normalized_path)
 
         folders: list[str] = []
         images: list[dict[str, object]] = []
         if target_dir is not None:
             for entry in sorted(target_dir.iterdir(), key=lambda item: item.name):
+                relative = entry.relative_to(root_path).as_posix()
+                if _is_excluded(relative, excluded):
+                    continue
                 if entry.is_dir():
-                    relative = entry.relative_to(root_path).as_posix()
                     folders.append(relative)
                 elif entry.is_file() and is_supported_image(entry):
                     images.append(_serialize_image(entry))
@@ -167,7 +190,10 @@ def create_admin_folder_router(
         _require_authentication(request)
         images = [
             _serialize_image(file_path)
-            for file_path in iter_image_files(root_path)
+            for file_path in iter_image_files(
+                root_path,
+                excluded_folders=list(_excluded_folder_set()),
+            )
         ]
         if cursor is not None:
             images = [image for image in images if str(image["canonical_path"]) > cursor]

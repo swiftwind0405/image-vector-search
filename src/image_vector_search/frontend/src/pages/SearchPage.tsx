@@ -27,7 +27,6 @@ function searchResultToImage(r: SearchResult): ImageRecordWithLabels {
     created_at: "",
     updated_at: "",
     tags: r.tags,
-    categories: r.categories,
   };
 }
 
@@ -90,10 +89,10 @@ export default function SearchPage() {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[32px] border border-white/10 bg-card/78 p-5 shadow-curator backdrop-blur sm:p-6">
+        <div className="rounded-lg border border-border bg-card p-5 sm:p-6">
           <div className="grid gap-4 lg:grid-cols-2">
-            <form onSubmit={handleTextSearch} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
-              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <form onSubmit={handleTextSearch} className="rounded-lg border border-border bg-[#f9f9fa] p-4">
+              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-muted-foreground">
                 <Compass className="h-4 w-4 text-primary" />
                 Text Search
               </div>
@@ -106,16 +105,16 @@ export default function SearchPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   disabled={loading}
-                  className="h-11 rounded-2xl border-white/10 bg-white/[0.03]"
+                  className="h-11 rounded-md border-border bg-[#f9f9fa]"
                 />
-                <Button type="submit" disabled={loading || !query.trim()} className="h-11 rounded-2xl px-4">
+                <Button type="submit" disabled={loading || !query.trim()} className="h-11 rounded-md px-4">
                   Search
                 </Button>
               </div>
             </form>
 
-            <form onSubmit={handleSimilarSearch} className="rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
-              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <form onSubmit={handleSimilarSearch} className="rounded-lg border border-border bg-[#f9f9fa] p-4">
+              <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-muted-foreground">
                 <ImageIcon className="h-4 w-4 text-primary" />
                 Similar Image
               </div>
@@ -128,13 +127,13 @@ export default function SearchPage() {
                   value={similarPath}
                   onChange={(e) => setSimilarPath(e.target.value)}
                   disabled={loading}
-                  className="h-11 rounded-2xl border-white/10 bg-white/[0.03]"
+                  className="h-11 rounded-md border-border bg-[#f9f9fa]"
                 />
                 <Button
                   type="submit"
                   variant="secondary"
                   disabled={loading || !similarPath.trim()}
-                  className="h-11 rounded-2xl border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.1]"
+                  className="h-11 rounded-md border-border bg-[#f1f1f3] text-foreground hover:bg-[#f1f1f3]"
                 >
                   Similar
                 </Button>
@@ -143,12 +142,12 @@ export default function SearchPage() {
           </div>
         </div>
 
-        <aside className="rounded-[32px] border border-white/10 bg-card/72 p-5 shadow-curator backdrop-blur">
-          <p className="text-[11px] uppercase tracking-[0.22em] text-primary/90">Search Rhythm</p>
+        <aside className="rounded-lg border border-border bg-card p-5">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Search Rhythm</p>
           <div className="mt-4 space-y-4 text-sm leading-6 text-muted-foreground">
             <p>Use text mode when the target is semantic or descriptive.</p>
             <p>Use similar mode when you already have a frame and want visual neighbors.</p>
-            <p className="flex items-center gap-2 text-white">
+            <p className="flex items-center gap-2 text-foreground">
               <ArrowRight className="h-4 w-4 text-primary" />
               Results open into the same review lightbox used across the archive.
             </p>
@@ -164,7 +163,7 @@ export default function SearchPage() {
 
       {!loading && results !== null && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-card/65 px-4 py-3 shadow-curator backdrop-blur">
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3">
             <h2 className="text-sm font-medium text-muted-foreground">
               {results.length === 0
                 ? "No results found"
@@ -172,8 +171,8 @@ export default function SearchPage() {
             </h2>
             <span
               className={cn(
-                "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
-                searchType === "text" ? "bg-primary/15 text-primary" : "bg-white/[0.05] text-white",
+                "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.06em]",
+                searchType === "text" ? "bg-primary/15 text-primary" : "bg-[#f4f4f5] text-foreground",
               )}
             >
               {searchType === "text" ? "Text mode" : "Similar mode"}

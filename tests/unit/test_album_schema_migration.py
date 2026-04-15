@@ -5,9 +5,12 @@ from image_vector_search.repositories.sqlite import MetadataRepository
 
 def test_initialize_schema_migrates_legacy_album_tables(tmp_path):
     db_path = tmp_path / "metadata.sqlite3"
-    repository = MetadataRepository(db_path)
+    with MetadataRepository(db_path).connect() as connection:
+        connection.execute("DROP TABLE album_source_paths")
+        connection.execute("DROP TABLE album_images")
+        connection.execute("DROP TABLE album_rules")
+        connection.execute("DROP TABLE albums")
 
-    with repository.connect() as connection:
         connection.executescript(
             """
             CREATE TABLE albums (
@@ -39,7 +42,7 @@ def test_initialize_schema_migrates_legacy_album_tables(tmp_path):
             """
         )
 
-    repository.initialize_schema()
+    MetadataRepository(db_path)
 
     with sqlite3.connect(db_path) as connection:
         album_columns = {

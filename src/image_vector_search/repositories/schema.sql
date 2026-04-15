@@ -53,33 +53,15 @@ CREATE TABLE IF NOT EXISTS tags (
     created_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS categories (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT NOT NULL,
-    parent_id   INTEGER REFERENCES categories(id),
-    sort_order  INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL,
-    UNIQUE(parent_id, name)
-);
-
--- Enforce uniqueness for root categories (parent_id IS NULL) since SQLite treats NULL != NULL in UNIQUE constraints
-CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_root_name
-    ON categories(name) WHERE parent_id IS NULL;
-
 CREATE TABLE IF NOT EXISTS image_tags (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
     content_hash  TEXT NOT NULL REFERENCES images(content_hash) ON DELETE CASCADE,
-    tag_id        INTEGER REFERENCES tags(id) ON DELETE CASCADE,
-    category_id   INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+    tag_id        INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     created_at    TEXT NOT NULL,
-    UNIQUE(content_hash, tag_id),
-    UNIQUE(content_hash, category_id),
-    CHECK((tag_id IS NOT NULL) != (category_id IS NOT NULL))
+    PRIMARY KEY (content_hash, tag_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_image_tags_content_hash ON image_tags(content_hash);
 CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags(tag_id);
-CREATE INDEX IF NOT EXISTS idx_image_tags_category_id ON image_tags(category_id);
 
 CREATE TABLE IF NOT EXISTS albums (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

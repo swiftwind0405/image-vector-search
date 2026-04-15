@@ -32,14 +32,14 @@ function StatPanel({
   icon: typeof Images;
 }) {
   return (
-    <div className="rounded-[28px] border border-white/10 bg-card/75 p-5 shadow-curator backdrop-blur">
+    <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
-          <p className="text-3xl font-semibold tracking-tight text-white">{value}</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+          <p className="text-xl font-semibold tracking-tight text-foreground">{value}</p>
           <p className="text-sm text-muted-foreground">{hint}</p>
         </div>
-        <div className="rounded-2xl bg-primary/12 p-3 text-primary">
+        <div className="rounded-md bg-primary/12 p-3 text-primary">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function DashboardPage() {
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="ml-auto border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]"
+          className="ml-auto border-border bg-[#f9f9fa] text-foreground hover:bg-[#f1f1f3]"
         >
           <RefreshCw className={`h-4 w-4 mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -158,13 +158,13 @@ export default function DashboardPage() {
       </div>
 
       <section className="grid gap-4 xl:grid-cols-[1.4fr_0.95fr]">
-        <div className="overflow-hidden rounded-[32px] border border-white/10 bg-card/80 p-6 shadow-curator backdrop-blur">
+        <div className="overflow-hidden rounded-lg border border-border bg-card p-6">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-4">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-primary/90">Collection Overview</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Collection Overview</p>
               <div className="space-y-3">
                 <div className="flex items-end gap-4">
-                  <span className="text-6xl font-semibold tracking-tight text-white">{progress}%</span>
+                  <span className="text-xl font-semibold tracking-tight text-foreground">{progress}%</span>
                   <span className="pb-2 text-sm text-muted-foreground">index coverage</span>
                 </div>
                 <p className="max-w-xl text-sm leading-6 text-muted-foreground">
@@ -173,14 +173,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-primary/20 bg-primary/10 p-5 lg:w-[320px]">
+            <div className="rounded-lg border border-primary/20 bg-primary/10 p-5 lg:w-[320px]">
               <div className="flex items-center gap-2 text-primary">
                 <Sparkles className="h-4 w-4" />
-                <span className="text-xs uppercase tracking-[0.2em]">Embedding stack</span>
+                <span className="text-xs uppercase tracking-[0.08em]">Embedding stack</span>
               </div>
               {status && (
                 <div className="mt-4 space-y-2 text-sm">
-                  <p className="font-medium text-white">{status.embedding_provider}</p>
+                  <p className="font-medium text-foreground">{status.embedding_provider}</p>
                   <p className="text-muted-foreground">{status.embedding_model}</p>
                   <p className="text-xs text-muted-foreground">Version {status.embedding_version}</p>
                 </div>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-8 h-3 overflow-hidden rounded-full bg-white/5">
+          <div className="mt-8 h-3 overflow-hidden rounded-full bg-[#f4f4f5]">
             <div
               className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${progress}%` }}
@@ -205,14 +205,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-4">
-          <div className="rounded-[28px] border border-white/10 bg-card/72 p-5 shadow-curator backdrop-blur">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
               <Activity className="h-4 w-4 text-primary" />
               Actions
             </div>
             <div className="mt-5 space-y-3">
               <Button
-                className="h-12 w-full justify-start rounded-2xl text-sm"
+                className="h-12 w-full justify-start rounded-md text-sm"
                 onClick={() => setPendingJobType("incremental")}
                 disabled={queueJob.isPending}
               >
@@ -220,7 +220,7 @@ export default function DashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-12 w-full justify-start rounded-2xl border-white/10 bg-white/[0.02] text-white hover:bg-white/[0.06]"
+                className="h-12 w-full justify-start rounded-md border-border bg-[#fbfbfc] text-foreground hover:bg-[#f1f1f3]"
                 onClick={() => setPendingJobType("rebuild")}
                 disabled={queueJob.isPending}
               >
@@ -228,7 +228,7 @@ export default function DashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-12 w-full justify-start rounded-2xl border-white/10 bg-white/[0.02] text-white hover:bg-white/[0.06]"
+                className="h-12 w-full justify-start rounded-md border-border bg-[#fbfbfc] text-foreground hover:bg-[#f1f1f3]"
                 onClick={() => setPurgeDialogOpen(true)}
                 disabled={!status?.inactive_images || purgeInactiveImages.isPending}
               >
@@ -237,9 +237,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-card/72 p-5 shadow-curator backdrop-blur">
+          <div className="rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Recent Activity</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Recent Activity</p>
               <span className="text-xs text-muted-foreground">{jobs?.length ?? 0} jobs</span>
             </div>
             <div className="mt-5 space-y-3">
@@ -249,19 +249,19 @@ export default function DashboardPage() {
                 jobs.slice(0, 10).map((job, index) => (
                   <div
                     key={job.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-md border border-border bg-[#f9f9fa] px-4 py-3"
                   >
                     <div>
-                      <p className="text-sm font-medium capitalize text-white">{job.job_type}</p>
+                      <p className="text-sm font-medium capitalize text-foreground">{job.job_type}</p>
                       <p className="text-xs text-muted-foreground">Queue item {index + 1}</p>
                     </div>
                     <span
                       className={cn(
-                        "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]",
+                        "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.06em]",
                         job.status === "completed"
-                          ? "bg-emerald-500/15 text-emerald-300"
+                          ? "bg-[#ecfdf3] text-[#067647]"
                           : job.status === "failed"
-                            ? "bg-red-500/15 text-red-300"
+                            ? "bg-[#fef2f2] text-[#b42318]"
                             : "bg-primary/15 text-primary",
                       )}
                     >
@@ -276,7 +276,7 @@ export default function DashboardPage() {
       </section>
 
       <AlertDialog open={pendingJobType !== null} onOpenChange={(open) => !open && setPendingJobType(null)}>
-        <AlertDialogContent className="border-white/10 bg-card text-white">
+        <AlertDialogContent className="border-border bg-card text-foreground">
           <AlertDialogHeader>
             <AlertDialogTitle>{pendingJobConfig?.title}</AlertDialogTitle>
             <AlertDialogDescription>{pendingJobConfig?.description}</AlertDialogDescription>
@@ -299,7 +299,7 @@ export default function DashboardPage() {
       </AlertDialog>
 
       <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
-        <DialogContent className="flex max-h-[85vh] max-w-xl flex-col overflow-hidden border-white/10 bg-card text-white">
+        <DialogContent className="flex max-h-[85vh] max-w-xl flex-col overflow-hidden border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle>Purge Inactive</DialogTitle>
             <DialogDescription>
@@ -313,8 +313,8 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">No inactive images available for purge.</p>
           ) : (
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <label className="flex items-center gap-3 text-sm font-medium text-white">
+              <div className="flex items-center justify-between rounded-md border border-border bg-[#f9f9fa] px-4 py-3">
+                <label className="flex items-center gap-3 text-sm font-medium text-foreground">
                   <Checkbox
                     aria-label="Select all inactive images"
                     checked={allInactiveSelected}
@@ -331,7 +331,7 @@ export default function DashboardPage() {
                   return (
                     <label
                       key={image.content_hash}
-                      className="flex w-full min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm"
+                      className="flex w-full min-w-0 overflow-hidden rounded-md border border-border bg-[#f9f9fa] px-4 py-3 text-sm"
                     >
                       <Checkbox
                         aria-label={image.canonical_path}
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                         onCheckedChange={(nextChecked) => toggleInactiveHash(image.content_hash, nextChecked === true)}
                       />
                       <span className="min-w-0 flex-1 overflow-hidden">
-                        <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium text-white">
+                        <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-medium text-foreground">
                           {image.canonical_path}
                         </span>
                         <span className="block break-all text-xs text-muted-foreground">{image.content_hash}</span>

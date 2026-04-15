@@ -14,7 +14,6 @@ async def test_http_tool_discovery(app_bundle):
         "search_images",
         "search_similar",
         "manage_tags",
-        "manage_categories",
         "tag_images",
         "list_images",
         "get_image_info",

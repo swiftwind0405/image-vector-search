@@ -10,8 +10,8 @@
 - 文本搜图：`search_images`
 - 以图搜图：`search_similar`
 - 后台管理界面
-- 标签与分类管理
-- 批量打标、批量分类、按目录批处理
+- 标签管理
+- 批量打标、按目录批处理
 - Embedding provider 在线切换与持久化配置
 
 当前对外入口：
@@ -196,7 +196,7 @@ curl -X POST http://127.0.0.1:8000/api/tools/search_similar \
 - `POST /api/debug/search/text`
 - `POST /api/debug/search/similar`
 
-### 7.3 标签与分类
+### 7.3 标签
 
 标签接口：
 
@@ -206,35 +206,19 @@ curl -X POST http://127.0.0.1:8000/api/tools/search_similar \
 - `DELETE /api/tags/{tag_id}`
 - `POST /api/tags/batch-delete`
 
-分类接口：
-
-- `POST /api/categories`
-- `GET /api/categories`
-- `GET /api/categories/{category_id}/children`
-- `PUT /api/categories/{category_id}`
-- `DELETE /api/categories/{category_id}`
-- `POST /api/categories/batch-delete`
-
-图片与标签/分类关联：
+图片与标签关联：
 
 - `POST /api/images/{content_hash}/tags`
 - `DELETE /api/images/{content_hash}/tags/{tag_id}`
 - `GET /api/images/{content_hash}/tags`
-- `POST /api/images/{content_hash}/categories`
-- `DELETE /api/images/{content_hash}/categories/{category_id}`
-- `GET /api/images/{content_hash}/categories`
 
 ### 7.4 批量操作
 
 - `GET /api/folders`
 - `POST /api/bulk/tags/add`
 - `POST /api/bulk/tags/remove`
-- `POST /api/bulk/categories/add`
-- `POST /api/bulk/categories/remove`
 - `POST /api/bulk/folder/tags/add`
 - `POST /api/bulk/folder/tags/remove`
-- `POST /api/bulk/folder/categories/add`
-- `POST /api/bulk/folder/categories/remove`
 
 本地文件联动：
 

@@ -155,9 +155,9 @@ export default function TagsPage() {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+        <Card className="rounded-lg border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base text-white">Create Tag</CardTitle>
+            <CardTitle className="text-base text-foreground">Create Tag</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="mb-4 text-sm leading-6 text-muted-foreground">
@@ -168,7 +168,7 @@ export default function TagsPage() {
               placeholder="Tag name..."
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="max-w-sm rounded-2xl border-white/10 bg-white/[0.03]"
+              className="max-w-sm rounded-md border-border bg-[#f9f9fa]"
             />
             <Button type="submit" disabled={createTag.isPending || !newName.trim()}>
               Create
@@ -199,9 +199,9 @@ export default function TagsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+        <Card className="rounded-lg border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base text-white">All Tags</CardTitle>
+          <CardTitle className="text-base text-foreground">All Tags</CardTitle>
           {tags && tags.length > 0 && (
             <div className="flex items-center gap-2">
               {selectMode ? (
@@ -263,7 +263,7 @@ export default function TagsPage() {
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className={`group flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] py-1.5 pr-1.5 transition-colors hover:bg-white/[0.07] ${selectMode ? "pl-2.5" : "pl-4"}`}
+                  className={`group flex items-center gap-1.5 rounded-full border border-border bg-[#f9f9fa] py-1.5 pr-1.5 transition-colors hover:bg-[#f1f1f3] ${selectMode ? "pl-2.5" : "pl-4"}`}
                 >
                   {selectMode && (
                     <Checkbox
@@ -273,12 +273,12 @@ export default function TagsPage() {
                     />
                   )}
                   <Link
-                    className="text-sm font-medium text-white hover:underline"
+                    className="text-sm font-medium text-foreground hover:underline"
                     to={`/tags/${tag.id}/images`}
                   >
                     {tag.name}
                   </Link>
-                  <Badge variant="secondary" className="rounded-full border border-white/8 bg-white/[0.05] px-2 text-xs font-normal text-muted-foreground">
+                  <Badge variant="secondary" className="rounded-full border border-border bg-[#f4f4f5] px-2 text-xs font-normal text-muted-foreground">
                     {tag.image_count ?? 0}
                   </Badge>
                   <div className="flex opacity-0 transition-opacity group-hover:opacity-100">

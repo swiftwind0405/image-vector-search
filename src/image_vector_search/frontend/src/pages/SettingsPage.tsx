@@ -118,7 +118,7 @@ export default function SettingsPage() {
   }
 
   if (isLoading || !data || folderIsLoading || !folderData) {
-    return <div className="rounded-[28px] border border-white/10 bg-card/75 p-6 text-sm text-muted-foreground">Loading settings…</div>;
+    return <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">Loading settings…</div>;
   }
 
   const handleToggleExclusion = (folder: string, checked: boolean) => {
@@ -147,11 +147,11 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[32px] border border-white/10 bg-card/80 p-6 shadow-curator backdrop-blur">
+      <section className="rounded-lg border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-primary/90">Settings</p>
-            <h3 className="text-2xl font-semibold tracking-tight text-white">Embedding Configuration</h3>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Settings</p>
+            <h3 className="text-lg font-semibold tracking-tight text-foreground">Embedding Configuration</h3>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
               Choose the active embedding provider and manage provider API keys without restarting the service.
             </p>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
         </div>
 
         {provider === "" && !data.jina_api_key_configured && !data.google_api_key_configured ? (
-          <div className="mt-6 rounded-3xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <div className="mt-6 rounded-lg border border-[#f5e6b4] bg-[#fef9ec] px-4 py-3 text-sm text-[#8a6400]">
             Embedding not configured
           </div>
         ) : null}
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 setProvider(event.target.value);
                 setProviderDirty(true);
               }}
-              className="flex h-11 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none"
+              className="flex h-11 w-full rounded-md border border-border bg-[#f9f9fa] px-3 text-sm text-foreground outline-none"
             >
               <option value="">Select provider</option>
               <option value="jina">jina</option>
@@ -188,8 +188,8 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] px-4 py-4">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Configured Keys</p>
+          <div className="rounded-lg border border-border bg-[#f9f9fa] px-4 py-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Configured Keys</p>
             <div className="mt-3 flex gap-2">
               {data.jina_api_key_configured ? <Badge>Configured</Badge> : <Badge variant="outline">Jina missing</Badge>}
               {data.google_api_key_configured ? <Badge>Configured</Badge> : <Badge variant="outline">Google missing</Badge>}
@@ -210,9 +210,9 @@ export default function SettingsPage() {
                 setJinaKey(event.target.value);
                 setJinaKeyDirty(true);
               }}
-              className={jinaEmpty ? "border-red-400" : ""}
+              className={jinaEmpty ? "border-[#e1534a]" : ""}
             />
-            {jinaEmpty ? <p className="text-sm text-red-300">API key cannot be empty</p> : null}
+            {jinaEmpty ? <p className="text-sm text-[#b42318]">API key cannot be empty</p> : null}
           </div>
 
           <div className="space-y-2">
@@ -227,9 +227,9 @@ export default function SettingsPage() {
                 setGoogleKey(event.target.value);
                 setGoogleKeyDirty(true);
               }}
-              className={googleEmpty ? "border-red-400" : ""}
+              className={googleEmpty ? "border-[#e1534a]" : ""}
             />
-            {googleEmpty ? <p className="text-sm text-red-300">API key cannot be empty</p> : null}
+            {googleEmpty ? <p className="text-sm text-[#b42318]">API key cannot be empty</p> : null}
           </div>
         </div>
 
@@ -245,16 +245,16 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-white/10 bg-card/80 p-6 shadow-curator backdrop-blur">
+      <section className="rounded-lg border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-primary/90">Indexing</p>
-            <h3 className="text-2xl font-semibold tracking-tight text-white">Excluded Folders</h3>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Indexing</p>
+            <h3 className="text-lg font-semibold tracking-tight text-foreground">Excluded Folders</h3>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Select folders to exclude from embedding and indexing. Note: Existing images in newly excluded folders will be marked as inactive on the next scan.
+              Select folders to exclude from embedding, indexing, browsing, search, and albums. Existing index data is preserved, so re-including a folder is instant.
             </p>
           </div>
-          <div className="rounded-2xl bg-primary/12 p-3 text-primary">
+          <div className="rounded-md bg-primary/12 p-3 text-primary">
             <FolderMinus className="h-5 w-5" />
           </div>
         </div>
@@ -269,13 +269,13 @@ export default function SettingsPage() {
                 return (
                   <label
                     key={folder}
-                    className="flex cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 pb-3 pt-3 text-sm transition-colors hover:bg-white/[0.06]"
+                    className="flex cursor-pointer items-center gap-3 overflow-hidden rounded-md border border-border bg-[#f9f9fa] px-4 py-3 pb-3 pt-3 text-sm transition-colors hover:bg-[#f1f1f3]"
                   >
                     <Checkbox
                       checked={checked}
                       onCheckedChange={(c) => handleToggleExclusion(folder, c === true)}
                     />
-                    <span className="min-w-0 flex-1 truncate text-white">{folder}</span>
+                    <span className="min-w-0 flex-1 truncate text-foreground">{folder}</span>
                   </label>
                 );
               })}

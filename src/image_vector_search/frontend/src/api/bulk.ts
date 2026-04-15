@@ -45,42 +45,6 @@ export function useBulkRemoveTag() {
   });
 }
 
-export function useBulkAddCategory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      content_hashes,
-      category_id,
-    }: {
-      content_hashes: string[];
-      category_id: number;
-    }) =>
-      apiFetch<BulkResponse>("/api/bulk/categories/add", {
-        method: "POST",
-        body: JSON.stringify({ content_hashes, category_id }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["images"] }),
-  });
-}
-
-export function useBulkRemoveCategory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      content_hashes,
-      category_id,
-    }: {
-      content_hashes: string[];
-      category_id: number;
-    }) =>
-      apiFetch<BulkResponse>("/api/bulk/categories/remove", {
-        method: "POST",
-        body: JSON.stringify({ content_hashes, category_id }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["images"] }),
-  });
-}
-
 export function useBulkFolderAddTag() {
   const qc = useQueryClient();
   return useMutation({
@@ -112,42 +76,6 @@ export function useBulkFolderRemoveTag() {
       apiFetch<BulkResponse>("/api/bulk/folder/tags/remove", {
         method: "POST",
         body: JSON.stringify({ folder, tag_id }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["images"] }),
-  });
-}
-
-export function useBulkFolderAddCategory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      folder,
-      category_id,
-    }: {
-      folder: string;
-      category_id: number;
-    }) =>
-      apiFetch<BulkResponse>("/api/bulk/folder/categories/add", {
-        method: "POST",
-        body: JSON.stringify({ folder, category_id }),
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["images"] }),
-  });
-}
-
-export function useBulkFolderRemoveCategory() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      folder,
-      category_id,
-    }: {
-      folder: string;
-      category_id: number;
-    }) =>
-      apiFetch<BulkResponse>("/api/bulk/folder/categories/remove", {
-        method: "POST",
-        body: JSON.stringify({ folder, category_id }),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["images"] }),
   });

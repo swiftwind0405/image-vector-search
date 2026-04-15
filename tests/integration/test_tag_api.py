@@ -123,56 +123,6 @@ class TestTagAPI:
         assert resp.status_code == 204
 
 
-class TestCategoryAPI:
-    @pytest.mark.anyio
-    async def test_create_and_get_tree(self, client):
-        resp = await client.post("/api/categories", json={"name": "Nature"})
-        assert resp.status_code == 201
-        parent_id = resp.json()["id"]
-        resp = await client.post("/api/categories", json={"name": "Flowers", "parent_id": parent_id})
-        assert resp.status_code == 201
-        resp = await client.get("/api/categories")
-        assert resp.status_code == 200
-        tree = resp.json()
-        assert len(tree) == 1
-        assert len(tree[0]["children"]) == 1
-
-    @pytest.mark.anyio
-    async def test_delete_category(self, client):
-        resp = await client.post("/api/categories", json={"name": "Nature"})
-        cat_id = resp.json()["id"]
-        resp = await client.delete(f"/api/categories/{cat_id}")
-        assert resp.status_code == 204
-
-    @pytest.mark.anyio
-    async def test_move_category_to_root(self, client):
-        resp = await client.post("/api/categories", json={"name": "Parent"})
-        parent_id = resp.json()["id"]
-        resp = await client.post("/api/categories", json={"name": "Child", "parent_id": parent_id})
-        child_id = resp.json()["id"]
-        resp = await client.put(f"/api/categories/{child_id}", json={"move_to_root": True})
-        assert resp.status_code == 200
-        resp = await client.get("/api/categories")
-        tree = resp.json()
-        root_names = {n["name"] for n in tree}
-        assert "Child" in root_names
-
-    @pytest.mark.anyio
-    async def test_move_category_to_new_parent(self, client):
-        resp = await client.post("/api/categories", json={"name": "A"})
-        a_id = resp.json()["id"]
-        resp = await client.post("/api/categories", json={"name": "B"})
-        b_id = resp.json()["id"]
-        resp = await client.post("/api/categories", json={"name": "Child", "parent_id": a_id})
-        child_id = resp.json()["id"]
-        resp = await client.put(f"/api/categories/{child_id}", json={"move_to_parent_id": b_id})
-        assert resp.status_code == 200
-        resp = await client.get(f"/api/categories/{b_id}/children")
-        children = resp.json()
-        assert len(children) == 1
-        assert children[0]["name"] == "Child"
-
-
 class TestFilteredImagesAPI:
     @pytest.mark.anyio
     async def test_list_images_filtered_by_tag(self, client):
@@ -184,36 +134,6 @@ class TestFilteredImagesAPI:
 
         assert response.status_code == 200
         assert [image["content_hash"] for image in response.json()["items"]] == ["aaa", "bbb"]
-
-    @pytest.mark.anyio
-    async def test_list_images_filtered_by_category_includes_descendants(self, client):
-        parent_id = (await client.post("/api/categories", json={"name": "Nature"})).json()["id"]
-        child_id = (
-            await client.post("/api/categories", json={"name": "Flowers", "parent_id": parent_id})
-        ).json()["id"]
-        await client.post("/api/images/aaa/categories", json={"category_id": parent_id})
-        await client.post("/api/images/bbb/categories", json={"category_id": child_id})
-
-        response = await client.get(f"/api/images?category_id={parent_id}")
-
-        assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa", "bbb"]
-
-    @pytest.mark.anyio
-    async def test_list_images_filtered_by_category_can_exclude_descendants(self, client):
-        parent_id = (await client.post("/api/categories", json={"name": "Nature"})).json()["id"]
-        child_id = (
-            await client.post("/api/categories", json={"name": "Flowers", "parent_id": parent_id})
-        ).json()["id"]
-        await client.post("/api/images/aaa/categories", json={"category_id": parent_id})
-        await client.post("/api/images/bbb/categories", json={"category_id": child_id})
-
-        response = await client.get(
-            f"/api/images?category_id={parent_id}&include_descendants=false"
-        )
-
-        assert response.status_code == 200
-        assert [image["content_hash"] for image in response.json()["items"]] == ["aaa"]
 
     @pytest.mark.anyio
     async def test_list_images_composes_tag_and_folder_filters(self, client):

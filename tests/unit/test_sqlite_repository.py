@@ -92,8 +92,13 @@ def test_initialize_schema_creates_core_tables(tmp_path):
 
 def test_initialize_schema_migrates_existing_images_embedding_status(tmp_path):
     db_path = tmp_path / "metadata.sqlite3"
-    repository = MetadataRepository(db_path)
-    with repository.connect() as connection:
+    with MetadataRepository(db_path).connect() as connection:
+        connection.execute("DROP TABLE image_tags")
+        connection.execute("DROP TABLE tags")
+        connection.execute("DROP TABLE image_paths")
+        connection.execute("DROP TABLE jobs")
+        connection.execute("DROP TABLE system_state")
+        connection.execute("DROP TABLE images")
         connection.executescript(
             """
             CREATE TABLE images (
@@ -166,7 +171,7 @@ def test_initialize_schema_migrates_existing_images_embedding_status(tmp_path):
             ),
         )
 
-    repository.initialize_schema()
+    repository = MetadataRepository(db_path)
     image = repository.get_image("legacy-hash")
 
     assert image is not None
@@ -532,13 +537,6 @@ class TestTaggingSchema:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tags'")
             assert cursor.fetchone() is not None
 
-    def test_categories_table_exists(self, tmp_path):
-        repo = MetadataRepository(tmp_path / "test.db")
-        repo.initialize_schema()
-        with repo.connect() as conn:
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'")
-            assert cursor.fetchone() is not None
-
     def test_image_tags_table_exists(self, tmp_path):
         repo = MetadataRepository(tmp_path / "test.db")
         repo.initialize_schema()
@@ -546,8 +544,7 @@ class TestTaggingSchema:
             cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='image_tags'")
             assert cursor.fetchone() is not None
 
-    def test_image_tags_check_constraint(self, tmp_path):
-        """Both tag_id and category_id NULL should fail."""
+    def test_image_tags_requires_tag_id(self, tmp_path):
         repo = MetadataRepository(tmp_path / "test.db")
         repo.initialize_schema()
         with repo.connect() as conn:
@@ -561,14 +558,14 @@ class TestTaggingSchema:
                     '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')
             """)
             conn.execute("""
-                INSERT INTO image_tags (content_hash, tag_id, category_id, created_at)
-                VALUES ('abc123', 1, NULL, '2026-01-01T00:00:00+00:00')
+                INSERT INTO image_tags (content_hash, tag_id, created_at)
+                VALUES ('abc123', 1, '2026-01-01T00:00:00+00:00')
             """)
             import sqlite3
             with pytest.raises(sqlite3.IntegrityError):
                 conn.execute("""
-                    INSERT INTO image_tags (content_hash, tag_id, category_id, created_at)
-                    VALUES ('abc123', NULL, NULL, '2026-01-01T00:00:00+00:00')
+                    INSERT INTO image_tags (content_hash, tag_id, created_at)
+                    VALUES ('abc123', NULL, '2026-01-01T00:00:00+00:00')
                 """)
 
 
@@ -618,92 +615,8 @@ class TestTagCRUD:
         assert repo.list_tags() == []
 
 
-class TestCategoryCRUD:
-    def _make_repo(self, tmp_path):
-        repo = MetadataRepository(tmp_path / "test.db")
-        repo.initialize_schema()
-        return repo
-
-    def test_create_root_category(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        cat = repo.create_category("Nature")
-        assert cat.name == "Nature"
-        assert cat.parent_id is None
-
-    def test_create_child_category(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        parent = repo.create_category("Nature")
-        child = repo.create_category("Flowers", parent_id=parent.id)
-        assert child.parent_id == parent.id
-
-    def test_duplicate_name_under_same_parent_raises(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        repo.create_category("Nature")
-        import sqlite3
-        with pytest.raises(sqlite3.IntegrityError):
-            repo.create_category("Nature")
-
-    def test_same_name_different_parent_ok(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        p1 = repo.create_category("Work")
-        p2 = repo.create_category("Personal")
-        repo.create_category("Photos", parent_id=p1.id)
-        repo.create_category("Photos", parent_id=p2.id)
-
-    def test_list_categories_root(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        repo.create_category("Nature")
-        repo.create_category("Work")
-        cats = repo.list_categories(parent_id=None)
-        assert len(cats) == 2
-
-    def test_list_categories_children(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        parent = repo.create_category("Nature")
-        repo.create_category("Flowers", parent_id=parent.id)
-        repo.create_category("Mountains", parent_id=parent.id)
-        children = repo.list_categories(parent_id=parent.id)
-        assert len(children) == 2
-
-    def test_get_category_tree(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        nature = repo.create_category("Nature")
-        repo.create_category("Flowers", parent_id=nature.id)
-        work = repo.create_category("Work")
-        tree = repo.get_category_tree()
-        assert len(tree) == 2
-        nature_node = next(n for n in tree if n.name == "Nature")
-        assert len(nature_node.children) == 1
-        work_node = next(n for n in tree if n.name == "Work")
-        assert len(work_node.children) == 0
-
-    def test_rename_category(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        cat = repo.create_category("Nature")
-        repo.rename_category(cat.id, "Outdoors")
-        cats = repo.list_categories()
-        assert cats[0].name == "Outdoors"
-
-    def test_move_category(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        a = repo.create_category("A")
-        b = repo.create_category("B")
-        child = repo.create_category("Child", parent_id=a.id)
-        repo.move_category(child.id, b.id)
-        children_of_b = repo.list_categories(parent_id=b.id)
-        assert len(children_of_b) == 1
-        assert children_of_b[0].name == "Child"
-
-    def test_delete_category_cascades_children(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        parent = repo.create_category("Nature")
-        repo.create_category("Flowers", parent_id=parent.id)
-        repo.delete_category(parent.id)
-        assert repo.list_categories() == []
-
-
 class TestImageAssociations:
-    """Tests for adding/removing tags and categories to images, plus filter queries."""
+    """Tests for adding/removing tags to images, plus filter queries."""
 
     def _make_repo(self, tmp_path):
         repo = MetadataRepository(tmp_path / "test.db")
@@ -739,23 +652,6 @@ class TestImageAssociations:
         repo.remove_tag_from_image("abc123", tag.id)
         assert repo.get_image_tags("abc123") == []
 
-    def test_add_and_get_image_categories(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        self._insert_image(repo)
-        cat = repo.create_category("Nature")
-        repo.add_image_to_category("abc123", cat.id)
-        cats = repo.get_image_categories("abc123")
-        assert len(cats) == 1
-        assert cats[0].name == "Nature"
-
-    def test_remove_image_from_category(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        self._insert_image(repo)
-        cat = repo.create_category("Nature")
-        repo.add_image_to_category("abc123", cat.id)
-        repo.remove_image_from_category("abc123", cat.id)
-        assert repo.get_image_categories("abc123") == []
-
     def test_filter_by_tags_all_match(self, tmp_path):
         repo = self._make_repo(tmp_path)
         self._insert_image(repo, "img1")
@@ -766,28 +662,6 @@ class TestImageAssociations:
         repo.add_tag_to_image("img1", t2.id)
         repo.add_tag_to_image("img2", t1.id)  # only red, not large
         result = repo.filter_by_tags([t1.id, t2.id])
-        assert result == {"img1"}
-
-    def test_filter_by_category_with_subcategories(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        self._insert_image(repo, "img1")
-        self._insert_image(repo, "img2")
-        parent = repo.create_category("Nature")
-        child = repo.create_category("Flowers", parent_id=parent.id)
-        repo.add_image_to_category("img1", parent.id)
-        repo.add_image_to_category("img2", child.id)
-        result = repo.filter_by_category(parent.id, include_subcategories=True)
-        assert result == {"img1", "img2"}
-
-    def test_filter_by_category_without_subcategories(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        self._insert_image(repo, "img1")
-        self._insert_image(repo, "img2")
-        parent = repo.create_category("Nature")
-        child = repo.create_category("Flowers", parent_id=parent.id)
-        repo.add_image_to_category("img1", parent.id)
-        repo.add_image_to_category("img2", child.id)
-        result = repo.filter_by_category(parent.id, include_subcategories=False)
         assert result == {"img1"}
 
     def test_batch_get_tags_for_images(self, tmp_path):
@@ -802,12 +676,3 @@ class TestImageAssociations:
         assert len(result["img1"]) == 1
         assert result["img1"][0].name == "red"
         assert result["img2"][0].name == "blue"
-
-    def test_batch_get_categories_for_images(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        self._insert_image(repo, "img1")
-        cat = repo.create_category("Nature")
-        repo.add_image_to_category("img1", cat.id)
-        result = repo.get_categories_for_images(["img1", "img2"])
-        assert len(result["img1"]) == 1
-        assert result.get("img2", []) == []

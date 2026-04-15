@@ -32,8 +32,6 @@ class SearchService:
         top_k: int,
         min_score: float,
         tag_ids: list[int] | None = None,
-        category_id: int | None = None,
-        include_subcategories: bool = True,
     ) -> list[SearchResult]:
         logger.info(
             "Text search: query=%r, top_k=%d, min_score=%.2f, folder=%s",
@@ -42,11 +40,7 @@ class SearchService:
             min_score,
             folder,
         )
-        content_hash_filter = self._build_content_hash_filter(
-            tag_ids=tag_ids,
-            category_id=category_id,
-            include_subcategories=include_subcategories,
-        )
+        content_hash_filter = self._build_content_hash_filter(tag_ids=tag_ids)
         if content_hash_filter is not None and not content_hash_filter:
             logger.debug("Text search: empty content_hash_filter, returning no results")
             return []
@@ -79,8 +73,6 @@ class SearchService:
         min_score: float,
         folder: str | None,
         tag_ids: list[int] | None = None,
-        category_id: int | None = None,
-        include_subcategories: bool = True,
     ) -> list[SearchResult]:
         logger.info(
             "Image similarity search: path=%s, top_k=%d, min_score=%.2f, folder=%s",
@@ -95,11 +87,7 @@ class SearchService:
             raise FileNotFoundError(query_path)
         to_container_path(query_path, self.settings.images_root)
 
-        content_hash_filter = self._build_content_hash_filter(
-            tag_ids=tag_ids,
-            category_id=category_id,
-            include_subcategories=include_subcategories,
-        )
+        content_hash_filter = self._build_content_hash_filter(tag_ids=tag_ids)
         if content_hash_filter is not None and not content_hash_filter:
             logger.debug("Image similarity search: empty content_hash_filter, returning no results")
             return []
@@ -143,6 +131,7 @@ class SearchService:
         exclude_content_hash: str | None = None,
     ) -> list[SearchResult]:
         folder_path = Path(folder).resolve() if folder else None
+        excluded_prefixes = self._excluded_path_prefixes()
         results: list[SearchResult] = []
 
         for raw_result in raw_results:
@@ -161,6 +150,10 @@ class SearchService:
                 image.canonical_path, folder_path
             ):
                 continue
+            if any(
+                image.canonical_path.startswith(prefix) for prefix in excluded_prefixes
+            ):
+                continue
 
             results.append(self._to_search_result(image, score))
             if len(results) >= top_k:
@@ -168,34 +161,35 @@ class SearchService:
 
         return results
 
+    def _excluded_path_prefixes(self) -> list[str]:
+        folders = self.repository.get_excluded_folders()
+        if not folders:
+            return []
+        base = str(Path(self.settings.images_root).resolve()).rstrip("/")
+        prefixes: list[str] = []
+        for folder in folders:
+            normalized = folder.strip("/")
+            if not normalized:
+                continue
+            prefixes.append(f"{base}/{normalized}/")
+        return prefixes
+
     def _build_content_hash_filter(
         self,
         *,
         tag_ids: list[int] | None,
-        category_id: int | None,
-        include_subcategories: bool,
     ) -> set[str] | None:
-        if not tag_ids and category_id is None:
+        if not tag_ids:
             return None
-        sets: list[set[str]] = []
-        if tag_ids:
-            sets.append(self.repository.filter_by_tags(tag_ids))
-        if category_id is not None:
-            sets.append(self.repository.filter_by_category(category_id, include_subcategories))
-        content_hash_filter = sets[0]
-        for s in sets[1:]:
-            content_hash_filter &= s
-        return content_hash_filter
+        return self.repository.filter_by_tags(tag_ids)
 
     def _enrich_results(self, results: list[SearchResult]) -> None:
         if not results:
             return
         hashes = [r.content_hash for r in results]
         tags_map = self.repository.get_tags_for_images(hashes)
-        cats_map = self.repository.get_categories_for_images(hashes)
-        for r in results:
-            r.tags = tags_map.get(r.content_hash, [])
-            r.categories = cats_map.get(r.content_hash, [])
+        for result in results:
+            result.tags = tags_map.get(result.content_hash, [])
 
     def _candidate_limit(self, top_k: int) -> int:
         return min(max(top_k * 5, 20), 200)

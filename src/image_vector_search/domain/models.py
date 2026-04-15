@@ -19,26 +19,6 @@ class Tag(BaseModel):
     image_count: int | None = None
 
 
-class Category(BaseModel):
-    id: int
-    name: str
-    parent_id: int | None
-    sort_order: int
-    created_at: datetime
-
-
-class CategoryNode(BaseModel):
-    """Category with children, for tree responses."""
-
-    id: int
-    name: str
-    parent_id: int | None
-    sort_order: int
-    created_at: datetime
-    children: list["CategoryNode"] = []
-    image_count: int | None = None
-
-
 class Album(BaseModel):
     id: int
     name: str
@@ -69,7 +49,6 @@ class SearchResult(BaseModel):
     height: int
     mime_type: str
     tags: list[Tag] = []
-    categories: list[Category] = []
 
 
 class JobRecord(BaseModel):
@@ -103,7 +82,6 @@ class ImageRecord(BaseModel):
 
 class ImageRecordWithLabels(ImageRecord):
     tags: list[Tag] = []
-    categories: list[Category] = []
 
 
 class ImagePathRecord(BaseModel):

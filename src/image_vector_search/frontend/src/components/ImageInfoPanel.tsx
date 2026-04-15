@@ -82,7 +82,7 @@ export default function ImageInfoPanel({ image }: Props) {
         </div>
       </div>
 
-      {/* Section 2: Properties (Tags & Categories) */}
+      {/* Section 2: Properties */}
       <div>
         <div className="px-4 pt-4">
           <SectionLabel>Properties</SectionLabel>

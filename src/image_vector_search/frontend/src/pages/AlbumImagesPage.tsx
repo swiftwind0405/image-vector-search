@@ -100,12 +100,12 @@ export default function AlbumImagesPage() {
         </Link>
       </div>
 
-      <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+      <Card className="rounded-lg border-border bg-card">
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-xl text-white">{currentAlbum.name}</CardTitle>
-              <Badge className="border-white/10 bg-white/[0.08] text-white">
+              <CardTitle className="text-xl text-foreground">{currentAlbum.name}</CardTitle>
+              <Badge className="border-border bg-[#f1f1f3] text-foreground">
                 {currentAlbum.type === "manual" ? "Manual" : "Smart"}
               </Badge>
               {currentAlbum.rule_logic && (
@@ -119,10 +119,10 @@ export default function AlbumImagesPage() {
             )}
             {currentAlbum.type === "smart" && (
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="border-white/10 bg-white/[0.08] text-white">
+                <Badge variant="secondary" className="border-border bg-[#f1f1f3] text-foreground">
                   {displayedRules.length} rules
                 </Badge>
-                <Badge variant="secondary" className="border-white/10 bg-white/[0.08] text-white">
+                <Badge variant="secondary" className="border-border bg-[#f1f1f3] text-foreground">
                   {displayedSourcePaths.length} source paths
                 </Badge>
               </div>
@@ -146,9 +146,9 @@ export default function AlbumImagesPage() {
       </Card>
 
       {currentAlbum.type === "manual" && (
-        <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+        <Card className="rounded-lg border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base text-white">Manage images</CardTitle>
+            <CardTitle className="text-base text-foreground">Manage images</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 md:flex-row">
             <Input
@@ -161,10 +161,10 @@ export default function AlbumImagesPage() {
         </Card>
       )}
 
-      <Card className="rounded-[32px] border-white/10 bg-card/72 shadow-curator">
+      <Card className="rounded-lg border-border bg-card">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base text-white">Images</CardTitle>
-          <Badge variant="secondary" className="border-white/10 bg-white/[0.08] text-white">
+          <CardTitle className="text-base text-foreground">Images</CardTitle>
+          <Badge variant="secondary" className="border-border bg-[#f1f1f3] text-foreground">
             {currentAlbum.image_count ?? images.length} total
           </Badge>
         </CardHeader>
@@ -176,7 +176,7 @@ export default function AlbumImagesPage() {
             renderAction={(image) =>
               currentAlbum.type === "manual" ? (
                 <button
-                  className="rounded-full border border-white/15 bg-black/60 p-2 text-white"
+                  className="rounded-full border-0 bg-black/60 p-2 text-white hover:bg-black/80"
                   onClick={(event) => {
                     event.stopPropagation();
                     removeImages.mutate(
